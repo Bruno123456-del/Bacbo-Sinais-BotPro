@@ -10,195 +10,176 @@ from telegram.error import BadRequest
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = "https://lkwn.cc/f1c1c45a" # URL principal para cadastro
-URL_BONUS = os.getenv("URL_BONUS", URL_CADASTRO ) # URL para o comando /bonus
+URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
 
-# --- 2. BANCO DE MENSAGENS ---
+# --- 2. BANCO DE MÍDIA E MENSAGENS DE LUXO ---
 
-# Mensagem para ser fixada no início
+# >> GIFs (pode trocar os links por outros de sua preferência )
+GIF_ANALISE = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
+GIF_WIN = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif"
+GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
+
+# >> Mensagens
 mensagem_fixada_texto = f"""
-🎰 *Bem-vindo aos SINAIS 1WIN - BAC BO VIP*
+💎 *BEM-VINDO À SALA VIP - BAC BO DE ELITE* 💎
 
-📢 Estamos usando a *melhor plataforma do momento*, com os *maiores bônus* e um *algoritmo 100% alinhado com nossa estratégia*.
+Prezado(a ) investidor(a),
 
-✅ Para garantir que você tenha os mesmos resultados que a gente:
+Para garantir uma experiência de alta performance e resultados sincronizados com nossos analistas, é *essencial* que você opere na mesma plataforma que utilizamos.
 
-1️⃣ *Cadastre-se pela plataforma correta:*
-👉 {URL_CADASTRO}
+Nossos algoritmos são calibrados para a **1WIN**.
 
-2️⃣ *Deposite para liberar os bônus*
+1️⃣ **PASSO 1: CADASTRO ESTRATÉGICO**
+   Clique no link abaixo para criar sua conta e alinhar-se à nossa frequência operacional.
+   👉 {URL_CADASTRO}
 
-🔐 Usar outro site pode gerar sinais diferentes!
+2️⃣ **PASSO 2: ATIVAÇÃO DE BÔNUS**
+   Realize um depósito inicial para ativar os bônus de boas-vindas e estar pronto para as operações.
 
-🎯 *Jogue junto, ganhe junto!*
+⚠️ *Operar em outra plataforma resultará em divergência de resultados.*
+
+*Invista com inteligência. Jogue junto, ganhe junto.*
 """
 
-# Mensagens de reforço para depois de um WIN
 reforco_pos_win = [
-    f"""
-🔔 Ainda não está usando a mesma plataforma que a gente?
-
-🎰 Cadastre-se aqui 👉 {URL_CADASTRO}
-🎁 Ganhe bônus + sinais sincronizados com nosso algoritmo!
-
-💡 Nosso bot é otimizado para a 1win – outras plataformas NÃO batem!
-""",
-    f"""
-🎯 Green confirmado!
-
-🔁 Use sempre a mesma plataforma para sincronizar com a nossa estratégia.
-👉 {URL_CADASTRO}
-"""
+    f"✅ Sincronia perfeita! É por isso que operamos na **1WIN**. Se você ainda não está lá, a hora é agora 👉 {URL_CADASTRO}",
+    f"🚀 Mais um resultado positivo! Nossos sinais são otimizados para a plataforma certa. Cadastre-se e comprove 👉 {URL_CADASTRO}"
 ]
 
-# Mensagem automática a cada 6 horas
 mensagem_automatica_recorrente = f"""
-⏱️ *Dica do dia:*
+🔔 *LEMBRETE DE PERFORMANCE* 🔔
 
-Se você ainda não se cadastrou na 1win pelo nosso link, aproveite AGORA!
+Resultados consistentes exigem as ferramentas certas. Nossa estratégia é 100% compatível com a **1WIN**.
 
-🎰 Plataforma 100% compatível com nossos sinais
-🎁 Bônus de boas-vindas pra novos jogadores
-📊 Resultados melhores com nosso algoritmo exclusivo
+Não perca mais tempo com plataformas não sincronizadas.
 
-🎯 Link para cadastro: {URL_CADASTRO}
+🔗 **Garanta sua vaga e bônus:** {URL_CADASTRO}
+
+*A sorte favorece os bem preparados.*
 """
 
-# Frases variadas para os sinais (mantidas da versão anterior)
-frases_analise = ["🔎 Analisando os padrões...", "📈 Processando as últimas jogadas...", "🧠 I.A. em ação, buscando a melhor oportunidade..."]
-frases_sinal_header = ["💎 **SINAL DE ELITE CONFIRMADO** 💎", "🔥 **OPORTUNIDADE IDENTIFICADA** 🔥", "🎯 **ENTRADA DE ALTA PRECISÃO** 🎯"]
-frases_sinal_footer = ["📲 Fique atento ao resultado!", "📊 Opere com gestão e disciplina.", "🍀 Boa sorte!"]
-
 # --- 3. CONFIGURAÇÃO DOS SINAIS E GESTÃO ---
-sinais_config = [{"aposta": "Banker (Azul) 🔵", "estrategia": "Tendência"}, {"aposta": "Player (Vermelho) 🔴", "estrategia": "Quebra de Padrão"}]
+sinais_config = [{"aposta": "Banker (Azul) 🔵", "estrategia": "Tendência de Cores"}, {"aposta": "Player (Vermelho) 🔴", "estrategia": "Quebra de Padrão"}]
 CHANCE_WIN_ENTRADA_INICIAL = 0.70
 CHANCE_WIN_GALE_1 = 0.80
 CHANCE_WIN_GALE_2 = 0.90
 
 # --- 4. FUNÇÕES DO BOT ---
 
-async def enviar_e_fixar_mensagem_inicial(bot: Bot):
-    """Envia a mensagem de boas-vindas e a fixa no canal."""
-    try:
-        msg = await bot.send_message(chat_id=CHAT_ID, text=mensagem_fixada_texto, parse_mode='Markdown', disable_web_page_preview=True)
-        await bot.pin_chat_message(chat_id=CHAT_ID, message_id=msg.message_id)
-        print("Mensagem inicial enviada e fixada no canal.")
-    except BadRequest as e:
-        if "message to pin not found" in e.message:
-            print("A mensagem já foi enviada e talvez deletada. Não foi possível fixar.")
-        else:
-            print(f"Erro ao enviar/fixar mensagem inicial: {e}")
-    except Exception as e:
-        print(f"Erro inesperado ao enviar/fixar mensagem: {e}")
-
-async def enviar_mensagem_recorrente(bot: Bot):
-    """Envia a mensagem automática a cada 6 horas."""
-    while True:
-        await asyncio.sleep(21600) # 6 horas = 21600 segundos
-        try:
-            await bot.send_message(chat_id=CHAT_ID, text=mensagem_automatica_recorrente, parse_mode='Markdown', disable_web_page_preview=True)
-            print("Mensagem automática recorrente enviada.")
-        except Exception as e:
-            print(f"Erro ao enviar mensagem recorrente: {e}")
-
 async def simular_e_enviar_sinal(bot: Bot):
-    """Ciclo completo: analisa, envia sinal e gerencia os resultados com gales."""
+    """Ciclo completo de um sinal, com estética de luxo."""
     config = random.choice(sinais_config)
-    await bot.send_message(chat_id=CHAT_ID, text=random.choice(frases_analise))
-    await asyncio.sleep(random.randint(5, 15))
+    
+    # ETAPA 1: ANÁLISE (com GIF)
+    msg_analise = await bot.send_animation(
+        chat_id=CHAT_ID,
+        animation=GIF_ANALISE,
+        caption="""
+        📡 **Conectando aos nossos servidores...**
+        
+        Nossos analistas e I.A. estão em busca de uma entrada de alta probabilidade.
+        
+        *Aguarde, a oportunidade perfeita está sendo lapidada.*
+        """
+    )
+    await asyncio.sleep(random.randint(10, 20))
+    
+    # ETAPA 2: SINAL (com botão integrado)
+    botao_plataforma = InlineKeyboardButton(text="💎 ENTRAR NA PLATAFORMA 💎", url=URL_CADASTRO)
+    teclado_sinal = InlineKeyboardMarkup([[botao_plataforma]])
+    
+    mensagem_sinal = (
+        f"**🔥 OPORTUNIDADE DE ENTRADA DETECTADA 🔥**\n\n"
+        f"▪️ **Ativo:** `BAC BO`\n"
+        f"▪️ **Direção:** `{config['aposta']}`\n"
+        f"▪️ **Estratégia:** `{config['estrategia']}`\n\n"
+        f"**PLANO DE AÇÃO:**\n"
+        f"1️⃣ **Entrada Principal:** `Meta de +4%`\n"
+        f"2️⃣ **Proteção 1 (Gale):** `Se necessário`\n"
+        f"3️⃣ **Proteção 2 (Gale):** `Se necessário`\n\n"
+        f"🚨 *Opere com precisão. Siga a gestão.*"
+    )
+    
+    await msg_analise.delete() # Deleta a mensagem de análise para manter o canal limpo
+    msg_sinal_enviada = await bot.send_message(chat_id=CHAT_ID, text=mensagem_sinal, parse_mode='Markdown', reply_markup=teclado_sinal)
+    
+    await asyncio.sleep(120) # Espera 2 minutos
 
-    mensagem_sinal = (f"{random.choice(frases_sinal_header)}\n\n"
-                      f"👇 Apostar em: **{config['aposta']}**\n"
-                      f"📈 Estratégia: *{config['estrategia']}*\n\n"
-                      f"1️⃣ **Entrada Inicial** (Meta: +4%)\n"
-                      f"2️⃣ **Gale 1** (Se necessário)\n"
-                      f"3️⃣ **Gale 2** (Se necessário)\n\n"
-                      f"{random.choice(frases_sinal_footer)}")
-    msg_sinal_enviada = await bot.send_message(chat_id=CHAT_ID, text=mensagem_sinal, parse_mode='Markdown')
-    print(f"Sinal enviado: {config['aposta']}")
-    await asyncio.sleep(120)
-
-    # Lógica de Resultados com Gales
+    # ETAPA 3: RESULTADO (com GIF)
     # Tentativa 1: WIN
     if random.random() < CHANCE_WIN_ENTRADA_INICIAL:
-        resultado_msg = "✅ **WIN DE PRIMEIRA!** ✅\n\n💰 **LUCRO: +4% DA BANCA**"
-        await bot.send_message(chat_id=CHAT_ID, text=resultado_msg, reply_to_message_id=msg_sinal_enviada.message_id, parse_mode='Markdown')
-        await asyncio.sleep(5) # Pequena pausa antes do reforço
+        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN, caption="✅ **WIN NA ENTRADA PRINCIPAL!**\n\n💰 **LUCRO ALCANÇADO: +4%**\n\n*A precisão é a nossa marca. Parabéns a todos!*")
+        await asyncio.sleep(10)
         await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown', disable_web_page_preview=True)
         return
 
     # Tentativa 2: GALE 1
-    await bot.send_message(chat_id=CHAT_ID, text="🔁 **ATENÇÃO!** Vamos para o **GALE 1**.", reply_to_message_id=msg_sinal_enviada.message_id)
+    await bot.send_message(chat_id=CHAT_ID, text="⚠️ **Atenção:** Ativando primeira proteção. Entrando no **GALE 1**.", reply_to_message_id=msg_sinal_enviada.message_id)
     await asyncio.sleep(120)
     if random.random() < CHANCE_WIN_GALE_1:
-        resultado_msg = "✅ **WIN NO GALE 1!** ✅\n\n💰 **LUCRO: +4% LÍQUIDO (META +8%)**"
-        await bot.send_message(chat_id=CHAT_ID, text=resultado_msg, reply_to_message_id=msg_sinal_enviada.message_id, parse_mode='Markdown')
-        await asyncio.sleep(5)
+        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN, caption="✅ **WIN NO GALE 1!**\n\n💰 **LUCRO TOTAL: +8%**\n\n*Gestão de risco executada com perfeição. Meta batida!*")
+        await asyncio.sleep(10)
         await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown', disable_web_page_preview=True)
         return
 
     # Tentativa 3: GALE 2
-    await bot.send_message(chat_id=CHAT_ID, text="🔁 **ÚLTIMA PROTEÇÃO!** Vamos para o **GALE 2**.", reply_to_message_id=msg_sinal_enviada.message_id)
+    await bot.send_message(chat_id=CHAT_ID, text="⚠️ **Atenção:** Ativando proteção máxima. Entrando no **GALE 2**.", reply_to_message_id=msg_sinal_enviada.message_id)
     await asyncio.sleep(120)
     if random.random() < CHANCE_WIN_GALE_2:
-        resultado_msg = "✅ **WIN NO GALE 2!** ✅\n\n💰 **LUCRO: +4% LÍQUIDO (META +16%)**"
-        await bot.send_message(chat_id=CHAT_ID, text=resultado_msg, reply_to_message_id=msg_sinal_enviada.message_id, parse_mode='Markdown')
-        await asyncio.sleep(5)
+        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN, caption="✅ **WIN NO GALE 2!**\n\n💰 **LUCRO TOTAL: +16%**\n\n*A persistência e a estratégia nos levaram à vitória!*")
+        await asyncio.sleep(10)
         await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown', disable_web_page_preview=True)
     else:
-        resultado_msg = "❌ **RED!** ❌\n\n⛔️ **STOP LOSS ATINGIDO.** Respeite a gestão."
-        await bot.send_message(chat_id=CHAT_ID, text=resultado_msg, reply_to_message_id=msg_sinal_enviada.message_id, parse_mode='Markdown')
+        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_RED, caption="❌ **STOP LOSS**\n\n*O mercado não se moveu a nosso favor. Encerramos esta operação para proteger nosso capital. Disciplina é a chave do sucesso a longo prazo. Voltamos em breve.*")
+
+# --- Funções de Ciclo e Comandos (sem grandes alterações na lógica) ---
 
 async def ciclo_de_sinais(bot: Bot):
-    """Mantém o bot enviando sinais em intervalos regulares."""
     while True:
         await simular_e_enviar_sinal(bot)
-        intervalo = random.randint(600, 900)
-        print(f"Aguardando {intervalo // 60} minutos para o próximo sinal.")
+        intervalo = random.randint(900, 1800) # Intervalo maior para dar um ar mais "exclusivo"
+        print(f"Aguardando {intervalo // 60} minutos para o próximo ciclo de sinal.")
         await asyncio.sleep(intervalo)
 
-# --- Comandos (/gestao, /bonus) ---
 async def gestao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # (O código da função gestao, que é bem longa, pode ser mantido aqui como na versão anterior)
-    await update.message.reply_text("Aqui vai a mensagem de gestão completa...", parse_mode='Markdown')
-
-async def bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = "Clique no botão abaixo para pegar seu bônus exclusivo! 🎁"
-    botao = InlineKeyboardButton(text="Pegar Bônus Agora!", url=URL_BONUS)
-    teclado = InlineKeyboardMarkup([[botao]])
-    await update.message.reply_text(text=texto, reply_markup=teclado)
+    # (Pode colocar aqui a mensagem de gestão completa)
+    await update.message.reply_text("Protocolo de Gestão Avançada...", parse_mode='Markdown')
 
 # --- 5. FUNÇÃO PRINCIPAL ---
 async def main():
-    """Configura e inicia todas as tarefas do bot."""
-    print("Iniciando o bot profissional com marketing...")
+    print("Iniciando Bot BAC BO - Versão de Luxo...")
     application = Application.builder().token(TOKEN).build()
     
-    # Adiciona os comandos que os usuários podem chamar
     application.add_handler(CommandHandler("gestao", gestao))
-    application.add_handler(CommandHandler("bonus", bonus))
     
-    # Inicializa o bot
     await application.initialize()
     await application.start()
     await application.updater.start_polling()
-    print("Bot em execução.")
+    print("Bot em plena operação.")
 
-    # --- Inicia as tarefas automáticas ---
-    # 1. Envia e fixa a mensagem de boas-vindas (só uma vez)
-    asyncio.create_task(enviar_e_fixar_mensagem_inicial(application.bot))
-    
-    # 2. Inicia o ciclo de envio de sinais
-    asyncio.create_task(ciclo_de_sinais(application.bot))
-    
-    # 3. Inicia o ciclo de mensagens automáticas de marketing
-    asyncio.create_task(enviar_mensagem_recorrente(application.bot))
+    bot = application.bot
+    asyncio.create_task(enviar_e_fixar_mensagem_inicial(bot))
+    asyncio.create_task(ciclo_de_sinais(bot))
+    asyncio.create_task(enviar_mensagem_recorrente(bot))
 
-    print("Todas as tarefas automáticas foram agendadas.")
-
-    # Mantém o script principal rodando
+    print("Todas as tarefas automáticas de elite foram agendadas.")
     while True:
         await asyncio.sleep(3600)
+
+# (Funções auxiliares como enviar_e_fixar_mensagem_inicial e enviar_mensagem_recorrente são mantidas)
+async def enviar_e_fixar_mensagem_inicial(bot: Bot):
+    try:
+        msg = await bot.send_message(chat_id=CHAT_ID, text=mensagem_fixada_texto, parse_mode='Markdown', disable_web_page_preview=True)
+        await bot.pin_chat_message(chat_id=CHAT_ID, message_id=msg.message_id)
+    except Exception as e: print(f"Erro ao fixar msg: {e}")
+
+async def enviar_mensagem_recorrente(bot: Bot):
+    while True:
+        await asyncio.sleep(21600)
+        try:
+            await bot.send_message(chat_id=CHAT_ID, text=mensagem_automatica_recorrente, parse_mode='Markdown', disable_web_page_preview=True)
+        except Exception as e: print(f"Erro na msg recorrente: {e}")
+
 
 if __name__ == '__main__':
     try:
