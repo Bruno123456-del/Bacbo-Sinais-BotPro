@@ -1,85 +1,66 @@
 import os
 import asyncio
 from dotenv import load_dotenv
-from telegram import Bot
-from telegram.ext import Application, CommandHandler
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+URL_BONUS = os.getenv("URL_BONUS", "https://seusite.com/bonus" ) # URL padrão
 
-# Lista de sinais simulados
+# Lista de sinais
 sinais = [
-    "🎲 SINAL BAC BO:\n🔁 Estratégia: Dupla Chance\n🕐 Entrada confirmada!",
-    "🎲 SINAL BAC BO:\n🎯 Jogue no ALTO 🔺\n💰 Gestão: 2% da banca",
-    "🎲 SINAL BAC BO:\n⚠️ Aposte no PARES\n📊 Probabilidade alta!",
-    "🎲 SINAL BAC BO:\n🎯 Estratégia: G1 em ALTO 🔼",
-    "🎲 BAC BO SINAL:\n🧠 Estatística indica BAIXO 🔻\n🚨 Gestão conservadora!"
+    "🎲 SINAL BAC BO: Estratégia Dupla Chance 🔁. Entrada confirmada!",
+    "🎲 SINAL BAC BO: Jogue no ALTO 🔺. Gestão: 2% da banca.",
+    "🎲 SINAL BAC BO: Aposte no PARES ⚠️. Probabilidade alta!",
+    "🎲 SINAL BAC BO: Estratégia G1 em ALTO 🔼.",
+    "🎲 SINAL BAC BO: Estatística indica BAIXO 🔻. Gestão conservadora!"
 ]
 
-# A função para enviar sinais agora deve ser 'async'
-async def enviar_sinais_automaticos(bot: Bot):
-    """Envia um sinal da lista a cada 10 minutos."""
+# Envia sinais automaticamente
+async def enviar_sinais(bot: Bot):
     index = 0
     while True:
         sinal = sinais[index % len(sinais)]
         try:
-            # A chamada de envio de mensagem agora precisa de 'await'
             await bot.send_message(chat_id=CHAT_ID, text=sinal)
-            print(f"Sinal enviado: {sinal.splitlines()[0]}") # Log para o console
+            print(f"Sinal enviado para o chat {CHAT_ID}")
         except Exception as e:
-            print(f"Erro ao enviar sinal: {e}") # Log de erro
+            print(f"Erro ao enviar sinal: {e}")
         
         index += 1
-        # 'asyncio.sleep' substitui 'time.sleep' em código assíncrono
-        await asyncio.sleep(600) # 600 segundos = 10 minutos
+        await asyncio.sleep(600) # Pausa de 10 minutos
 
-# O handler do comando /start também deve ser 'async'
-async def start(update, context):
-    """Handler para o comando /start."""
-    # 'await' é necessário para enviar a mensagem
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="👋 Bem-vindo ao canal de sinais BAC BO!"
-    )
+# Comando /bonus com botão
+async def bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = "Clique no botão abaixo para pegar seu bônus exclusivo! 🎁"
+    botao = InlineKeyboardButton(text="Pegar Bônus Agora!", url=URL_BONUS)
+    teclado = InlineKeyboardMarkup([[botao]])
+    await update.message.reply_text(text=texto, reply_markup=teclado)
 
-# A função principal agora é 'async'
+# Função principal
 async def main():
-    """Função principal que configura e inicia o bot."""
-    # A classe Bot é usada para o envio automático de sinais
-    bot = Bot(token=TOKEN)
-
-    # ApplicationBuilder substitui o Updater
+    print("Iniciando o bot...")
     application = Application.builder().token(TOKEN).build()
-
-    # Adiciona o handler para o comando /start
-    application.add_handler(CommandHandler("start", start))
-
-    # Inicia a tarefa de envio de sinais em background
-    # asyncio.create_task é a forma moderna de rodar tarefas concorrentes
-    asyncio.create_task(enviar_sinais_automaticos(bot))
-
-    # Inicia o bot (non-blocking)
+    application.add_handler(CommandHandler("bonus", bonus))
+    
     await application.initialize()
     await application.start()
-    
-    print("Bot iniciado e rodando...")
-
-    # Mantém o bot rodando
     await application.updater.start_polling()
-    
-    # Para manter o programa principal rodando para sempre
-    # você pode usar um loop infinito com um sleep.
-    while True:
-        await asyncio.sleep(3600) # Dorme por 1 hora, mas a tarefa de sinais continua rodando a cada 10 min
+    print("Bot em execução.")
 
+    asyncio.create_task(enviar_sinais(application.bot))
+    print(f"Envio de sinais para o chat {CHAT_ID} agendado.")
+
+    # Mantém o script rodando
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == '__main__':
-    # 'asyncio.run' é usado para executar a função principal assíncrona
     try:
         asyncio.run(main())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         print("Bot desligado.")
-
