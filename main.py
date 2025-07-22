@@ -1,17 +1,14 @@
 import os
-import time
-import threading
+import asyncio
 from dotenv import load_dotenv
 from telegram import Bot
-from telegram.ext import CommandHandler, Updater
+from telegram.ext import Application, CommandHandler
 
-# Carrega variáveis de ambiente
+# Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-
-bot = Bot(token=TOKEN)
 
 # Lista de sinais simulados
 sinais = [
@@ -22,32 +19,67 @@ sinais = [
     "🎲 BAC BO SINAL:\n🧠 Estatística indica BAIXO 🔻\n🚨 Gestão conservadora!"
 ]
 
-# Envia sinais automaticamente a cada 10 minutos
-def enviar_sinais_automaticos():
+# A função para enviar sinais agora deve ser 'async'
+async def enviar_sinais_automaticos(bot: Bot):
+    """Envia um sinal da lista a cada 10 minutos."""
     index = 0
     while True:
         sinal = sinais[index % len(sinais)]
-        bot.send_message(chat_id=CHAT_ID, text=sinal)
+        try:
+            # A chamada de envio de mensagem agora precisa de 'await'
+            await bot.send_message(chat_id=CHAT_ID, text=sinal)
+            print(f"Sinal enviado: {sinal.splitlines()[0]}") # Log para o console
+        except Exception as e:
+            print(f"Erro ao enviar sinal: {e}") # Log de erro
+        
         index += 1
-        time.sleep(600)
+        # 'asyncio.sleep' substitui 'time.sleep' em código assíncrono
+        await asyncio.sleep(600) # 600 segundos = 10 minutos
 
-# Comando /start
-def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="👋 Bem-vindo ao canal de sinais BAC BO!")
+# O handler do comando /start também deve ser 'async'
+async def start(update, context):
+    """Handler para o comando /start."""
+    # 'await' é necessário para enviar a mensagem
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="👋 Bem-vindo ao canal de sinais BAC BO!"
+    )
 
-# Função principal do bot
-def main():
-    updater = Updater(token=TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+# A função principal agora é 'async'
+async def main():
+    """Função principal que configura e inicia o bot."""
+    # A classe Bot é usada para o envio automático de sinais
+    bot = Bot(token=TOKEN)
 
-    dispatcher.add_handler(CommandHandler("start", start))
+    # ApplicationBuilder substitui o Updater
+    application = Application.builder().token(TOKEN).build()
 
-    thread = threading.Thread(target=enviar_sinais_automaticos)
-    thread.daemon = True
-    thread.start()
+    # Adiciona o handler para o comando /start
+    application.add_handler(CommandHandler("start", start))
 
-    updater.start_polling()
-    updater.idle()
+    # Inicia a tarefa de envio de sinais em background
+    # asyncio.create_task é a forma moderna de rodar tarefas concorrentes
+    asyncio.create_task(enviar_sinais_automaticos(bot))
+
+    # Inicia o bot (non-blocking)
+    await application.initialize()
+    await application.start()
+    
+    print("Bot iniciado e rodando...")
+
+    # Mantém o bot rodando
+    await application.updater.start_polling()
+    
+    # Para manter o programa principal rodando para sempre
+    # você pode usar um loop infinito com um sleep.
+    while True:
+        await asyncio.sleep(3600) # Dorme por 1 hora, mas a tarefa de sinais continua rodando a cada 10 min
+
 
 if __name__ == '__main__':
-    main()
+    # 'asyncio.run' é usado para executar a função principal assíncrona
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot desligado.")
+
