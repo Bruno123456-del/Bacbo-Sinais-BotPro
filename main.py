@@ -22,7 +22,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('bot_bacbo.log'),
+        logging.FileHandler("bot_bacbo.log"),
         logging.StreamHandler()
     ]
 )
@@ -344,13 +344,11 @@ class BacBoEliteBot:
             f"• Greens: {stats_7d['greens']} ✅\n"
             f"• Reds: {stats_7d['reds']} ❌\n"
             f"• Taxa de acerto: {stats_7d['taxa_acerto']:.1%}\n\n"
-            
             "**📅 Últimos 30 dias:**\n"
             f"• Total de sinais: {stats_30d['total_sinais']}\n"
             f"• Greens: {stats_30d['greens']} ✅\n"
             f"• Reds: {stats_30d['reds']} ❌\n"
             f"• Taxa de acerto: {stats_30d['taxa_acerto']:.1%}\n\n"
-            
             "**🎯 Análise por Tipo:**\n"
         )
         
