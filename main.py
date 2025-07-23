@@ -3,6 +3,9 @@ import time
 import random
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # --- CONFIGURAÇÕES PRINCIPAIS ---
 
