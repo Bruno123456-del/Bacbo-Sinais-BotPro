@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Bot Elite de Sinais Bac Bo para Telegram
@@ -56,7 +55,7 @@ class Configuracao:
     pausa_stop_loss_horas: int = 12
     url_cadastro: str = "https://lkwn.cc/f1c1c45a"
     
-    def __post_init__(self):
+    def __post_init__(self ):
         if self.martingale_niveis is None:
             self.martingale_niveis = [0.01, 0.02, 0.04]
 
@@ -71,7 +70,7 @@ class DatabaseManager:
             cursor = conn.cursor()
             
             # Tabela de sinais
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 CREATE TABLE IF NOT EXISTS sinais (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tipo TEXT NOT NULL,
@@ -81,18 +80,18 @@ class DatabaseManager:
                     resultado INTEGER,
                     timestamp_resultado TEXT
                 )
-            ''')
+            \'\'\')
             
             # Tabela de configurações
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 CREATE TABLE IF NOT EXISTS configuracoes (
                     chave TEXT PRIMARY KEY,
                     valor TEXT NOT NULL
                 )
-            ''')
+            \'\'\')
             
             # Tabela de estatísticas
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 CREATE TABLE IF NOT EXISTS estatisticas (
                     data TEXT PRIMARY KEY,
                     total_sinais INTEGER DEFAULT 0,
@@ -100,7 +99,7 @@ class DatabaseManager:
                     total_reds INTEGER DEFAULT 0,
                     lucro_dia REAL DEFAULT 0.0
                 )
-            ''')
+            \'\'\')
             
             conn.commit()
     
@@ -108,10 +107,10 @@ class DatabaseManager:
         """Salva um sinal no banco de dados"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 INSERT INTO sinais (tipo, timestamp, nivel_martingale, valor_aposta, resultado, timestamp_resultado)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
+            \'\'\', (
                 sinal.tipo,
                 sinal.timestamp.isoformat(),
                 sinal.nivel_martingale,
@@ -125,11 +124,11 @@ class DatabaseManager:
         """Atualiza o resultado de um sinal"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 UPDATE sinais 
                 SET resultado = ?, timestamp_resultado = ?
                 WHERE id = ?
-            ''', (resultado, datetime.now().isoformat(), sinal_id))
+            \'\'\', (resultado, datetime.now().isoformat(), sinal_id))
             conn.commit()
     
     def obter_estatisticas_periodo(self, dias: int = 7) -> Dict:
@@ -138,7 +137,7 @@ class DatabaseManager:
         
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 SELECT 
                     COUNT(*) as total_sinais,
                     SUM(CASE WHEN resultado = 1 THEN 1 ELSE 0 END) as greens,
@@ -146,15 +145,15 @@ class DatabaseManager:
                     AVG(CASE WHEN resultado IS NOT NULL THEN resultado END) as taxa_acerto
                 FROM sinais 
                 WHERE timestamp >= ? AND resultado IS NOT NULL
-            ''', (data_inicio.isoformat(),))
+            \'\'\', (data_inicio.isoformat(),))
             
             resultado = cursor.fetchone()
             
             return {
-                'total_sinais': resultado[0] or 0,
-                'greens': resultado[1] or 0,
-                'reds': resultado[2] or 0,
-                'taxa_acerto': resultado[3] or 0.0
+                \'total_sinais\': resultado[0] or 0,
+                \'greens\': resultado[1] or 0,
+                \'reds\': resultado[2] or 0,
+                \'taxa_acerto\': resultado[3] or 0.0
             }
 
 class AnalisadorPadroes:
@@ -165,13 +164,13 @@ class AnalisadorPadroes:
         """Analisa sequências de resultados para identificar padrões"""
         with sqlite3.connect(self.db.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
+            cursor.execute(\'\'\'
                 SELECT tipo, resultado 
                 FROM sinais 
                 WHERE resultado IS NOT NULL 
                 ORDER BY timestamp DESC 
                 LIMIT 50
-            ''')
+            \'\'\')
             
             resultados = cursor.fetchall()
             
@@ -180,25 +179,25 @@ class AnalisadorPadroes:
             for tipo in [TipoAposta.PLAYER.value, TipoAposta.BANKER.value, TipoAposta.TIE.value]:
                 tipo_resultados = [r[1] for r in resultados if r[0] == tipo]
                 sequencias[tipo] = {
-                    'total': len(tipo_resultados),
-                    'greens': sum(tipo_resultados),
-                    'taxa_acerto': sum(tipo_resultados) / len(tipo_resultados) if tipo_resultados else 0
+                    \'total\': len(tipo_resultados),
+                    \'greens\': sum(tipo_resultados),
+                    \'taxa_acerto\': sum(tipo_resultados) / len(tipo_resultados) if tipo_resultados else 0
                 }
             
             return sequencias
     
     def sugerir_proximo_sinal(self) -> str:
         """Sugere o próximo sinal baseado em análise de padrões"""
-        padroes = self.analisar_sequencias()
+        padroes = self.analisador.analisar_sequencias()
         
         # Lógica simples: escolhe o tipo com menor taxa de acerto recente
         # (assumindo que haverá uma correção)
-        menor_taxa = float('inf')
+        menor_taxa = float(\'inf\')
         tipo_sugerido = TipoAposta.PLAYER.value
         
         for tipo, dados in padroes.items():
-            if dados['total'] > 5 and dados['taxa_acerto'] < menor_taxa:
-                menor_taxa = dados['taxa_acerto']
+            if dados[\'total\'] > 5 and dados[\'taxa_acerto\'] < menor_taxa:
+                menor_taxa = dados[\'taxa_acerto\']
                 tipo_sugerido = tipo
         
         return tipo_sugerido
@@ -238,7 +237,7 @@ class BacBoEliteBot:
     def _carregar_configuracao(self, config_path: str) -> Configuracao:
         """Carrega configuração do arquivo JSON"""
         if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
+            with open(config_path, \'r\') as f:
                 config_dict = json.load(f)
                 return Configuracao(**config_dict)
         else:
@@ -248,55 +247,55 @@ class BacBoEliteBot:
     
     def _salvar_configuracao(self, config: Configuracao, config_path: str):
         """Salva configuração no arquivo JSON"""
-        with open(config_path, 'w') as f:
+        with open(config_path, \'w\') as f:
             json.dump(asdict(config), f, indent=2)
     
     def _configurar_handlers(self):
         """Configura os handlers de comandos do bot"""
         
-        @self.bot.message_handler(commands=['start', 'help'])
+        @self.bot.message_handler(commands=[\'start\', \'help\'])
         def handle_start(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._enviar_menu_admin(message.chat.id)
             else:
                 self._enviar_mensagem_boas_vindas(message.chat.id)
         
-        @self.bot.message_handler(commands=['stats'])
+        @self.bot.message_handler(commands=[\'stats\'])
         def handle_stats(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._enviar_estatisticas(message.chat.id)
         
-        @self.bot.message_handler(commands=['config'])
+        @self.bot.message_handler(commands=[\'config\'])
         def handle_config(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._enviar_menu_configuracao(message.chat.id)
         
-        @self.bot.message_handler(commands=['iniciar'])
+        @self.bot.message_handler(commands=[\'iniciar\'])
         def handle_iniciar(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._iniciar_bot_automatico()
         
-        @self.bot.message_handler(commands=['parar'])
+        @self.bot.message_handler(commands=[\'parar\'])
         def handle_parar(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._parar_bot_automatico()
         
-        @self.bot.message_handler(commands=['sinal'])
+        @self.bot.message_handler(commands=[\'sinal\'])
         def handle_sinal_manual(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._enviar_sinal_manual()
         
-        @self.bot.message_handler(commands=['green'])
+        @self.bot.message_handler(commands=[\'green\'])
         def handle_green(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._processar_resultado(True)
         
-        @self.bot.message_handler(commands=['red'])
+        @self.bot.message_handler(commands=[\'red\'])
         def handle_red(message):
             if str(message.from_user.id) == self.ADMIN_ID:
                 self._processar_resultado(False)
         
-        adicionar_comandos_avancados(self.bot.application)    
+        adicionar_comandos_avancados(self.bot)    
     def _enviar_menu_admin(self, chat_id):
         """Envia menu administrativo"""
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -343,27 +342,27 @@ class BacBoEliteBot:
         mensagem = (
             "📊 **ESTATÍSTICAS DO BOT** 📊\n\n"
             "**📅 Últimos 7 dias:**\n"
-            f"• Total de sinais: {stats_7d['total_sinais']}\n"
-            f"• Greens: {stats_7d['greens']} ✅\n"
-            f"• Reds: {stats_7d['reds']} ❌\n"
-            f"• Taxa de acerto: {stats_7d['taxa_acerto']:.1%}\n\n"
+            f"• Total de sinais: {stats_7d[\'total_sinais\']}\n"
+            f"• Greens: {stats_7d[\'greens\']} ✅\n"
+            f"• Reds: {stats_7d[\'reds\']} ❌\n"
+            f"• Taxa de acerto: {stats_7d[\'taxa_acerto\']:.1%}\n\n"
             
             "**📅 Últimos 30 dias:**\n"
-            f"• Total de sinais: {stats_30d['total_sinais']}\n"
-            f"• Greens: {stats_30d['greens']} ✅\n"
-            f"• Reds: {stats_30d['reds']} ❌\n"
-            f"• Taxa de acerto: {stats_30d['taxa_acerto']:.1%}\n\n"
+            f"• Total de sinais: {stats_30d[\'total_sinais\']}\n"
+            f"• Greens: {stats_30d[\'greens\']} ✅\n"
+            f"• Reds: {stats_30d[\'reds\']} ❌\n"
+            f"• Taxa de acerto: {stats_30d[\'taxa_acerto\']:.1%}\n\n"
             
             "**🎯 Análise por Tipo:**\n"
         )
         
         for tipo, dados in padroes.items():
             emoji = self.emojis.get(tipo, "⚪")
-            mensagem += f"• {emoji} {tipo}: {dados['taxa_acerto']:.1%} ({dados['greens']}/{dados['total']})\n"
+            mensagem += f"• {emoji} {tipo}: {dados[\'taxa_acerto\']:.1%} ({dados[\'greens\']}/{dados[\'total\']})\n"
         
         mensagem += f"\n**💰 Banca Atual:** R$ {self.banca_atual:.2f}"
         mensagem += f"\n**🎲 Nível Martingale:** {self.nivel_martingale_atual + 1}"
-        mensagem += f"\n**🤖 Status:** {'🟢 Ativo' if self.bot_ativo else '🔴 Inativo'}"
+        mensagem += f"\n**🤖 Status:** {\'🟢 Ativo\' if self.bot_ativo else \'🔴 Inativo\'}"
         
         self.bot.send_message(chat_id, mensagem, parse_mode="Markdown")
     
@@ -411,13 +410,13 @@ class BacBoEliteBot:
         
         # Análise técnica
         padroes = self.analisador.analisar_sequencias()
-        tipo_stats = padroes.get(tipo, {'taxa_acerto': 0, 'total': 0})
+        tipo_stats = padroes.get(tipo, {\'taxa_acerto\': 0, \'total\': 0})
         
         analise_info = (
             f"**📊 Análise Técnica:**\n"
             f"• **Tipo:** {tipo} {emoji}\n"
-            f"• **Taxa Recente:** {tipo_stats['taxa_acerto']:.1%}\n"
-            f"• **Confiança:** {'🔥 Alta' if tipo_stats['taxa_acerto'] > 0.6 else '⚡ Média' if tipo_stats['taxa_acerto'] > 0.4 else '⚠️ Baixa'}"
+            f"• **Taxa Recente:** {tipo_stats[\'taxa_acerto\']:.1%}\n"
+            f"• **Confiança:** {\'🔥 Alta\' if tipo_stats[\'taxa_acerto\'] > 0.6 else \'⚡ Média\' if tipo_stats[\'taxa_acerto\'] > 0.4 else \'⚠️ Baixa\'}"
         )
         
         mensagem = (
@@ -654,3 +653,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
