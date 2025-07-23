@@ -34,4 +34,3 @@ def adicionar_comandos_avancados(bot: telebot.TeleBot):
     bot.message_handler(commands=["suporte"])(suporte)
     bot.message_handler(commands=["ranking"])(ranking)
     bot.message_handler(commands=["win"])(postar_win)
-
