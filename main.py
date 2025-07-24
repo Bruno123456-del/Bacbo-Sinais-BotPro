@@ -19,6 +19,53 @@ GIF_ANALISE = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 # >> NOVO: GIF DE COMEMORAÇÃO DE VITÓRIA
 GIF_WIN = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif"
+# >> NOVAS MENSAGENS PARA COMANDOS E CONTEÚDO DE VALOR
+MENSAGEM_GESTAO = """
+📊 **PROTOCOLO DE GESTÃO DE BANCA DE ELITE** 📊
+
+A gestão de risco é o que separa amadores de profissionais. Siga este protocolo à risca:
+
+1️⃣ **ENTRADA PRINCIPAL:** Use **1%** da sua banca.
+    - *Exemplo: Banca de R$200,00 -> Entrada de R$2,00.*
+
+2️⃣ **GALE 1 (Primeira Proteção):** Use **2%** da sua banca.
+    - *Exemplo: Banca de R$200,00 -> Entrada de R$4,00.*
+
+3️⃣ **GALE 2 (Proteção Máxima):** Use **4%** da sua banca.
+    - *Exemplo: Banca de R$200,00 -> Entrada de R$8,00.*
+
+**REGRA DE OURO:** Nunca arrisque mais do que pode perder. A consistência nos juros compostos é o caminho para a fortuna.
+"""
+
+MENSAGEM_PLATAFORMA = f"""
+💎 **PLATAFORMA OFICIAL - 1WIN** 💎
+
+Todos os nossos sinais são otimizados para a **1WIN**. Operar em outra plataforma pode gerar resultados diferentes.
+
+🔗 **Link de Cadastro Estratégico:**
+{URL_CADASTRO}
+
+Clique, cadastre-se e ative seu bônus de boas-vindas para operar em sincronia com nossos analistas!
+"""
+
+MENSAGEM_AJUDA = """
+🆘 **CENTRAL DE AJUDA - COMANDOS DISPONÍVEIS** 🆘
+
+Use os seguintes comandos para interagir com o bot:
+
+/placar - 📊 Mostra o placar de vitórias e derrotas da sessão atual.
+/gestao - 📈 Exibe nosso protocolo oficial de gestão de banca.
+/plataforma - 💎 Envia o link de cadastro da nossa plataforma parceira.
+/ajuda - 🆘 Mostra esta mensagem de ajuda.
+"""
+
+DICAS_DO_DIA = [
+    "🧠 **Mentalidade:** Não deixe uma perda abalar seu plano. A disciplina no longo prazo sempre vence a sorte de um dia.",
+    "🧘 **Controle Emocional:** Opere com a mente clara. Se estiver ansioso ou frustrado, faça uma pausa. O mercado estará aí amanhã.",
+    "📈 **Juros Compostos:** Pequenos ganhos diários se transformam em uma fortuna. Pense no acumulado da semana, não apenas em uma única aposta.",
+    "🚫 **Evite a Ganância:** Bateu a meta do dia? Saia do mercado. A ganância é o maior inimigo do apostador.",
+    "📖 **Estude Sempre:** Entenda o porquê das suas entradas. Quanto mais você conhece o jogo, mais confia na estratégia."
+]
 
 # >> IMAGENS DE VITÓRIA (Mantidas )
 IMG_WIN_ENTRADA = "imagens/win_entrada.png"
@@ -192,6 +239,55 @@ async def gestao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Protocolo de Gestão Avançada...", parse_mode='Markdown')
 
 # --- 5. FUNÇÃO PRINCIPAL (sem alterações) ---
+# --- NOVAS FUNÇÕES PARA OS COMANDOS ---
+
+async def placar_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia o placar atual quando o comando /placar é usado."""
+    placar_texto = f"📊 **PLACAR ATUAL** 📊\n\n✅ **Greens:** {placar['greens']}\n❌ **Reds:** {placar['reds']}\n\n*Sessão em andamento...*"
+    await update.message.reply_text(placar_texto, parse_mode='Markdown')
+
+async def gestao_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia as regras de gestão de banca."""
+    await update.message.reply_text(MENSAGEM_GESTAO, parse_mode='Markdown')
+
+async def plataforma_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia o link da plataforma oficial."""
+    await update.message.reply_text(MENSAGEM_PLATAFORMA, parse_mode='Markdown', disable_web_page_preview=False)
+
+async def ajuda_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia a lista de comandos disponíveis."""
+    await update.message.reply_text(MENSAGEM_AJUDA, parse_mode='Markdown')
+
+async def enviar_dica_do_dia(bot: Bot):
+   async def main():
+    print("Iniciando Bot BAC BO - Versão COMUNIDADE VIP...")
+    application = Application.builder().token(TOKEN).build()
+    
+    # ATIVANDO OS NOVOS COMANDOS
+    application.add_handler(CommandHandler("placar", placar_comando))
+    application.add_handler(CommandHandler("gestao", gestao_comando))
+    application.add_handler(CommandHandler("plataforma", plataforma_comando))
+    application.add_handler(CommandHandler("ajuda", ajuda_comando))
+    
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    print("Bot em plena operação.")
+
+    bot = application.bot
+    
+    # AGENDANDO AS TAREFAS AUTOMÁTICAS
+    asyncio.create_task(enviar_e_fixar_mensagem_inicial(bot))
+    asyncio.create_task(ciclo_de_sinais(bot))
+    asyncio.create_task(enviar_mensagem_recorrente(bot))
+    # ATIVANDO A NOVA TAREFA: DICA DO DIA
+    asyncio.create_task(enviar_dica_do_dia(bot))
+
+    print("Todas as tarefas automáticas (Sinais, Lembretes e Dicas) foram agendadas.")
+    while True:
+        await asyncio.sleep(3600)
+
+
 async def main():
     print("Iniciando Bot BAC BO - Versão Final...")
     application = Application.builder().token(TOKEN).build()
