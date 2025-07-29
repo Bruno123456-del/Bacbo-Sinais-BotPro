@@ -14,5 +14,5 @@ services:
         fromSecret: URL_CADASTRO_SECRET
     autoDeploy: true
     plan: starter
-    memory: 512 # MB, pode ajustar conforme necessário
+    memory: 512
     restartPolicy: on-failure
