@@ -5,14 +5,3 @@ services:
     pythonVersion: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
-    envVars:
-      - key: BOT_TOKEN
-        fromSecret: BOT_TOKEN_SECRET
-      - key: CHAT_ID
-        fromSecret: CHAT_ID_SECRET
-      - key: URL_CADASTRO
-        fromSecret: URL_CADASTRO_SECRET
-    autoDeploy: true
-    plan: starter
-    memory: 512
-    restartPolicy: on-failure
