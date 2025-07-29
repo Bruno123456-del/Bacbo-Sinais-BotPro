@@ -2,24 +2,22 @@ import os
 import asyncio
 import random
 import datetime
-from dotenv import load_dotenv
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import BadRequest
 
 # --- 1. CONFIGURAÇÃO INICIAL ---
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a")
+TOKEN = "7975008855:AAHZ8F0XUfRtRX643Z3B3DoOA3h5YLVnRDs"
+CHAT_ID = -1002808626127
+URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
 
 # --- 2. IMAGENS E GIFS ---
-GIFS_WIN = [f"midia/win{i}.gif" for i in range(1, 11)]  # win1.gif até win10.gif
-PRINTS_WIN = [f"midia/print{i}.jpg" for i in range(1, 11)]  # print1.jpg até print10.jpg
+GIFS_WIN = [f"midia/win{i}.gif" for i in range(1, 11)]
+PRINTS_WIN = [f"midia/print{i}.jpg" for i in range(1, 11)]
 
-IMG_WIN_4 = "midia/win_4.png"   # lucro 4%
-IMG_WIN_8 = "midia/win_8.png"   # lucro 8%
-IMG_WIN_16 = "midia/win_16.png" # lucro 16%
+IMG_WIN_4 = "midia/win_4.png"
+IMG_WIN_8 = "midia/win_8.png"
+IMG_WIN_16 = "midia/win_16.png"
 
 # --- 3. MENSAGENS FIXAS BILÍNGUES ---
 BOAS_VINDAS_PT = f"""
@@ -27,11 +25,11 @@ BOAS_VINDAS_PT = f"""
 
 🎯 Aqui você recebe sinais automáticos baseados na estratégia asiática com cobertura.
 
-🎲 Banca ideal inicial: R$ 1000
-💸 Entrada principal: R$ 20 (5% da banca)
-🛡️ Cobertura: 1-2% sobre a entrada
+🎲 Banca ideal inicial: R$ 1000  
+💸 Entrada principal: R$ 20 (5% da banca)  
+🛡️ Cobertura: 1-2% sobre a entrada  
 
-🎁 Comece agora com bônus especial:
+🎁 Comece agora com bônus especial:  
 👉 [🎲 Jogar BAC BO com Bônus 🎁]({URL_CADASTRO})
 """
 
@@ -40,11 +38,11 @@ BOAS_VINDAS_ES = f"""
 
 🎯 Aquí recibirás señales automáticas basadas en la estrategia asiática con cobertura.
 
-🎲 Banca ideal inicial: $1000 pesos (o equivalente)
-💸 Entrada principal: $20 (5% de la banca)
-🛡️ Cobertura: 1-2% sobre la entrada
+🎲 Banca ideal inicial: $1000 pesos (o equivalente)  
+💸 Entrada principal: $20 (5% de la banca)  
+🛡️ Cobertura: 1-2% sobre la entrada  
 
-🎁 Comienza ahora con un bono especial:
+🎁 Comienza ahora con un bono especial:  
 👉 [🎰 Jugar BAC BO con Bono 🎉]({URL_CADASTRO})
 """
 
@@ -90,7 +88,7 @@ def gerar_relatorio(dia=True):
         greens = placar_diario["greens"]
         reds = placar_diario["reds"]
         total = greens + reds if (greens + reds) > 0 else 1
-        lucro = greens * 4 - reds * 2  # cálculo aproximado simplificado
+        lucro = greens * 4 - reds * 2
         aproveitamento = round((greens / total) * 100)
         data = datetime.date.today().strftime("%d/%m")
         titulo = "Relatório do Dia"
@@ -98,7 +96,7 @@ def gerar_relatorio(dia=True):
         greens = placar_semanal["greens"]
         reds = placar_semanal["reds"]
         total = greens + reds if (greens + reds) > 0 else 1
-        lucro = greens * 20 - reds * 10  # semanal maior valor
+        lucro = greens * 20 - reds * 10
         aproveitamento = round((greens / total) * 100)
         data = f"Semana {datetime.date.today().isocalendar()[1]}"
         titulo = "Relatório Semanal"
@@ -143,33 +141,25 @@ async def enviar_relatorio_semanal(bot: Bot):
     except Exception as e:
         print(f"Erro ao enviar relatório semanal: {e}")
 
-# Função simulada para sinal e update do placar (exemplo)
 async def simular_sinal(bot: Bot):
-    # Essa função você pode adaptar para enviar sinais reais e atualizar placar
     global placar_diario, placar_semanal
 
-    # Simular win ou loss
     resultado = random.choices(["green", "red"], weights=[0.8, 0.2])[0]
 
     if resultado == "green":
         placar_diario["greens"] += 1
         placar_semanal["greens"] += 1
-        # Enviar GIF de vitória e imagem 4% exemplo
         await bot.send_animation(chat_id=CHAT_ID, animation=open(random.choice(GIFS_WIN), "rb"))
         await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_WIN_4, "rb"), caption="✅ WIN - +4% de lucro")
     else:
         placar_diario["reds"] += 1
         placar_semanal["reds"] += 1
-        # Enviar gif de derrota (você pode criar e adicionar)
-        # await bot.send_animation(chat_id=CHAT_ID, animation=open("midia/loss.gif", "rb"))
         await bot.send_message(chat_id=CHAT_ID, text="❌ STOP LOSS - Proteja seu capital!")
 
-    # Enviar mensagem motivacional
     msg_pt = random.choice(MENSAGENS_GATILHO_PT)
     msg_es = random.choice(MENSAGENS_GATILHO_ES)
     await bot.send_message(chat_id=CHAT_ID, text=f"{msg_pt}\n{msg_es}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎲 Jogar BAC BO com Bônus 🎁 | 🎰 Jugar BAC BO con Bono 🎉", url=URL_CADASTRO)]]))
 
-# --- 6. CONFIGURAÇÃO DO BOT ---
 async def main():
     print("🤖 Bot BAC BO iniciado.")
     application = Application.builder().token(TOKEN).build()
@@ -177,30 +167,21 @@ async def main():
 
     bot = application.bot
 
-    # Enviar mensagem de boas vindas fixada 1 vez (opcional)
     try:
         msg = await bot.send_message(chat_id=CHAT_ID, text=BOAS_VINDAS_PT + "\n" + BOAS_VINDAS_ES, parse_mode="Markdown")
         await bot.pin_chat_message(chat_id=CHAT_ID, message_id=msg.message_id)
     except Exception as e:
         print(f"Erro ao fixar mensagem inicial: {e}")
 
-    # Agendar gatilhos de retenção a cada 3 horas
     application.job_queue.run_repeating(enviar_gatilho, interval=10800, first=30)
-
-    # Agendar relatório diário às 20h
     application.job_queue.run_daily(enviar_relatorio_diario, time=datetime.time(hour=20, minute=0, second=0))
-
-    # Agendar relatório semanal aos domingos 20h
     application.job_queue.run_weekly(enviar_relatorio_semanal, time=datetime.time(hour=20, minute=0, second=0), day_of_week=6)
-
-    # Simular envio de sinal a cada 15 minutos (para demo)
     application.job_queue.run_repeating(lambda ctx: asyncio.create_task(simular_sinal(bot)), interval=900, first=10)
 
     await application.initialize()
     await application.start()
     await application.updater.start_polling()
 
-    # Loop infinito para manter o bot ativo
     while True:
         await asyncio.sleep(3600)
 
