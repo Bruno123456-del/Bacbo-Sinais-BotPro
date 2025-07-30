@@ -19,7 +19,7 @@ CORS(app)
 async def send_signal():
     while True:
         sinal = random.choice(["⚪ Branco", "🔴 Vermelho", "🔵 Azul"])
-        await bot.send_message(chat_id=CHAT_ID, text=f"🎯 Sinal Bac Bo:
+       await bot.send_message(chat_id=CHAT_ID, text=f"🎯 Sinal de volta Bo: ✅ Tudo pronto!")
 Entrada: {sinal}
 Link: {URL_CADASTRO}")
         await asyncio.sleep(600)
