@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import asyncio
 import random
@@ -7,42 +6,43 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from telegram import Bot
 
-# === 1. CARREGAMENTO DO AMBIENTE ===
+# Carrega variáveis do .env
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
+URL_CADASTRO = os.getenv("URL_CADASTRO")
 
-# === 2. INICIALIZAÇÃO ===
+# Inicializa bot do Telegram e Flask
 bot = Bot(token=TOKEN)
 app = Flask(__name__)
 CORS(app)
 
-# === 3. FUNÇÃO PARA GERAR SINAL ALEATÓRIO ===
-def gerar_sinal():
-    cor = random.choice(["⚪ Branco", "🔴 Vermelho", "🔵 Azul"])
-    return f"🎯 Sinal Bac Bo: ✅ Tudo pronto!\nEntrada: {cor}\n💰 Link: {URL_CADASTRO}"
-
-# === 4. ENVIO DE SINAL AUTOMÁTICO A CADA 10 MINUTOS ===
-async def loop_sinais():
+# Função assíncrona para enviar sinais a cada 10 minutos
+async def send_signal():
     while True:
-        mensagem = gerar_sinal()
+        sinal = random.choice(["⚪ Branco", "🔴 Vermelho", "🔵 Azul"])
+        mensagem = (
+            f"🎯 *SINAL BAC BO AUTOMÁTICO*\n\n"
+            f"✅ Tudo pronto!\n"
+            f"🎰 Entrada: {sinal}\n"
+            f"🎁 Bônus de boas-vindas já disponível!\n"
+            f"➡️ Cadastre-se: {URL_CADASTRO}"
+        )
         try:
-            await bot.send_message(chat_id=CHAT_ID, text=mensagem)
-            print("✅ Sinal enviado com sucesso.")
+            await bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
         except Exception as e:
-            print(f"❌ Erro ao enviar sinal: {e}")
+            print(f"Erro ao enviar sinal: {e}")
         await asyncio.sleep(600)  # 10 minutos
 
-# === 5. ROTA DO SERVIDOR PARA VERIFICAÇÃO ===
 @app.route("/")
-def index():
-    return "✅ Bot Bac Bo Sinais está online!"
+def home():
+    return "✅ Bot Bac Bo Sinais Online!"
 
-# === 6. INICIALIZAÇÃO DO LOOP ASSÍNCRONO + FLASK ===
+# Inicia o loop de eventos e o servidor Flask (sem deprecated)
 def start():
-    loop = asyncio.get_event_loop()
-    loop.create_task(loop_sinais())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(send_signal())
     app.run(host="0.0.0.0", port=10000)
 
 if __name__ == "__main__":
