@@ -1,42 +1,93 @@
 import os
-import asyncio
-import random
-from flask import Flask
-from flask_cors import CORS
-from dotenv import load_dotenv
-from telegram import Bot
+import logging
+from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, InlineQueryHandler
 
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
+# Configurar logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-bot = Bot(token=TOKEN)
-app = Flask(__name__)
-CORS(app)
+# Função para o comando /start
+async def start(update: Update, context: Application.context) -> None:
+    """Envia uma mensagem quando o comando /start é emitido."""
+    user = update.effective_user
+    await update.message.reply_html(
+        f"Olá, {user.mention_html()}! Eu sou um bot de exemplo. Use /help para ver os comandos disponíveis.",
+    )
 
-async def send_signal():
-    while True:
-        sinal = random.choice(["⚪ Branco", "🔴 Vermelho", "🔵 Azul"])
-        # Monta a mensagem corretamente, com f-string fechada
-        mensagem = (
-            f"🎯 Sinal de volta Bo: ✅ Tudo pronto!\n"
-            f"Entrada: {sinal}\n"
-            f"Link: {URL_CADASTRO}"
-        )
-        await bot.send_message(chat_id=CHAT_ID, text=mensagem)
-        await asyncio.sleep(600)  # espera 10 minutos
+# Função para o comando /help
+async def help_command(update: Update, context: Application.context) -> None:
+    """Envia uma mensagem quando o comando /help é emitido."""
+    await update.message.reply_text("Comandos disponíveis:\n/start - Inicia o bot\n/help - Mostra esta mensagem de ajuda\n/echo <texto> - Repete o texto enviado\n/caps <texto> - Converte o texto para maiúsculas\n/inline - Exemplo de consulta inline")
 
-@app.route("/")
-def home():
-    return "Bot Bac Bo Sinais Online!"
+# Função para o comando /echo
+async def echo(update: Update, context: Application.context) -> None:
+    """Repete a mensagem do usuário."""
+    await update.message.reply_text(update.message.text.replace("/echo ", ""))
 
-def start():
-    loop = asyncio.get_event_loop()
-    # Cria a task de enviar sinais de forma assíncrona
-    loop.create_task(send_signal())
-    # Roda o Flask
-    app.run(host="0.0.0.0", port=10000)
+# Função para o comando /caps
+async def caps(update: Update, context: Application.context) -> None:
+    """Converte o texto para maiúsculas."""
+    text_caps = " ".join(context.args).upper()
+    await update.message.reply_text(text_caps)
+
+# Função para lidar com mensagens de texto genéricas
+async def handle_message(update: Update, context: Application.context) -> None:
+    """Responde a mensagens de texto."""
+    await update.message.reply_text(f"Você disse: {update.message.text}")
+
+# Função para lidar com consultas inline
+async def inline_query(update: Update, context: Application.context) -> None:
+    """Lida com a consulta inline."""
+    query = update.inline_query.query
+
+    if not query:
+        return
+
+    results = [
+        InlineQueryResultArticle(
+            id=query.upper(),
+            title="Caps",
+            input_message_content=InputTextMessageContent(query.upper()),
+        ),
+        InlineQueryResultArticle(
+            id=query.lower(),
+            title="Lower",
+            input_message_content=InputTextMessageContent(query.lower()),
+        ),
+    ]
+
+    await update.inline_query.answer(results)
+
+
+def main() -> None:
+    """Inicia o bot."""
+    # Obter o token do bot das variáveis de ambiente
+    TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not TOKEN:
+        logger.error("O token do bot do Telegram não foi encontrado nas variáveis de ambiente.")
+        logger.error("Por favor, defina a variável de ambiente TELEGRAM_BOT_TOKEN.")
+        return
+
+    application = Application.builder().token(TOKEN).build()
+
+    # Adicionar handlers de comandos
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("echo", echo))
+    application.add_handler(CommandHandler("caps", caps))
+
+    # Adicionar handler para mensagens de texto genéricas
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Adicionar handler para consultas inline
+    application.add_handler(InlineQueryHandler(inline_query))
+
+    # Iniciar o bot
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == "__main__":
-    start()
+    main()
