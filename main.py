@@ -6,58 +6,89 @@ from datetime import datetime
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
-from telegram import Bot
+from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from telegram.error import TelegramError
 
-# --- Carregando variáveis do ambiente ---
+# --- Carregando variáveis ---
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 URL_CADASTRO = os.getenv("URL_CADASTRO")
 
+# Verificação de segurança
 if not TOKEN or not CHAT_ID or not URL_CADASTRO:
-    raise ValueError("❌ Variáveis BOT_TOKEN, CHAT_ID ou URL_CADASTRO não foram definidas.")
+    raise ValueError("❌ BOT_TOKEN, CHAT_ID ou URL_CADASTRO não definidos no .env")
 
 # --- Inicialização ---
 bot = Bot(token=TOKEN)
 app = Flask(__name__)
 CORS(app)
 
-# --- Função principal de envio de sinais ---
-async def send_signal():
+# --- Estratégia: Escada Asiática com Cobertura (Amarelo) ---
+def gerar_entrada():
+    cores = ["🔴 Vermelho", "🔵 Azul"]
+    principal = random.choice(cores)
+    return principal, "🟡 Amarelo (Cobertura)"
+
+# --- Envio de sinal com gestão e botão ---
+async def enviar_sinal():
+    entrada, cobertura = gerar_entrada()
+    hora = datetime.now().strftime("%H:%M")
+
+    texto = (
+        f"🧠 *SINAL ESTRATÉGICO BAC BO*\n"
+        f"🕒 {hora}\n\n"
+        f"🎰 Entrada principal: {entrada}\n"
+        f"🟡 Cobertura: {cobertura}\n\n"
+        f"💸 *Gestão de risco ativada:*\n"
+        f"• 1ª entrada\n"
+        f"• G1 se necessário\n"
+        f"• G2 final\n\n"
+        f"🎁 Bônus de boas-vindas disponível!\n"
+    )
+
+    # Botão personalizado
+    botao = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎲 Jogar Bac Bo", url=URL_CADASTRO)]
+    ])
+
+    try:
+        # Envia mensagem com botão
+        await bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown", reply_markup=botao)
+
+        # Envia imagem de gestão de risco
+        with open("imagens/gestao.png", "rb") as img:
+            await bot.send_photo(chat_id=CHAT_ID, photo=img, caption="📊 Gestão de risco aplicada com sucesso!")
+
+        # Envia GIF animado de vitória como estímulo
+        with open("imagens/win.gif", "rb") as gif:
+            await bot.send_animation(chat_id=CHAT_ID, animation=gif, caption="🔥 Confiança é tudo. Siga a estratégia!")
+
+        print(f"[{hora}] ✅ Sinal enviado com entrada: {entrada}")
+
+    except TelegramError as e:
+        print(f"❌ Erro ao enviar sinal: {e}")
+
+# --- Loop de envio automático a cada 10min ---
+async def agendar_sinais():
     while True:
-        sinal = random.choice(["⚪ Branco", "🔴 Vermelho", "🔵 Azul"])
-        mensagem = (
-            f"🎯 *SINAL BAC BO AUTOMÁTICO*\n\n"
-            f"✅ Tudo pronto!\n"
-            f"🎰 Entrada: {sinal}\n"
-            f"🎁 Bônus de boas-vindas já disponível!\n"
-            f"➡️ Cadastre-se: {URL_CADASTRO}"
-        )
+        await enviar_sinal()
+        await asyncio.sleep(600)
 
-        try:
-            await bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
-            print(f"[{datetime.now().strftime('%d/%m %H:%M:%S')}] ✅ Sinal enviado: {sinal}")
-        except TelegramError as e:
-            print(f"❌ Erro ao enviar sinal: {e}")
-
-        await asyncio.sleep(600)  # 10 minutos
-
-# --- Rota web do Flask ---
+# --- Página Flask (status) ---
 @app.route("/")
-def home():
-    return "✅ Bot Bac Bo Sinais Online!"
+def status():
+    return "✅ BOT BAC BO ONLINE — Estratégia Escada com Cobertura ativa"
 
-# --- Executa Flask em thread separada ---
+# --- Inicia servidor Flask paralelo ao loop de sinais ---
 def run_flask():
     app.run(host="0.0.0.0", port=10000)
 
-# --- Inicia o bot e o servidor ---
 def start():
     threading.Thread(target=run_flask).start()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(send_signal())
+    loop.run_until_complete(agendar_sinais())
 
 if __name__ == "__main__":
     start()
