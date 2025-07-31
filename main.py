@@ -7,33 +7,38 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-# Definir alguns manipuladores de comando
+# Token do bot e ID do canal
+BOT_TOKEN = "7975008855:AAHZ8F0XUfRtRX643Z3B3DoOA3h5YLVnRDs"
+CANAL_ID = -1002808626127
+
+# Comando /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Envia uma mensagem quando o comando /start é emitido."""
     user = update.effective_user
     await update.message.reply_html(
-        f"Olá {user.mention_html()}!",
+        f"Olá {user.mention_html()}! Seja bem-vindo ao canal de sinais Bac Bo!"
     )
-[31/07, 11:54] ...: async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Envia uma mensagem quando o comando /help é emitido."""
-    await update.message.reply_text("Use /start para começar.")
 
+# Comando /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Use /start para começar. Em breve mais comandos estarão disponíveis.")
+
+# Ecoar mensagens (modo teste)
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Ecoa a mensagem do usuário."""
     await update.message.reply_text(update.message.text)
 
 def main() -> None:
-    """Inicia o bot."""
-    # Crie o Application e passe o token do seu bot. Substitua 'YOUR_BOT_TOKEN' pelo seu token real.
-    application = Application.builder().token("YOUR_BOT_TOKEN").build()
-[31/07, 11:55] ...: # Em diferentes comandos, use diferentes manipuladores
+    # Inicia o bot
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlers de comandos
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
-    # Em mensagens não-comando, ecoa a mensagem
+    # Handler para mensagens comuns
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    # Execute o bot até que o usuário pressione Ctrl-C
+    # Inicia o polling
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-[31/07, 11:55] ...: if __name__ == "__main__":
+
+if __name__ == "__main__":
     main()
