@@ -1,97 +1,83 @@
 import os
-import asyncio
-import random
-import threading
-from datetime import datetime
-from flask import Flask
-from flask_cors import CORS
 from dotenv import load_dotenv
-from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.error import TelegramError
+from telegram import (
+    Update,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+)
 
-# --- Carregando variáveis ---
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = os.getenv("URL_CADASTRO")
 
-if not TOKEN or not CHAT_ID or not URL_CADASTRO:
-    raise ValueError("❌ BOT_TOKEN, CHAT_ID ou URL_CADASTRO não definidos no .env")
+# Caminhos das imagens locais
+WIN_ENTRADA_PATH = os.path.join("imagens", "win_entrada.png")
+WIN_GALE1_PATH = os.path.join("imagens", "win_gale1.png")
+WIN_GALE2_PATH = os.path.join("imagens", "win_gale2.png")
 
-# --- Inicialização ---
-bot = Bot(token=TOKEN)
-app = Flask(__name__)
-CORS(app)
+LINK_AFILIADO = "https://lkwn.cc/f1c1c45a"
 
-# --- Estratégia: Escada com Cobertura ---
-def gerar_entrada():
-    cores = ["🔴 Vermelho", "🔵 Azul"]
-    principal = random.choice(cores)
-    return principal, "🟡 Amarelo (Cobertura)"
-
-# --- Envio de sinal com visual completo ---
-async def enviar_sinal():
-    entrada, cobertura = gerar_entrada()
-    hora = datetime.now().strftime("%H:%M")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
 
     texto = (
-        f"🧠 *SINAL ESTRATÉGICO BAC BO*\n"
-        f"🕒 {hora}\n\n"
-        f"🎰 Entrada principal: {entrada}\n"
-        f"🛡️ Cobertura: {cobertura}\n\n"
-        f"💸 *Gestão de risco ativada:*\n"
-        f"• 1ª entrada\n"
-        f"• G1 se necessário\n"
-        f"• G2 final\n\n"
-        f"📢 *Não opere fora da gestão!*\n"
-        f"🎯 Resultados validados no algoritmo.\n"
+        "🎲 *Bot BAC BO* iniciado!\n\n"
+        "Use /winentrada para imagem de vitória entrada.\n"
+        "Use /wingale1 para imagem de vitória gale 1.\n"
+        "Use /wingale2 para imagem de vitória gale 2.\n"
+    )
+    
+    botao = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Jogar Bac Bo", url=LINK_AFILIADO)]]
     )
 
-    botao = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎲 Jogar Bac Bo", url=URL_CADASTRO)]
-    ])
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=texto,
+        parse_mode="Markdown",
+        reply_markup=botao,
+    )
 
-    try:
-        # Envia mensagem
-        await bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown", reply_markup=botao)
+async def winentrada(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    with open(WIN_ENTRADA_PATH, "rb") as img:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=img,
+            caption="🎉 Vitória Entrada!",
+        )
 
-        # Envia imagem da gestão
-        with open("imagens/gestao.png", "rb") as img:
-            await bot.send_photo(chat_id=CHAT_ID, photo=img, caption="📊 Gestão aplicada (Entrada, G1, G2)")
+async def wingale1(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    with open(WIN_GALE1_PATH, "rb") as img:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=img,
+            caption="🎉 Vitória Gale 1!",
+        )
 
-        # Envia imagem de empate (cobertura)
-        with open("imagens/empate.png", "rb") as empate:
-            await bot.send_photo(chat_id=CHAT_ID, photo=empate, caption="🟡 Cobertura estratégica ativa (Empate)")
+async def wingale2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    with open(WIN_GALE2_PATH, "rb") as img:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=img,
+            caption="🎉 Vitória Gale 2!",
+        )
 
-        # Envia GIF futurista de vitória
-        with open("imagens/win.gif", "rb") as gif:
-            await bot.send_animation(chat_id=CHAT_ID, animation=gif, caption="🚀 Estratégia validada com WINs consistentes!")
+def main():
+    application = Application.builder().token(TOKEN).build()
 
-        print(f"[{hora}] ✅ Sinal enviado com entrada: {entrada}")
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("winentrada", winentrada))
+    application.add_handler(CommandHandler("wingale1", wingale1))
+    application.add_handler(CommandHandler("wingale2", wingale2))
 
-    except TelegramError as e:
-        print(f"❌ Erro ao enviar sinal: {e}")
-
-# --- Loop de envio automático a cada 10min ---
-async def agendar_sinais():
-    while True:
-        await enviar_sinal()
-        await asyncio.sleep(600)
-
-# --- Status do bot ---
-@app.route("/")
-def status():
-    return "✅ BOT BAC BO ONLINE — Estratégia Escada com Cobertura ativa"
-
-# --- Executa Flask + loop Telegram ---
-def run_flask():
-    app.run(host="0.0.0.0", port=10000)
-
-def start():
-    threading.Thread(target=run_flask).start()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(agendar_sinais())
+    application.run_polling()
 
 if __name__ == "__main__":
-    start()
+    main()
