@@ -1,84 +1,39 @@
-import os
-import asyncio
-import random
-import threading
-from datetime import datetime
-from flask import Flask
-from flask_cors import CORS
-from dotenv import load_dotenv
-from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, InputMediaAnimation
-from telegram.error import TelegramError
+import logging
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# --- Carregando variáveis ---
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a")
+# Habilitar logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
-bot = Bot(token=TOKEN)
+# Definir alguns manipuladores de comando
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Envia uma mensagem quando o comando /start é emitido."""
+    user = update.effective_user
+    await update.message.reply_html(
+        f"Olá {user.mention_html()}!",
+    )
+[31/07, 11:54] ...: async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Envia uma mensagem quando o comando /help é emitido."""
+    await update.message.reply_text("Use /start para começar.")
 
-# --- Flask App ---
-app = Flask(__name__)
-CORS(app)
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ecoa a mensagem do usuário."""
+    await update.message.reply_text(update.message.text)
 
-@app.route('/')
-def home():
-    return "Bot Bac Bo Online!"
+def main() -> None:
+    """Inicia o bot."""
+    # Crie o Application e passe o token do seu bot. Substitua 'YOUR_BOT_TOKEN' pelo seu token real.
+    application = Application.builder().token("YOUR_BOT_TOKEN").build()
+[31/07, 11:55] ...: # Em diferentes comandos, use diferentes manipuladores
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
 
-# --- Funções de Sinais ---
-sinais = ["⚪️⚪️🔴🔴", "🔵🔵⚪️⚪️", "🔴🔴🔵🔵"]
+    # Em mensagens não-comando, ecoa a mensagem
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-def gerar_sinal():
-    return random.choice(sinais)
-
-def enviar_sinal():
-    agora = datetime.now().strftime('%H:%M')
-    sinal = gerar_sinal()
-    
-    mensagem = f"""
-🎯 NOVO SINAL GERADO 🎯
-⏰ Horário: {agora}
-🎰 Jogo: BAC BO
-🎲 Entrada: {sinal}
-
-⚠️ Apostar até 30 segundos antes!
-🎯 Estratégia: Escada Asiática com Cobertura Amarela
-🛡️ Cobertura: Empate (Amarelo)
-
-🎁 Bônus de Cadastro + Giros Grátis:
-👉 {URL_CADASTRO}
-"""
-
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎰 Jogar Bac Bo Agora", url=URL_CADASTRO)]
-    ])
-
-    try:
-        bot.send_message(chat_id=CHAT_ID, text=mensagem, reply_markup=keyboard)
-
-        # Enviar imagem conforme tipo
-        if "🔴🔴" in sinal or "⚪️⚪️" in sinal or "🔵🔵" in sinal:
-            with open("imagens/win-futurista.gif", "rb") as gif:
-                bot.send_animation(chat_id=CHAT_ID, animation=gif)
-        
-        # Opcional: se quiser enviar algo para empate, pode adaptar com lógica diferente
-        if "empate" in sinal.lower():  # se você quiser que alguma palavra gere o empate
-            with open("imagens/empate.gif", "rb") as empate_img:
-                bot.send_animation(chat_id=CHAT_ID, animation=empate_img)
-
-    except TelegramError as e:
-        print(f"Erro ao enviar sinal: {e}")
-
-# --- Loop Assíncrono de Sinais ---
-async def loop_sinais():
-    while True:
-        enviar_sinal()
-        await asyncio.sleep(600)  # Envia a cada 10 minutos
-
-def iniciar_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(loop_sinais())
-
-# --- Iniciar Thread ---
-threading.Thread(target=iniciar_loop).start()
+    # Execute o bot até que o usuário pressione Ctrl-C
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+[31/07, 11:55] ...: if __name__ == "__main__":
+    main()
