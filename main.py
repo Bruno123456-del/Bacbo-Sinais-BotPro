@@ -1,122 +1,153 @@
 import os
 import random
-import logging
+import asyncio
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from flask import Flask
+from threading import Thread
 
-# Logs visíveis no Render
-logging.basicConfig(level=logging.INFO)
-
-# Carrega .env
+# =============== CONFIG ===============
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")  # Ex: '-1001234567890'
+URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
+PASTA_IMAGENS = "imagens"
 
-# Caminhos
-IMAGEM_PATHS = {
-    "entrada": os.path.join("imagens", "win_entrada.png"),
-    "gale1": os.path.join("imagens", "win_gale1.png"),
-    "gale2": os.path.join("imagens", "win_gale2.png"),
+bot = Bot(token=TOKEN)
+app = Flask(__name__)
+# ======================================
+
+# Estratégia "Escada Asiática com Cobertura"
+sinais = [
+    ("Player", "Banco", "Amarelo"),
+    ("Banco", "Player", "Amarelo"),
+    ("Player", "Player", "Amarelo"),
+    ("Banco", "Banco", "Amarelo"),
+]
+
+estatisticas = {
+    "wins": 0,
+    "gale1": 0,
+    "gale2": 0,
+    "perdas": 0,
+    "total": 0,
 }
-GIF_PATHS = [
-    os.path.join("imagens", "gifs", "green1.gif"),
-    os.path.join("imagens", "gifs", "green2.gif"),
-    os.path.join("imagens", "gifs", "green3.gif"),
-]
-LINK_AFILIADO = "https://lkwn.cc/f1c1c45a"
 
-# Frases motivacionais rotativas
-FRASES = [
-    "💡 Já está usando a mesma plataforma que a gente?",
-    "🎁 Cadastre-se e ganhe bônus de boas-vindas!",
-    "📊 A consistência é o segredo dos milionários.",
-    "🤖 Nosso algoritmo trabalha 24h para você.",
-    "🚀 O sucesso começa com um passo. Clique abaixo!",
-]
 
-# === COMANDOS ===
+def gerar_mensagem_sinal(entrada, gale1, cobertura):
+    return f"""🚨 NOVO SINAL GERADO 🚨
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    frase = random.choice(FRASES)
+🎯 Entrada: {entrada}
+🔥 Gale 1: {gale1}
+🛡️ Cobertura (empate): {cobertura}
 
-    texto = (
-        "🎲 *Bot BAC BO* iniciado!\n\n"
-        "Use os comandos abaixo para interagir com o bot:\n"
-        "/winentrada - Imagem de vitória na entrada\n"
-        "/wingale1 - Imagem de vitória na Gale 1\n"
-        "/wingale2 - Imagem de vitória na Gale 2\n"
+🎯 Valor da entrada: R$20,00
+🛡️ Valor da cobertura: R$5,00
+💰 Banca recomendada: R$1000+
+
+🔁 Use até 2 Gales (Progressão Inteligente)
+📊 Gestão: 1 a 2% por entrada + Cobertura
+
+🎮 Clique aqui para jogar: 👉 {URL_CADASTRO}"""
+
+def gerar_botao():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎲 Jogar Bac Bo Agora", url=URL_CADASTRO)]
+    ])
+
+def escolher_imagem_win():
+    opcoes = [
+        "win_entrada.png",
+        "win_gale1.png",
+        "win_gale2.png"
+    ]
+    escolhida = random.choice(opcoes)
+    if "gale1" in escolhida:
+        estatisticas["gale1"] += 1
+    elif "gale2" in escolhida:
+        estatisticas["gale2"] += 1
+    else:
+        estatisticas["wins"] += 1
+    estatisticas["total"] += 1
+    return os.path.join(PASTA_IMAGENS, escolhida)
+
+async def enviar_sinal():
+    entrada, gale1, cobertura = random.choice(sinais)
+    mensagem = gerar_mensagem_sinal(entrada, gale1, cobertura)
+    imagem = escolher_imagem_win()
+
+    await bot.send_photo(
+        chat_id=CHAT_ID,
+        photo=open(imagem, "rb"),
+        caption=mensagem,
+        reply_markup=gerar_botao()
     )
-    botao = InlineKeyboardMarkup([[InlineKeyboardButton("🎰 Jogar Bac Bo", url=LINK_AFILIADO)]])
 
-    await context.bot.send_message(chat_id=chat_id, text=texto, parse_mode="Markdown", reply_markup=botao)
-    await context.bot.send_message(chat_id=chat_id, text=frase)
+async def enviar_gestao():
+    texto = f"""
+📊 *Gestão Inteligente de Banca* 📊
 
-async def enviar_imagem(update: Update, context: ContextTypes.DEFAULT_TYPE, tipo: str):
-    try:
-        chat_id = update.effective_chat.id
-        with open(IMAGEM_PATHS[tipo], "rb") as img:
-            await context.bot.send_photo(chat_id=chat_id, photo=img, caption=f"🎉 Vitória {tipo.capitalize()}!")
+💵 Banca ideal: *R$1000 ou mais*
+🎯 Entrada: *R$20 (2% da banca)*
+🛡️ Cobertura: *R$5 a R$10 (empate = amarelo)*
 
-        # Envia um GIF comemorativo aleatório
-        gif_path = random.choice(GIF_PATHS)
-        with open(gif_path, "rb") as gif:
-            await context.bot.send_animation(chat_id=chat_id, animation=gif)
+🔁 Use Gale 1 e Gale 2 com sabedoria
+⚠️ Nunca aposte mais que 5% da sua banca!
 
-        # Botões de interação
-        botoes = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("✅ Green", callback_data="green"),
-                InlineKeyboardButton("🔴 Red", callback_data="red"),
-            ]
-        ])
-        await context.bot.send_message(chat_id=chat_id, text="Resultado da sua entrada:", reply_markup=botoes)
+🎮 Cadastre-se e aproveite os bônus agora:
+👉 {URL_CADASTRO}
+"""
+    await bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
 
-        # Frase de engajamento
-        frase = random.choice(FRASES)
-        await context.bot.send_message(chat_id=chat_id, text=frase)
+async def enviar_mensagem_motivacional():
+    frases = [
+        "🔥 Cada vitória te aproxima da liberdade financeira!",
+        "💰 Quem aposta com inteligência, lucra no longo prazo.",
+        "🎯 A consistência vence a sorte.",
+        "📈 Disciplina e gestão são as chaves do sucesso!"
+    ]
+    frase = random.choice(frases)
+    await bot.send_message(chat_id=CHAT_ID, text=frase)
 
-        logging.info(f"[SUCESSO] Enviou imagem e GIF do tipo: {tipo} para {chat_id}")
-    except Exception as e:
-        logging.error(f"[ERRO] ao enviar {tipo}: {str(e)}")
+async def enviar_estatisticas():
+    msg = f"""📊 *Estatísticas do Dia* 📊
 
-async def winentrada(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await enviar_imagem(update, context, "entrada")
+✅ Win direto: {estatisticas["wins"]}
+🌀 Gale 1: {estatisticas["gale1"]}
+🔥 Gale 2: {estatisticas["gale2"]}
+❌ Perdas: {estatisticas["perdas"]}
+🎯 Total de sinais: {estatisticas["total"]}
 
-async def wingale1(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await enviar_imagem(update, context, "gale1")
+🔗 {URL_CADASTRO}
+"""
+    await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
 
-async def wingale2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await enviar_imagem(update, context, "gale2")
+async def rotina_diaria():
+    while True:
+        agora = datetime.now()
+        proxima_execucao = agora.replace(hour=20, minute=0, second=0, microsecond=0)
+        if agora > proxima_execucao:
+            proxima_execucao += timedelta(days=1)
+        espera = (proxima_execucao - agora).total_seconds()
+        await asyncio.sleep(espera)
 
-# === BOTÕES DE GREEN/RED ===
+        await enviar_sinal()
+        await enviar_gestao()
+        await enviar_mensagem_motivacional()
+        await enviar_estatisticas()
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+@app.route('/')
+def home():
+    return '✅ Bot Bac Bo Online - Estratégia Escada Asiática'
 
-    resultado = "✅ GREEN! Parabéns! 🟢" if query.data == "green" else "🔴 RED! Gestão é tudo. ⚠️"
-    await query.edit_message_text(text=resultado)
+def iniciar_flask():
+    app.run(host='0.0.0.0', port=3000)
 
-    logging.info(f"[BOTÃO] {query.data.upper()} clicado por {query.from_user.username or query.from_user.id}")
+def iniciar_asyncio():
+    asyncio.run(rotina_diaria())
 
-# === INICIALIZAÇÃO DO BOT ===
-
-def start_bot():
-    if not TOKEN:
-        logging.error("❌ BOT_TOKEN não definido.")
-        return
-
-    app = Application.builder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("winentrada", winentrada))
-    app.add_handler(CommandHandler("wingale1", wingale1))
-    app.add_handler(CommandHandler("wingale2", wingale2))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    logging.info("🚀 Bot iniciado com sucesso.")
-    app.run_polling()
-
+# ========= INICIAR =========
 if __name__ == "__main__":
-    start_bot()
+    Thread(target=iniciar_flask).start()
+    Thread(target=iniciar_asyncio).start()
