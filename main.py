@@ -11,11 +11,11 @@ from dotenv import load_dotenv
 
 # --- 1. CONFIGURAÇÃO INICIAL ---
 
-load_dotenv( )
+load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seusite.com/bonus" )
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a" ) # SEU LINK DE AFILIADO
 
 if not BOT_TOKEN or CANAL_ID == "0":
     raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env.")
@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- 2. BANCO DE MÍDIA (COM IMAGEM DE EMPATE) ---
+# --- 2. BANCO DE MÍDIA E MENSAGENS DE MARKETING ---
 
 # Links diretos para suas imagens no GitHub
 IMG_WIN_ENTRADA = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_entrada.png"
@@ -36,11 +36,23 @@ IMG_WIN_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-
 IMG_WIN_GALE2 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale2.png"
 IMG_WIN_EMPATE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_empate.png"
 
-# GIFs para análise e RED
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
 GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 
-# --- 3. ESTADO DO BOT (Contadores ) ---
+# Mensagem de marketing para ser usada após cada WIN
+MENSAGEM_POS_WIN = f"""
+🚀 **QUER RESULTADOS ASSIM?** 🚀
+
+Nossos sinais são calibrados para a **1WIN**. Jogar em outra plataforma pode gerar resultados diferentes.
+
+👉 [**Clique aqui para se cadastrar na 1WIN**]({URL_CADASTRO} ) e tenha acesso a:
+✅ **Bônus Premium** de boas-vindas
+🏆 **Sorteios Milionários** e até carros de luxo!
+
+Não fique de fora! **Cadastre-se agora!**
+"""
+
+# --- 3. ESTADO DO BOT (Contadores) ---
 
 async def inicializar_contadores(application: Application):
     application.bot_data.setdefault('diario_win', 0)
@@ -51,13 +63,14 @@ async def inicializar_contadores(application: Application):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
+    botao_cadastro = InlineKeyboardButton("🏆 Quero meu Bônus e Sorteios 🏆", url=URL_CADASTRO)
+    teclado = InlineKeyboardMarkup([[botao_cadastro]])
     await update.message.reply_html(
         f"Olá {user.mention_html()}! 👋\n\n"
-        "Eu sou o bot de sinais para Bac Bo. Os sinais são enviados automaticamente no canal oficial."
+        "Bem-vindo ao canal de sinais VIP! Para garantir que você tenha os mesmos resultados que nós e participe de todas as promoções, **é essencial que você jogue na plataforma certa.**\n\n"
+        "Clique no botão abaixo para começar com tudo!",
+        reply_markup=teclado
     )
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
 
 # --- 5. LÓGICA PRINCIPAL DOS SINAIS ---
 
@@ -72,7 +85,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
             caption="""
 📡 **Analisando padrões do mercado...**
 
-Nossa I.A. está buscando a melhor oportunidade.
+Nossa I.A. está buscando a melhor oportunidade na **1WIN**.
 Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             """
         )
@@ -80,28 +93,25 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         await asyncio.sleep(random.randint(15, 25))
 
         # ETAPA 2: ESCOLHA DO SINAL (INCLUINDO EMPATE)
-        
-        # Define as opções de aposta. O Empate tem uma chance menor de ser escolhido.
         opcoes_de_aposta = ["Banker 🔴", "Player 🔵", "Empate 🟡"]
-        pesos = [0.45, 0.45, 0.10] # 45% Banker, 45% Player, 10% Empate
+        pesos = [0.45, 0.45, 0.10]
         aposta_sugerida = random.choices(opcoes_de_aposta, weights=pesos, k=1)[0]
 
         botao_bonus = InlineKeyboardButton(
-            text="💎 Jogue Bac Bo com Bônus Exclusivo 💎",
+            text="💎 Cadastre-se na 1WIN e Ganhe Bônus 💎",
             url=URL_CADASTRO
         )
         teclado_sinal = InlineKeyboardMarkup([[botao_bonus]])
         
-        # Mensagem customizada se for Empate
         if "Empate" in aposta_sugerida:
             mensagem_sinal = (
-                f"🚨 **ALERTA DE OPORTUNIDADE RARA** 🚨\n\n"
+                f"🚨 **ALERTA DE OPORTUNIDADE RARA (Odd Alta)** 🚨\n\n"
                 f"👇 **Apostar em:** {aposta_sugerida}\n"
                 f"📈 **Estratégia:** Cobertura de Empate\n\n"
                 f"**PLANO DE AÇÃO:**\n"
                 f"1️⃣ **Entrada de 1% da banca no Empate**\n"
                 f"2️⃣ **Cobrir com 1ª Proteção (Gale)** se necessário\n\n"
-                f"⚠️ *Alto potencial de retorno. Siga a gestão.*"
+                f"⚠️ *Exclusivo para jogadores na 1WIN.*"
             )
         else:
             mensagem_sinal = (
@@ -112,7 +122,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
                 f"1️⃣ **Entrada Inicial**\n"
                 f"2️⃣ **1ª Proteção (Gale 1)**\n"
                 f"3️⃣ **2ª Proteção (Gale 2)**\n\n"
-                f"⚠️ *Siga a gestão de banca. Opere com consciência.*"
+                f"⚠️ *Sinais otimizados para a 1WIN.*"
             )
 
         await msg_analise.delete()
@@ -126,22 +136,16 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         
         # ETAPA 3: RESULTADO
         
-        # Se for Empate, a lógica é mais simples (Win ou Loss)
+        # Lógica de Empate
         if "Empate" in aposta_sugerida:
             await asyncio.sleep(random.randint(80, 100))
-            if random.random() < 0.40: # Chance de 40% de win no empate (simulação)
+            if random.random() < 0.40:
                 bot_data['diario_win'] += 1
                 placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
                 resultado_msg = f"✅✅✅ **GREEN NO EMPATE!** ✅✅✅\n\n💰 **LUCRO MASSIVO!**\n\n{placar}"
                 await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_EMPATE, caption=resultado_msg)
-                logger.info(f"Resultado: WIN NO EMPATE. {placar}")
-            else:
-                bot_data['diario_loss'] += 1
-                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
-                resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO empate não veio. Seguimos o plano!\n\n{placar}"
-                await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_LOSS, caption=resultado_msg)
-                logger.info(f"Resultado: RED NO EMPATE. {placar}")
-            return # Encerra o ciclo do sinal aqui
+                await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+                return
 
         # Lógica normal para Player/Banker com gales
         # TENTATIVA 1: ENTRADA
@@ -151,7 +155,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
-            logger.info(f"Resultado: WIN NA ENTRADA. {placar}")
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
         # TENTATIVA 2: GALE 1
@@ -162,7 +166,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
-            logger.info(f"Resultado: WIN NO GALE 1. {placar}")
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
         # TENTATIVA 3: GALE 2
@@ -173,7 +177,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
-            logger.info(f"Resultado: WIN NO GALE 2. {placar}")
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
         # SE NENHUM WIN, ENTÃO É RED
