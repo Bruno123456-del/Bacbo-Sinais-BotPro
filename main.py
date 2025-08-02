@@ -1,101 +1,94 @@
+import logging
+import os
+import random
+from datetime import datetime
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import MessageHandler, filters
+from dotenv import load_dotenv
 
+# Carrega variáveis de ambiente
+load_dotenv()
+BOT_TOKEN = "7975008855:AAGEc1_htKryQnZ0qPemvoWs0Mz3PG22Q3U"
+CANAL_ID = -1002808626127  # Substitua se necessário
 
-    await asyncio.sleep(120)
+# Ativa logs
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-    if random.random() < CHANCE_WIN_ENTRADA_INICIAL:
-        placar["greens"] += 1
-        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN)
-        await asyncio.sleep(2)
-        await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_WIN_ENTRADA, 'rb'), caption="✅ WIN NA ENTRADA PRINCIPAL!
-💰 LUCRO ALCANÇADO: +4%")
-        await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown')
-        return
+# Caminhos das imagens
+IMG_WIN = "imagens/win-futurista.gif"
+IMG_LOSS = "imagens/loss-futurista.gif"
 
-    await bot.send_message(chat_id=CHAT_ID, text="⚠️ Ativando GALE 1.")
-    await asyncio.sleep(120)
-    if random.random() < CHANCE_WIN_GALE_1:
-        placar["greens"] += 1
-        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN)
-        await asyncio.sleep(2)
-        await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_WIN_GALE1, 'rb'), caption="✅ WIN NO GALE 1!
-💰 LUCRO TOTAL: +8%")
-        await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown')
-        return
+# Contadores
+diario_win = 0
+diario_loss = 0
 
-    await bot.send_message(chat_id=CHAT_ID, text="⚠️ Ativando GALE 2.")
-    await asyncio.sleep(120)
-    if random.random() < CHANCE_WIN_GALE_2:
-        placar["greens"] += 1
-        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_WIN)
-        await asyncio.sleep(2)
-        await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_WIN_GALE2, 'rb'), caption="✅ WIN NO GALE 2!
-💰 LUCRO TOTAL: +16%")
-        await bot.send_message(chat_id=CHAT_ID, text=random.choice(reforco_pos_win), parse_mode='Markdown')
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    await update.message.reply_html(
+        f"Olá {user.mention_html()}! Seja bem-vindo ao canal de sinais Bac Bo!"
+    )
+
+# /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Use /start para começar. Em breve mais comandos estarão disponíveis.")
+
+# Resultado aleatório
+def definir_resultado():
+    return random.choice(["win", "loss"])
+
+# Enviar sinal
+async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
+    global diario_win, diario_loss
+    resultado = definir_resultado()
+
+    mensagem = (
+        f"🎲 Novo Sinal Bac Bo 🎲\n\n"
+        f"🎯 Estratégia: Escada Asiática\n"
+        f"🎰 Entrada: Jogar agora\n"
+        f"💡 Resultado: {resultado.upper()}"
+    )
+
+    imagem = IMG_WIN if resultado == "win" else IMG_LOSS
+    if resultado == "win":
+        diario_win += 1
     else:
-        placar["reds"] += 1
-        await bot.send_animation(chat_id=CHAT_ID, animation=GIF_RED, caption="❌ STOP LOSS
+        diario_loss += 1
 
-Encerramos para proteger o capital.")
-
-async def ciclo_de_sinais(bot: Bot):
-    sinais_enviados = 0
-    while True:
-        await simular_e_enviar_sinal(bot)
-        sinais_enviados += 1
-
-        if sinais_enviados % 3 == 0:
-            await bot.send_message(chat_id=CHAT_ID, text=f"📊 PLACAR
-✅ Greens: {placar['greens']}
-❌ Reds: {placar['reds']}", parse_mode='Markdown')
-            try:
-                imagem = random.choice(PROVAS_SOCIAIS)
-                texto = random.choice([
-                    "🔥 Veja esse resultado incrível!",
-                    "🚀 Nossa comunidade está lucrando pesado!",
-                    "💰 Resultado que fala por si só!"
-                ])
-                await bot.send_photo(chat_id=CHAT_ID, photo=open(imagem, 'rb'), caption=texto)
-            except Exception as e:
-                print(f"Erro ao enviar prova social: {e}")
-
-        await asyncio.sleep(15 * 60)
-
-async def gestao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Protocolo de Gestão Avançada...", parse_mode='Markdown')
-
-async def enviar_e_fixar_mensagem_inicial(bot: Bot):
     try:
-        msg = await bot.send_message(chat_id=CHAT_ID, text=mensagem_fixada_texto, parse_mode='Markdown')
-        await bot.pin_chat_message(chat_id=CHAT_ID, message_id=msg.message_id)
+        with open(imagem, "rb") as img:
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=img, caption=mensagem)
     except Exception as e:
-        print(f"Erro ao fixar mensagem: {e}")
+        logging.error(f"Erro ao enviar imagem: {e}")
 
-async def enviar_mensagem_recorrente(bot: Bot):
-    while True:
-        await asyncio.sleep(6 * 60 * 60)
-        try:
-            await bot.send_message(chat_id=CHAT_ID, text=mensagem_automatica_recorrente, parse_mode='Markdown')
-        except Exception as e:
-            print(f"Erro mensagem recorrente: {e}")
+# Enviar resumo do dia
+async def resumo_diario(context: ContextTypes.DEFAULT_TYPE):
+    global diario_win, diario_loss
+    resumo = (
+        f"📊 RESUMO DO DIA 📊\n\n"
+        f"✅ Greens: {diario_win}\n"
+        f"❌ Reds: {diario_loss}\n\n"
+        f"🚀 Continue com a gente e multiplique sua banca!"
+    )
+    await context.bot.send_message(chat_id=CANAL_ID, text=resumo)
+    diario_win = 0
+    diario_loss = 0
 
-async def main():
-    print("Iniciando Bot BAC BO com estratégia Escada Asiática...")
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("gestao", gestao))
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling()
+# Main
+def main():
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    bot = application.bot
-    asyncio.create_task(enviar_e_fixar_mensagem_inicial(bot))
-    asyncio.create_task(ciclo_de_sinais(bot))
-    asyncio.create_task(enviar_mensagem_recorrente(bot))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
 
-    while True:
-        await asyncio.sleep(3600)
+    application.job_queue.run_repeating(enviar_sinal, interval=600, first=5)
+    application.job_queue.run_daily(resumo_diario, time=datetime.strptime("23:59", "%H:%M").time())
 
-if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        print("Bot finalizado.")
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
