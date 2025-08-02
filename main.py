@@ -1,103 +1,88 @@
-# main.py
 import logging
 import os
 import random
-import datetime
+from datetime import datetime
 from telegram import Update, InputMediaPhoto
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from dotenv import load_dotenv
 
-# Configurações iniciais
+# Carregar variáveis de ambiente do .env
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "7975008855:AAHZ8F0XUfRtRX643Z3B3DoOA3h5YLVnRDs"
-CANAL_ID = int(os.getenv("CANAL_ID") or -1002808626127)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CANAL_ID = int(os.getenv("CANAL_ID"))
 
-# Diretório das imagens
+# Habilitar logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+
+# Contadores de win e loss
+diario_win = 0
+diario_loss = 0
+
+# Caminhos das imagens
 IMG_WIN = "imagens/win-futurista.gif"
 IMG_LOSS = "imagens/loss-futurista.gif"
 
-# Contadores globais
-ganhos = 0
-perdas = 0
+# Comando /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    await update.message.reply_html(f"Olá {user.mention_html()}! Seja bem-vindo ao canal de sinais Bac Bo!")
 
-# Configura logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Comando /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Use /start para começar. Em breve mais comandos estarão disponíveis.")
 
-# Lista de exemplos de sinais (fictícios)
-sinais = [
-    {"jogo": "BAC BO", "palpite": "Escada Asiática", "resultado": "win"},
-    {"jogo": "BAC BO", "palpite": "Cobertura Amarela", "resultado": "loss"},
-    {"jogo": "BAC BO", "palpite": "Dupla Chance", "resultado": "win"},
-]
+# Função para enviar sinal com imagem de resultado
+definir_resultado():
+    return random.choice(["win", "loss"])
 
-# Enviar sinal com imagem
-async def enviar_sinal(application):
-    global ganhos, perdas
-    sinal = random.choice(sinais)
-    texto = (
-        f"🎯 PALPITE DO DIA 🎯\n"
-        f"🎮 Jogo: {sinal['jogo']}\n"
-        f"💡 Estratégia: {sinal['palpite']}\n"
-        f"📊 Resultado: {'✅ GREEN' if sinal['resultado'] == 'win' else '❌ RED'}\n\n"
-        f"🔗 Jogar agora: https://lkwn.cc/f1c1c45a"
-    )
+async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
+    global diario_win, diario_loss
+    resultado = definir_resultado()
 
-    imagem = IMG_WIN if sinal['resultado'] == 'win' else IMG_LOSS
-    if sinal['resultado'] == 'win':
-        ganhos += 1
+    mensagem = f"🎲 Novo Sinal Bac Bo 🎲\n\n🎯 Estratégia: Escada Asiática\n🎰 Entrada: Jogar agora\n💡 Resultado: {resultado.upper()}"
+
+    if resultado == "win":
+        diario_win += 1
+        imagem = IMG_WIN
     else:
-        perdas += 1
+        diario_loss += 1
+        imagem = IMG_LOSS
 
     try:
-        await application.bot.send_photo(chat_id=CANAL_ID, photo=open(imagem, 'rb'), caption=texto)
+        await context.bot.send_photo(chat_id=CANAL_ID, photo=open(imagem, "rb"), caption=mensagem)
     except Exception as e:
-        logger.error(f"Erro ao enviar sinal: {e}")
+        logging.error(f"Erro ao enviar sinal: {e}")
 
-# Resumo do dia
-async def resumo_diario(application):
-    texto = (
-        f"📊 RESUMO DO DIA 📊\n"
-        f"✅ GREENS: {ganhos}\n"
-        f"❌ REDS: {perdas}\n"
-        f"🏆 Assertividade: {round((ganhos / (ganhos + perdas)) * 100, 1) if ganhos + perdas > 0 else 0}%\n\n"
-        f"🎯 Continue acompanhando nossos palpites exclusivos aqui no canal!"
+# Resumo diário
+async def resumo_diario(context: ContextTypes.DEFAULT_TYPE):
+    global diario_win, diario_loss
+
+    resumo = (
+        f"📊 RESUMO DO DIA 📊\n\n"
+        f"✅ Greens: {diario_win}\n❌ Reds: {diario_loss}\n\n"
+        f"🚀 Continue com a gente e multiplique sua banca!"
     )
-    await application.bot.send_message(chat_id=CANAL_ID, text=texto)
+    await context.bot.send_message(chat_id=CANAL_ID, text=resumo)
+    diario_win = 0
+    diario_loss = 0
 
-# Comando de teste manual
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Bot ativo! Enviaremos os sinais automáticos para o canal!")
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Use /start para iniciar. Os sinais serão enviados automaticamente.")
-
+# Main
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
+    # Comandos
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
-    # Enviar sinais a cada 10 minutos e resumo a cada dia (simples para Render)
-    async def tarefa_sinais():
-        while True:
-            await enviar_sinal(application)
-            await asyncio.sleep(600)  # 10 minutos
+    # Sinais a cada 10 minutos
+    application.job_queue.run_repeating(enviar_sinal, interval=600, first=5)
 
-    async def tarefa_resumo():
-        while True:
-            now = datetime.datetime.now()
-            if now.hour == 23 and now.minute == 59:
-                await resumo_diario(application)
-                await asyncio.sleep(60)
-            await asyncio.sleep(30)
+    # Resumo diário às 23:59
+    application.job_queue.run_daily(resumo_diario, time=datetime.strptime("23:59", "%H:%M").time())
 
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.create_task(tarefa_sinais())
-    loop.create_task(tarefa_resumo())
-
-    application.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
