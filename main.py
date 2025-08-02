@@ -1,90 +1,103 @@
-#!/usr/bin/env python3
-"""
-Bot de Sinais BAC BO para Telegram
-Desenvolvido para Square Cloud
-
-Autor: Sistema Automatizado
-Data: 2025
-"""
-
-import os
-import sys
-import asyncio
+# main.py
 import logging
-from datetime import datetime
+import os
+import random
+import datetime
+from telegram import Update, InputMediaPhoto
+from telegram.ext import Application, CommandHandler, ContextTypes
+from dotenv import load_dotenv
 
-# Adiciona o diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Configurações iniciais
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "7975008855:AAHZ8F0XUfRtRX643Z3B3DoOA3h5YLVnRDs"
+CANAL_ID = int(os.getenv("CANAL_ID") or -1002808626127)
 
-from src.telegram_bot import TelegramSignalBot
-from config.config import SIGNAL_INTERVAL_MINUTES, MAX_SIGNALS_PER_DAY
+# Diretório das imagens
+IMG_WIN = "imagens/win-futurista.gif"
+IMG_LOSS = "imagens/loss-futurista.gif"
 
-def setup_logging():
-    """
-    Configura o sistema de logging
-    """
-    # Cria diretório de logs se não existir
-    os.makedirs('logs', exist_ok=True)
-    
-    # Configuração do logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(f'logs/bot_{datetime.now().strftime("%Y%m%d")}.log'),
-            logging.StreamHandler(sys.stdout)
-        ]
+# Contadores globais
+ganhos = 0
+perdas = 0
+
+# Configura logging
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Lista de exemplos de sinais (fictícios)
+sinais = [
+    {"jogo": "BAC BO", "palpite": "Escada Asiática", "resultado": "win"},
+    {"jogo": "BAC BO", "palpite": "Cobertura Amarela", "resultado": "loss"},
+    {"jogo": "BAC BO", "palpite": "Dupla Chance", "resultado": "win"},
+]
+
+# Enviar sinal com imagem
+async def enviar_sinal(application):
+    global ganhos, perdas
+    sinal = random.choice(sinais)
+    texto = (
+        f"🎯 PALPITE DO DIA 🎯\n"
+        f"🎮 Jogo: {sinal['jogo']}\n"
+        f"💡 Estratégia: {sinal['palpite']}\n"
+        f"📊 Resultado: {'✅ GREEN' if sinal['resultado'] == 'win' else '❌ RED'}\n\n"
+        f"🔗 Jogar agora: https://lkwn.cc/f1c1c45a"
     )
 
-async def main():
-    """
-    Função principal do bot
-    """
-    print("🤖 Iniciando Bot de Sinais BAC BO...")
-    print("=" * 50)
-    
-    # Configura logging
-    setup_logging()
-    logger = logging.getLogger(__name__)
-    
+    imagem = IMG_WIN if sinal['resultado'] == 'win' else IMG_LOSS
+    if sinal['resultado'] == 'win':
+        ganhos += 1
+    else:
+        perdas += 1
+
     try:
-        # Cria instância do bot
-        bot = TelegramSignalBot()
-        
-        # Testa conexão
-        logger.info("Testando conexão com Telegram...")
-        if await bot.test_connection():
-            logger.info("✅ Conexão estabelecida com sucesso!")
-            print("✅ Conexão com Telegram estabelecida!")
-            print(f"📊 Configurações:")
-            print(f"   • Intervalo entre sinais: {SIGNAL_INTERVAL_MINUTES} minutos")
-            print(f"   • Máximo de sinais por dia: {MAX_SIGNALS_PER_DAY}")
-            print("🚀 Iniciando envio de sinais...")
-            print("=" * 50)
-            
-            # Inicia o loop de sinais
-            bot.start_signal_loop(
-                interval_minutes=SIGNAL_INTERVAL_MINUTES,
-                max_signals_per_day=MAX_SIGNALS_PER_DAY
-            )
-        else:
-            logger.error("❌ Falha na conexão com Telegram!")
-            print("❌ Erro na conexão com Telegram!")
-            print("Verifique:")
-            print("1. Token do bot está correto")
-            print("2. Bot foi adicionado ao grupo/canal")
-            print("3. Conexão com internet está funcionando")
-            
-    except KeyboardInterrupt:
-        logger.info("Bot interrompido pelo usuário")
-        print("\n🛑 Bot interrompido pelo usuário")
+        await application.bot.send_photo(chat_id=CANAL_ID, photo=open(imagem, 'rb'), caption=texto)
     except Exception as e:
-        logger.error(f"Erro crítico: {e}")
-        print(f"❌ Erro crítico: {e}")
-    finally:
-        print("👋 Bot finalizado!")
+        logger.error(f"Erro ao enviar sinal: {e}")
+
+# Resumo do dia
+async def resumo_diario(application):
+    texto = (
+        f"📊 RESUMO DO DIA 📊\n"
+        f"✅ GREENS: {ganhos}\n"
+        f"❌ REDS: {perdas}\n"
+        f"🏆 Assertividade: {round((ganhos / (ganhos + perdas)) * 100, 1) if ganhos + perdas > 0 else 0}%\n\n"
+        f"🎯 Continue acompanhando nossos palpites exclusivos aqui no canal!"
+    )
+    await application.bot.send_message(chat_id=CANAL_ID, text=texto)
+
+# Comando de teste manual
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Bot ativo! Enviaremos os sinais automáticos para o canal!")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Use /start para iniciar. Os sinais serão enviados automaticamente.")
+
+def main():
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+
+    # Enviar sinais a cada 10 minutos e resumo a cada dia (simples para Render)
+    async def tarefa_sinais():
+        while True:
+            await enviar_sinal(application)
+            await asyncio.sleep(600)  # 10 minutos
+
+    async def tarefa_resumo():
+        while True:
+            now = datetime.datetime.now()
+            if now.hour == 23 and now.minute == 59:
+                await resumo_diario(application)
+                await asyncio.sleep(60)
+            await asyncio.sleep(30)
+
+    import asyncio
+    loop = asyncio.get_event_loop()
+    loop.create_task(tarefa_sinais())
+    loop.create_task(tarefa_resumo())
+
+    application.run_polling()
 
 if __name__ == "__main__":
-    # Executa o bot
-    asyncio.run(main())
-
+    main()
