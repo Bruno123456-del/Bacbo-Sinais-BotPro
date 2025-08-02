@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # --- 1. CONFIGURAÇÃO INICIAL ---
 
-load_dotenv( )
+load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
@@ -30,17 +30,15 @@ logger = logging.getLogger(__name__)
 
 # --- 2. BANCO DE MÍDIA E MENSAGENS DE MARKETING ---
 
-# Links para as imagens de resultado
 IMG_WIN_ENTRADA = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_entrada.png"
 IMG_WIN_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 IMG_WIN_GALE2 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale2.png"
 IMG_WIN_EMPATE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_empate.png"
 
-# GIFs de comemoração
 GIFS_COMEMORACAO = [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzVnb2dpcTYzb3ZkZ3k4aGg2M3NqZzZzZzRjZzZzZzRjZzZzZzRjZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7abIileRivlGr8Nq/giphy.gif", # Pistoleiro
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif", # Sr. Sirigueijo
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaW9oZDN1dTY2a29uY2tqZzZzZzZzZzZzZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/a0h7sAqhlCQoM/giphy.gif"  # Chuva de Dinheiro
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzVnb2dpcTYzb3ZkZ3k4aGg2M3NqZzZzZzRjZzZzZzRjZzZzZzRjZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7abIileRivlGr8Nq/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif",
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaW9oZDN1dTY2a29uY2tqZzZzZzZzZzZzZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/a0h7sAqhlCQoM/giphy.gif"
 ]
 
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
@@ -81,7 +79,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
 
-# --- 5. LÓGICA PRINCIPAL DOS SINAIS ---
+# --- 5. LÓGICA PRINCIPAL DOS SINAIS (CORRIGIDA) ---
 
 async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
     bot_data = context.bot_data
@@ -131,12 +129,10 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         )
         logger.info(f"Sinal enviado: {aposta_principal} com cobertura no Empate. Aguardando resultado.")
         
-        # ETAPA 3: RESULTADO
+        # ETAPA 3: RESULTADO PASSO A PASSO
         
-        resultados_possiveis = ["win_principal", "win_empate", "loss"]
-        resultado_da_rodada = random.choices(resultados_possiveis, weights=[0.65, 0.10, 0.25], k=1)[0]
-
-        if resultado_da_rodada == "win_empate":
+        # Simula se o resultado foi Empate (chance baixa)
+        if random.random() < 0.10: # 10% de chance de dar empate
             await asyncio.sleep(random.randint(80, 100))
             bot_data['diario_win'] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
@@ -146,39 +142,46 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
-        if resultado_da_rodada == "win_principal":
-            await asyncio.sleep(random.randint(80, 100))
-            if random.random() < 0.65:
-                bot_data['diario_win'] += 1
-                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
-                resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
-                await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
-                await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
-                await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
-                return
+        # TENTATIVA 1: ENTRADA PRINCIPAL
+        await asyncio.sleep(random.randint(80, 100))
+        if random.random() < 0.65: # 65% de chance de win na entrada
+            bot_data['diario_win'] += 1
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
+            await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            return # Encerra o ciclo com sucesso
 
-            await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **1ª Proteção (Gale 1)**.", reply_to_message_id=msg_sinal_enviada.message_id)
-            await asyncio.sleep(random.randint(80, 100))
-            if random.random() < 0.75:
-                bot_data['diario_win'] += 1
-                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
-                resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
-                await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
-                await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
-                await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
-                return
+        # Se chegou aqui, a entrada não bateu. Avisa e vai para o GALE 1.
+        await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ **Não bateu!** Vamos para a primeira proteção.\n\nAcionando **Gale 1**...", reply_to_message_id=msg_sinal_enviada.message_id)
+        
+        # TENTATIVA 2: GALE 1
+        await asyncio.sleep(random.randint(80, 100))
+        if random.random() < 0.75: # 75% de chance de win no gale 1
+            bot_data['diario_win'] += 1
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
+            await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            return # Encerra o ciclo com sucesso
 
-            await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **2ª Proteção (Gale 2)**.", reply_to_message_id=msg_sinal_enviada.message_id)
-            await asyncio.sleep(random.randint(80, 100))
-            if random.random() < 0.85:
-                bot_data['diario_win'] += 1
-                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
-                resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
-                await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
-                await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
-                await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
-                return
+        # Se chegou aqui, o GALE 1 não bateu. Avisa e vai para o GALE 2.
+        await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ **Ainda não veio!** Usando nossa última proteção.\n\nAcionando **Gale 2**...", reply_to_message_id=msg_sinal_enviada.message_id)
 
+        # TENTATIVA 3: GALE 2
+        await asyncio.sleep(random.randint(80, 100))
+        if random.random() < 0.85: # 85% de chance de win no gale 2
+            bot_data['diario_win'] += 1
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
+            await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            return # Encerra o ciclo com sucesso
+
+        # Se chegou até aqui, todas as tentativas falharam. É RED.
         bot_data['diario_loss'] += 1
         placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
         resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO mercado não foi a nosso favor. Disciplina é a chave. Voltaremos mais fortes na próxima!\n\n{placar}"
