@@ -18,11 +18,12 @@ load_dotenv()
 # espaços ou quebras de linha acidentais.
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a" ) # Link para o botão
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seusite.com/bonus" ) # Link para o botão
 
 # Validação para garantir que as credenciais foram carregadas
 if not BOT_TOKEN or CANAL_ID == "0":
-    raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env.")
+    # Este erro aparecerá no log da Render se o .env estiver faltando ou vazio
+    raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env. Verifique o arquivo.")
 
 CANAL_ID = int(CANAL_ID)
 
@@ -54,6 +55,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"Olá {user.mention_html()}! 👋\n\n"
         "Eu sou o bot de sinais para Bac Bo. Os sinais são enviados automaticamente no canal oficial."
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
 
 # --- 5. LÓGICA PRINCIPAL DOS SINAIS ---
 
@@ -175,9 +179,11 @@ def main():
     
     application = Application.builder().token(BOT_TOKEN).post_init(inicializar_contadores).build()
 
+    # Adiciona os comandos que os usuários podem chamar em privado
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
+    # Agenda as tarefas que rodam automaticamente
     job_queue = application.job_queue
     
     intervalo_aleatorio = random.randint(900, 1500)
@@ -187,6 +193,7 @@ def main():
 
     logger.info("Bot iniciado e tarefas agendadas. O bot está online e operando.")
     
+    # Inicia o bot
     application.run_polling()
 
 if __name__ == "__main__":
