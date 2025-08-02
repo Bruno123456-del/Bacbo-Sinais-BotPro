@@ -34,7 +34,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Use /start para começar. Em breve mais comandos estarão disponíveis.")
 
 # Função para enviar sinal com imagem de resultado
-definir_resultado():
+def definir_resultado():
+    # sua lógica aqui
     return random.choice(["win", "loss"])
 
 async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
