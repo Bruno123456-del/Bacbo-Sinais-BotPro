@@ -15,7 +15,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a" ) # SEU LINK DE AFILIADO
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a" )
 
 if not BOT_TOKEN or CANAL_ID == "0":
     raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env.")
@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 # --- 2. BANCO DE MÍDIA E MENSAGENS DE MARKETING ---
 
-# Links diretos para suas imagens no GitHub
 IMG_WIN_ENTRADA = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_entrada.png"
 IMG_WIN_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 IMG_WIN_GALE2 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale2.png"
@@ -39,7 +38,6 @@ IMG_WIN_EMPATE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
 GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 
-# Mensagem de marketing para ser usada após cada WIN
 MENSAGEM_POS_WIN = f"""
 🚀 **QUER RESULTADOS ASSIM?** 🚀
 
@@ -71,6 +69,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Clique no botão abaixo para começar com tudo!",
         reply_markup=teclado
     )
+
+# ESTA É A FUNÇÃO QUE ESTAVA CAUSANDO O ERRO. O NOME DELA É 'help_command'
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
 
 # --- 5. LÓGICA PRINCIPAL DOS SINAIS ---
 
@@ -136,7 +138,6 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         
         # ETAPA 3: RESULTADO
         
-        # Lógica de Empate
         if "Empate" in aposta_sugerida:
             await asyncio.sleep(random.randint(80, 100))
             if random.random() < 0.40:
@@ -147,8 +148,6 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
                 await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
                 return
 
-        # Lógica normal para Player/Banker com gales
-        # TENTATIVA 1: ENTRADA
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.65:
             bot_data['diario_win'] += 1
@@ -158,7 +157,6 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
-        # TENTATIVA 2: GALE 1
         await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **1ª Proteção (Gale 1)**.", reply_to_message_id=msg_sinal_enviada.message_id)
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.75:
@@ -169,7 +167,6 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
-        # TENTATIVA 3: GALE 2
         await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **2ª Proteção (Gale 2)**.", reply_to_message_id=msg_sinal_enviada.message_id)
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.85:
@@ -180,7 +177,6 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
             return
 
-        # SE NENHUM WIN, ENTÃO É RED
         bot_data['diario_loss'] += 1
         placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
         resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO mercado não foi a nosso favor. Disciplina é a chave. Voltaremos mais fortes na próxima!\n\n{placar}"
@@ -217,6 +213,7 @@ def main():
     
     application = Application.builder().token(BOT_TOKEN).post_init(inicializar_contadores).build()
 
+    # AQUI ESTÁ A CORREÇÃO: O nome 'help_command' agora corresponde ao nome da função.
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
