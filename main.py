@@ -11,33 +11,33 @@ from dotenv import load_dotenv
 
 # --- 1. CONFIGURAÇÃO INICIAL ---
 
-# Carrega as variáveis de ambiente do arquivo .env
-load_dotenv()
+load_dotenv( )
 
-# Pega as credenciais do arquivo .env e usa .strip() para remover
-# espaços ou quebras de linha acidentais.
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seusite.com/bonus" ) # Link para o botão
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seusite.com/bonus" )
 
-# Validação para garantir que as credenciais foram carregadas
 if not BOT_TOKEN or CANAL_ID == "0":
-    # Este erro aparecerá no log da Render se o .env estiver faltando ou vazio
-    raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env. Verifique o arquivo.")
+    raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env.")
 
 CANAL_ID = int(CANAL_ID)
 
-# Configura o sistema de logs
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# --- 2. BANCO DE MÍDIA E MENSAGENS ---
+# --- 2. BANCO DE MÍDIA (COM IMAGEM DE EMPATE) ---
 
+# Links diretos para suas imagens no GitHub
+IMG_WIN_ENTRADA = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_entrada.png"
+IMG_WIN_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
+IMG_WIN_GALE2 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale2.png"
+IMG_WIN_EMPATE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_empate.png"
+
+# GIFs para análise e RED
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
-GIF_WIN = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif"
 GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 
 # --- 3. ESTADO DO BOT (Contadores ) ---
@@ -79,26 +79,42 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         logger.info("Fase de análise iniciada.")
         await asyncio.sleep(random.randint(15, 25))
 
-        # ETAPA 2: SINAL COM BOTÃO
-        aposta_sugerida = random.choice(["Banker 🔴", "Player 🔵"])
+        # ETAPA 2: ESCOLHA DO SINAL (INCLUINDO EMPATE)
         
-        # Criação do botão
+        # Define as opções de aposta. O Empate tem uma chance menor de ser escolhido.
+        opcoes_de_aposta = ["Banker 🔴", "Player 🔵", "Empate 🟡"]
+        pesos = [0.45, 0.45, 0.10] # 45% Banker, 45% Player, 10% Empate
+        aposta_sugerida = random.choices(opcoes_de_aposta, weights=pesos, k=1)[0]
+
         botao_bonus = InlineKeyboardButton(
             text="💎 Jogue Bac Bo com Bônus Exclusivo 💎",
             url=URL_CADASTRO
         )
         teclado_sinal = InlineKeyboardMarkup([[botao_bonus]])
         
-        mensagem_sinal = (
-            f"🔥 **SINAL VIP CONFIRMADO** 🔥\n\n"
-            f"👇 **Apostar em:** {aposta_sugerida}\n"
-            f"📈 **Estratégia:** Tendência Dominante v3\n\n"
-            f"**PLANO DE AÇÃO:**\n"
-            f"1️⃣ **Entrada Inicial**\n"
-            f"2️⃣ **1ª Proteção (Gale 1)**\n"
-            f"3️⃣ **2ª Proteção (Gale 2)**\n\n"
-            f"⚠️ *Siga a gestão de banca. Opere com consciência.*"
-        )
+        # Mensagem customizada se for Empate
+        if "Empate" in aposta_sugerida:
+            mensagem_sinal = (
+                f"🚨 **ALERTA DE OPORTUNIDADE RARA** 🚨\n\n"
+                f"👇 **Apostar em:** {aposta_sugerida}\n"
+                f"📈 **Estratégia:** Cobertura de Empate\n\n"
+                f"**PLANO DE AÇÃO:**\n"
+                f"1️⃣ **Entrada de 1% da banca no Empate**\n"
+                f"2️⃣ **Cobrir com 1ª Proteção (Gale)** se necessário\n\n"
+                f"⚠️ *Alto potencial de retorno. Siga a gestão.*"
+            )
+        else:
+            mensagem_sinal = (
+                f"🔥 **SINAL VIP CONFIRMADO** 🔥\n\n"
+                f"👇 **Apostar em:** {aposta_sugerida}\n"
+                f"📈 **Estratégia:** Tendência Dominante v3\n\n"
+                f"**PLANO DE AÇÃO:**\n"
+                f"1️⃣ **Entrada Inicial**\n"
+                f"2️⃣ **1ª Proteção (Gale 1)**\n"
+                f"3️⃣ **2ª Proteção (Gale 2)**\n\n"
+                f"⚠️ *Siga a gestão de banca. Opere com consciência.*"
+            )
+
         await msg_analise.delete()
         msg_sinal_enviada = await context.bot.send_message(
             chat_id=CANAL_ID,
@@ -108,37 +124,55 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         )
         logger.info(f"Sinal enviado: {aposta_sugerida}. Aguardando resultado.")
         
-        # ETAPA 3: RESULTADO (com lógica de Gales)
+        # ETAPA 3: RESULTADO
         
+        # Se for Empate, a lógica é mais simples (Win ou Loss)
+        if "Empate" in aposta_sugerida:
+            await asyncio.sleep(random.randint(80, 100))
+            if random.random() < 0.40: # Chance de 40% de win no empate (simulação)
+                bot_data['diario_win'] += 1
+                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+                resultado_msg = f"✅✅✅ **GREEN NO EMPATE!** ✅✅✅\n\n💰 **LUCRO MASSIVO!**\n\n{placar}"
+                await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_EMPATE, caption=resultado_msg)
+                logger.info(f"Resultado: WIN NO EMPATE. {placar}")
+            else:
+                bot_data['diario_loss'] += 1
+                placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+                resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO empate não veio. Seguimos o plano!\n\n{placar}"
+                await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_LOSS, caption=resultado_msg)
+                logger.info(f"Resultado: RED NO EMPATE. {placar}")
+            return # Encerra o ciclo do sinal aqui
+
+        # Lógica normal para Player/Banker com gales
         # TENTATIVA 1: ENTRADA
         await asyncio.sleep(random.randint(80, 100))
-        if random.random() < 0.65: # 65% de chance de win na entrada
+        if random.random() < 0.65:
             bot_data['diario_win'] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
-            await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_WIN, caption=resultado_msg)
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
             logger.info(f"Resultado: WIN NA ENTRADA. {placar}")
             return
 
         # TENTATIVA 2: GALE 1
         await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **1ª Proteção (Gale 1)**.", reply_to_message_id=msg_sinal_enviada.message_id)
         await asyncio.sleep(random.randint(80, 100))
-        if random.random() < 0.75: # 75% de chance de win no gale 1
+        if random.random() < 0.75:
             bot_data['diario_win'] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
-            await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_WIN, caption=resultado_msg)
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
             logger.info(f"Resultado: WIN NO GALE 1. {placar}")
             return
 
         # TENTATIVA 3: GALE 2
         await context.bot.send_message(chat_id=CANAL_ID, text="⚠️ Atenção: Ativando **2ª Proteção (Gale 2)**.", reply_to_message_id=msg_sinal_enviada.message_id)
         await asyncio.sleep(random.randint(80, 100))
-        if random.random() < 0.85: # 85% de chance de win no gale 2
+        if random.random() < 0.85:
             bot_data['diario_win'] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
-            await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_WIN, caption=resultado_msg)
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
             logger.info(f"Resultado: WIN NO GALE 2. {placar}")
             return
 
@@ -179,11 +213,9 @@ def main():
     
     application = Application.builder().token(BOT_TOKEN).post_init(inicializar_contadores).build()
 
-    # Adiciona os comandos que os usuários podem chamar em privado
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
-    # Agenda as tarefas que rodam automaticamente
     job_queue = application.job_queue
     
     intervalo_aleatorio = random.randint(900, 1500)
@@ -193,7 +225,6 @@ def main():
 
     logger.info("Bot iniciado e tarefas agendadas. O bot está online e operando.")
     
-    # Inicia o bot
     application.run_polling()
 
 if __name__ == "__main__":
