@@ -42,7 +42,7 @@ GIFS_COMEMORACAO = [
 ]
 
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
-GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
+GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.giphy.gif"
 
 MENSAGEM_POS_WIN = f"""
 🚀 **QUER RESULTADOS ASSIM?** 🚀
@@ -59,22 +59,42 @@ Não fique de fora! **Cadastre-se agora!**
 # --- 3. ESTADO DO BOT (Contadores) ---
 
 async def inicializar_contadores(application: Application):
-    application.bot_data.setdefault('diario_win', 0)
-    application.bot_data.setdefault('diario_loss', 0)
+    application.bot_data.setdefault("diario_win", 0)
+    application.bot_data.setdefault("diario_loss", 0)
     logger.info(f"Contadores inicializados: {application.bot_data}")
 
 # --- 4. COMANDOS DO USUÁRIO (Para chat privado) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    botao_cadastro = InlineKeyboardButton("🏆 Quero meu Bônus e Sorteios 🏆", url=URL_CADASTRO)
-    teclado = InlineKeyboardMarkup([[botao_cadastro]])
-    await update.message.reply_html(
+    
+    # Mensagem de boas-vindas com botão 1win e link do canal
+    mensagem_boas_vindas = (
         f"Olá {user.mention_html()}! 👋\n\n"
-        "Bem-vindo ao canal de sinais VIP! Para garantir que você tenha os mesmos resultados que nós e participe de todas as promoções, **é essencial que você jogue na plataforma certa.**\n\n"
-        "Clique no botão abaixo para começar com tudo!",
-        reply_markup=teclado
+        "Bem-vindo(a) ao canal! 🎉\n\n"
+        "Para começar a lucrar com nossos sinais VIP, cadastre-se na 1WIN e garanta seu bônus exclusivo!\n\n"
+        "🔗 Link do Canal: https://t.me/ApostasMilionariaVIP\n"
     )
+    botao_1win = InlineKeyboardButton("💎 Cadastre-se na 1WIN", url="https://lkwn.cc/f1c1c45a")
+    teclado_boas_vindas = InlineKeyboardMarkup([[botao_1win]])
+    await update.message.reply_html(mensagem_boas_vindas, reply_markup=teclado_boas_vindas)
+
+    # Mensagem fixa com explicação e botão para começar a apostar
+    mensagem_fixa_texto = (
+        "📌 BEM-VINDO AO BAC BO IGNITE\n"
+        "🎲 Estratégia, inteligência e lucros todos os dias!\n\n"
+        "🚨 Acesse agora nosso hub exclusivo com:\n"
+        "✅ Sinais automáticos com gestão profissional\n"
+        "✅ Tutorial completo para dominar o jogo\n"
+        "✅ Bônus de boas-vindas, cashback e prêmios\n"
+        "✅ Plataforma oficial com software verificado\n\n"
+        "🔗 ACESSE AGORA:\n"
+        "👉 https://bac-bo-ignite.lovable.app/\n\n"
+        "🧠 Jogue com estratégia, receba suporte e lucre com confiança!"
+    )
+    botao_apostar = InlineKeyboardButton("🚀 Começar a Apostar", url="https://bac-bo-ignite.lovable.app/")
+    teclado_fixa = InlineKeyboardMarkup([[botao_apostar]])
+    await update.message.reply_text(mensagem_fixa_texto, reply_markup=teclado_fixa, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
@@ -134,7 +154,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         # Simula se o resultado foi Empate (chance baixa)
         if random.random() < 0.10: # 10% de chance de dar empate
             await asyncio.sleep(random.randint(80, 100))
-            bot_data['diario_win'] += 1
+            bot_data["diario_win"] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO EMPATE!** ✅✅✅\n\n💰 **LUCRO MASSIVO!**\nA aposta principal foi devolvida e a cobertura no empate multiplicou a banca!\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_EMPATE, caption=resultado_msg)
@@ -145,7 +165,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         # TENTATIVA 1: ENTRADA PRINCIPAL
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.65: # 65% de chance de win na entrada
-            bot_data['diario_win'] += 1
+            bot_data["diario_win"] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
@@ -159,7 +179,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         # TENTATIVA 2: GALE 1
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.75: # 75% de chance de win no gale 1
-            bot_data['diario_win'] += 1
+            bot_data["diario_win"] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
@@ -173,7 +193,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
         # TENTATIVA 3: GALE 2
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.85: # 85% de chance de win no gale 2
-            bot_data['diario_win'] += 1
+            bot_data["diario_win"] += 1
             placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
@@ -182,7 +202,7 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
             return # Encerra o ciclo com sucesso
 
         # Se chegou até aqui, todas as tentativas falharam. É RED.
-        bot_data['diario_loss'] += 1
+        bot_data["diario_loss"] += 1
         placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
         resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO mercado não foi a nosso favor. Disciplina é a chave. Voltaremos mais fortes na próxima!\n\n{placar}"
         await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_LOSS, caption=resultado_msg)
@@ -193,8 +213,8 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento.
 
 async def resumo_diario(context: ContextTypes.DEFAULT_TYPE):
     bot_data = context.bot_data
-    win_count = bot_data.get('diario_win', 0)
-    loss_count = bot_data.get('diario_loss', 0)
+    win_count = bot_data.get("diario_win", 0)
+    loss_count = bot_data.get("diario_loss", 0)
 
     if win_count == 0 and loss_count == 0:
         logger.info("Sem operações hoje. Resumo diário não enviado.")
@@ -209,8 +229,8 @@ async def resumo_diario(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=CANAL_ID, text=resumo, parse_mode='Markdown')
     logger.info("Resumo diário enviado.")
     
-    bot_data['diario_win'] = 0
-    bot_data['diario_loss'] = 0
+    bot_data["diario_win"] = 0
+    bot_data["diario_loss"] = 0
 
 # --- 6. FUNÇÃO PRINCIPAL QUE INICIA TUDO ---
 def main():
@@ -234,3 +254,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
