@@ -3,8 +3,9 @@ from telegram import Bot
 from PIL import Image
 
 # === CONFIGURAÇÕES DO TELEGRAM ===
-TOKEN = "SEU_TOKEN_AQUI"  # 👉 Substitua pelo token do seu bot do Telegram
-CANAL = "@seu_canal_aqui"  # 👉 Substitua pelo @ do seu canal (bot precisa ser admin)
+BOT_TOKEN = "7975008855:AAGEc1_htKryQnZ0qPemvoWs0Mz3PG22Q3U"
+CANAL_ID = -1002808626127  # ID numérico do canal
+URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
 
 # === CAMINHO PARA A PASTA DAS IMAGENS ===
 PASTA_IMAGENS = os.path.join(os.path.dirname(__file__), "imagens")
@@ -23,11 +24,12 @@ def carregar_imagens():
     return imagens
 
 def enviar_para_telegram(imagens):
-    bot = Bot(token=TOKEN)
+    bot = Bot(token=BOT_TOKEN)
     for imagem in imagens:
         try:
             with open(imagem, 'rb') as file:
-                bot.send_photo(chat_id=CANAL, photo=file, caption="💬 Novo feedback de aluno!")
+                legenda = f"💬 Novo feedback de aluno!\n🔗 Faça parte também: {URL_CADASTRO}"
+                bot.send_photo(chat_id=CANAL_ID, photo=file, caption=legenda)
                 print(f"✅ Enviado: {os.path.basename(imagem)}")
         except Exception as e:
             print(f"❌ Erro ao enviar {imagem}: {e}")
