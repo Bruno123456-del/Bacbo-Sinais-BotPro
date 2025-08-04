@@ -1,6 +1,3 @@
-Claro! Aqui está o seu código `main.py` corrigido e limpo, sem o texto inválido que causava o erro de sintaxe. Já inclui tratamento de erros para envio dos GIFs e a função de enviar provas sociais em horários agendados — tudo pronto para rodar:
-
-```python
 # -*- coding: utf-8 -*-
 
 import logging
