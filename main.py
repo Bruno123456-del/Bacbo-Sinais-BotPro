@@ -38,7 +38,17 @@ IMG_WIN_EMPATE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais
 PROVAS_SOCIAIS = [
     "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova1.png",
     "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova2.png",
-    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova3.png"
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova3.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova4.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova5.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova6.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova7.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova8.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova9.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova10.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova11.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova12.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova13.png"
 ]
 
 GIFS_COMEMORACAO = [
@@ -100,7 +110,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     botao_apostar = InlineKeyboardButton("🚀 Começar a Apostar", url="https://bac-bo-ignite.lovable.app/")
     teclado_fixa = InlineKeyboardMarkup([[botao_apostar]])
-    await update.message.reply_text(mensagem_fixa_texto, reply_markup=teclado_fixa, parse_mode='Markdown')
+    await update.message.reply_text(mensagem_fixa_texto, reply_markup=teclado_fixa, parse_mode=\'Markdown\')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
@@ -156,33 +166,47 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento."""
             reply_markup=teclado_sinal
         )
         logger.info(f"Sinal enviado: {aposta_principal} com cobertura no Empate. Aguardando resultado.")
+
+        # Enviar prova social aleatória
+        try:
+            prova_social_url = random.choice(PROVAS_SOCIAIS)
+            await context.bot.send_photo(chat_id=CANAL_ID, photo=prova_social_url, caption=f"""
+✨ **Nossos membros estão lucrando!** ✨
+
+Veja os resultados reais da nossa comunidade. Junte-se a nós e comece a transformar seus dias!
+
+👉 [**Clique aqui para se cadastrar na 1WIN e lucrar também!**]({URL_CADASTRO})
+""", parse_mode='Markdown')
+            logger.info(f"Prova social enviada junto com o sinal: {prova_social_url}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar prova social junto com o sinal: {e}")
         
         # Resultado EMPATE
         if random.random() < 0.10:
             await asyncio.sleep(random.randint(80, 100))
             bot_data["diario_win"] += 1
-            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            placar = f"📊 Placar do dia: {bot_data[\'diario_win\']}W / {bot_data[\'diario_loss\']}L"
             resultado_msg = f"✅✅✅ **GREEN NO EMPATE!** ✅✅✅\n\n💰 **LUCRO MASSIVO!**\nA aposta principal foi devolvida e a cobertura no empate multiplicou a banca!\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_EMPATE, caption=resultado_msg)
             try:
                 await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
             except Exception as e:
                 logger.error(f"Erro ao enviar GIF comemorativo: {e}")
-            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode=\'Markdown\', disable_web_page_preview=False)
             return
 
         # Resultado ENTRADA
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.65:
             bot_data["diario_win"] += 1
-            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            placar = f"📊 Placar do dia: {bot_data[\'diario_win\']}W / {bot_data[\'diario_loss\']}L"
             resultado_msg = f"✅✅✅ **GREEN NA ENTRADA!** ✅✅✅\n\n💰 **LUCRO: +4%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
             try:
                 await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
             except Exception as e:
                 logger.error(f"Erro ao enviar GIF comemorativo: {e}")
-            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode=\'Markdown\', disable_web_page_preview=False)
             return
 
         # Gale 1
@@ -191,14 +215,14 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento."""
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.75:
             bot_data["diario_win"] += 1
-            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            placar = f"📊 Placar do dia: {bot_data[\'diario_win\']}W / {bot_data[\'diario_loss\']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 1!** ✅✅✅\n\n💰 **LUCRO TOTAL: +8%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
             try:
                 await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
             except Exception as e:
                 logger.error(f"Erro ao enviar GIF comemorativo: {e}")
-            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode=\'Markdown\', disable_web_page_preview=False)
             return
 
         # Gale 2
@@ -207,19 +231,19 @@ Aguarde, um sinal de alta precisão pode surgir a qualquer momento."""
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.85:
             bot_data["diario_win"] += 1
-            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+            placar = f"📊 Placar do dia: {bot_data[\'diario_win\']}W / {bot_data[\'diario_loss\']}L"
             resultado_msg = f"✅✅✅ **GREEN NO GALE 2!** ✅✅✅\n\n💰 **LUCRO TOTAL: +16%**\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
             try:
                 await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
             except Exception as e:
                 logger.error(f"Erro ao enviar GIF comemorativo: {e}")
-            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode='Markdown', disable_web_page_preview=False)
+            await context.bot.send_message(chat_id=CANAL_ID, text=MENSAGEM_POS_WIN, parse_mode=\'Markdown\', disable_web_page_preview=False)
             return
 
         # RED
         bot_data["diario_loss"] += 1
-        placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
+        placar = f"📊 Placar do dia: {bot_data[\'diario_win\']}W / {bot_data[\'diario_loss\']}L"
         resultado_msg = f"❌❌❌ **RED!** ❌❌❌\n\nO mercado não foi a nosso favor. Disciplina é a chave. Voltaremos mais fortes na próxima!\n\n{placar}"
         try:
             await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_LOSS, caption=resultado_msg)
@@ -247,27 +271,11 @@ async def resumo_diario(context: ContextTypes.DEFAULT_TYPE):
         f"❌ **Reds:** {loss_count}\n\n"
         f"Obrigado por operar com a gente hoje! Amanhã buscaremos mais resultados. 🚀"
     )
-    await context.bot.send_message(chat_id=CANAL_ID, text=resumo, parse_mode='Markdown')
+    await context.bot.send_message(chat_id=CANAL_ID, text=resumo, parse_mode=\'Markdown\')
     logger.info("Resumo diário enviado.")
     
     bot_data["diario_win"] = 0
     bot_data["diario_loss"] = 0
-
-# --- Nova função para enviar provas sociais ---
-
-async def enviar_prova_social_agendada(context: ContextTypes.DEFAULT_TYPE):
-    try:
-        prova_social_url = random.choice(PROVAS_SOCIAIS)
-        await context.bot.send_photo(chat_id=CANAL_ID, photo=prova_social_url, caption=f"""
-✨ **Nossos membros estão lucrando!** ✨
-
-Veja os resultados reais da nossa comunidade. Junte-se a nós e comece a transformar seus dias!
-
-👉 [**Clique aqui para se cadastrar na 1WIN e lucrar também!**]({URL_CADASTRO})
-""", parse_mode='Markdown')
-        logger.info(f"Prova social agendada enviada: {prova_social_url}")
-    except Exception as e:
-        logger.error(f"Erro ao enviar prova social agendada: {e}")
 
 # --- 6. FUNÇÃO PRINCIPAL QUE INICIA TUDO ---
 
@@ -286,10 +294,7 @@ job_queue.run_repeating(enviar_sinal, interval=intervalo_aleatorio, first=10)
 
 job_queue.run_daily(resumo_diario, time=time(hour=22, minute=0))
 
-job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=10, minute=0))
-job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=15, minute=0))
-job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=20, minute=0))
-
 if __name__ == "__main__":
     application.run_polling()
+
 
