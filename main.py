@@ -110,7 +110,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     botao_apostar = InlineKeyboardButton("🚀 Começar a Apostar", url="https://bac-bo-ignite.lovable.app/")
     teclado_fixa = InlineKeyboardMarkup([[botao_apostar]])
-    await update.message.reply_text(mensagem_fixa_texto, reply_markup=teclado_fixa, parse_mode=\'Markdown\')
+    await update.message.reply_text(mensagem_fixa_texto, reply_markup=teclado_fixa, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Não há comandos para o canal. Apenas aguarde os sinais automáticos. Boa sorte! 🍀")
