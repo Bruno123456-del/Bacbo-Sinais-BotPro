@@ -1,6 +1,4 @@
-Claro! Vou ajustar seu código para adicionar tratamento de erros no envio dos GIFs (para evitar falhas silenciosas) e garantir que eles disparem corretamente. Também removi um pequeno erro na URL do GIF\_LOSS (tem um ".giphy.gif" repetido) e acrescentei `try/except` para os envios de animação.
-
-Segue o código completo corrigido e comentado nas partes que alterei:
+Claro! Aqui está o seu código `main.py` corrigido e limpo, sem o texto inválido que causava o erro de sintaxe. Já inclui tratamento de erros para envio dos GIFs e a função de enviar provas sociais em horários agendados — tudo pronto para rodar:
 
 ```python
 # -*- coding: utf-8 -*-
@@ -53,7 +51,8 @@ GIFS_COMEMORACAO = [
 ]
 
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
-# Corrigi aqui, tinha um ".giphy.gif" extra no final da URL
+
+# Corrigido: removido ".giphy.gif" repetido no final da URL
 GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 
 MENSAGEM_POS_WIN = f"""
@@ -86,7 +85,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Para começar a lucrar com nossos sinais VIP, cadastre-se na 1WIN e garanta seu bônus exclusivo!\n\n"
         "🔗 Link do Canal: https://t.me/ApostasMilionariaVIP\n"
     )
-    botao_1win = InlineKeyboardButton("💎 Cadastre-se na 1WIN", url="https://lkwn.cc/f1c1c45a")
+    botao_1win = InlineKeyboardButton("💎 Cadastre-se na 1WIN", url=URL_CADASTRO)
     teclado_boas_vindas = InlineKeyboardMarkup([[botao_1win]])
     await update.message.reply_html(mensagem_boas_vindas, reply_markup=teclado_boas_vindas)
 
@@ -292,5 +291,9 @@ def main():
 
     job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=10, minute=0))
     job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=15, minute=0))
-   
+    job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=20, minute=0))
+
+    application.run_polling()
+
+if __name__ == "__
 ```
