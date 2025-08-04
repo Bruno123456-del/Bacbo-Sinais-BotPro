@@ -1,35 +1,24 @@
-import random
-from PIL import Image, ImageDraw, ImageFont
-import json
-from datetime import datetime
+import os
+from PIL import Image
 
-# Carrega mensagens fakes
-with open("mensagens.json", "r", encoding="utf-8") as f:
-    mensagens = json.load(f)
+# Caminho para a pasta onde estão as imagens
+PASTA_IMAGENS = os.path.join(os.path.dirname(__file__), "imagens")
 
-# Configuração das fontes (use Arial do sistema)
-fonte_nome = ImageFont.truetype("arialbd.ttf", 22)
-fonte_mensagem = ImageFont.truetype("arial.ttf", 20)
-fonte_hora = ImageFont.truetype("arial.ttf", 14)
+def carregar_imagens():
+    imagens = []
+    for arquivo in os.listdir(PASTA_IMAGENS):
+        # Pega somente arquivos de imagem
+        if arquivo.lower().endswith((".png", ".jpg", ".jpeg")):
+            caminho = os.path.join(PASTA_IMAGENS, arquivo)
+            try:
+                img = Image.open(caminho)
+                imagens.append((arquivo, img))
+            except Exception as e:
+                print(f"Erro ao abrir {arquivo}: {e}")
+    return imagens
 
-def gerar_imagem_prova_social(index):
-    dados = random.choice(mensagens)
-
-    bg = Image.open("imagens/bg.png").convert("RGBA")
-    draw = ImageDraw.Draw(bg)
-
-    draw.text((85, 40), dados["nome"], fill="white", font=fonte_nome)
-    draw.text((80, 120), dados["msg"], fill="black", font=fonte_mensagem)
-    draw.text((350, 180), "11h20", fill="gray", font=fonte_hora)
-
-    draw.rectangle((70, 220, 470, 280), fill=(220, 255, 220))
-    draw.text((80, 230), dados["resposta"], fill="black", font=fonte_mensagem)
-    draw.text((400, 270), "11h30", fill="gray", font=fonte_hora)
-
-    nome_arquivo = f"prova_social_{index}.png"
-    bg.save(f"imagens/{nome_arquivo}")
-    print(f"✅ Imagem gerada: imagens/{nome_arquivo}")
-
-# Gera 3 imagens
-for i in range(1, 4):
-    gerar_imagem_prova_social(i)
+if __name__ == "__main__":
+    imagens_carregadas = carregar_imagens()
+    print(f"Total de imagens encontradas: {len(imagens_carregadas)}")
+    for nome, _ in imagens_carregadas:
+        print(f" - {nome}")
