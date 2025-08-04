@@ -273,24 +273,23 @@ Veja os resultados reais da nossa comunidade. Junte-se a nós e comece a transfo
 
 def main():
     logger.info("Iniciando o bot...")
-    
-    application = Application.builder().token(BOT_TOKEN).post_init(inicializar_contadores).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
+application = Application.builder().token(BOT_TOKEN).post_init(inicializar_contadores).build()
 
-    job_queue = application.job_queue
-    
-    intervalo_aleatorio = random.randint(900, 1500)
-    job_queue.run_repeating(enviar_sinal, interval=intervalo_aleatorio, first=10)
-    
-    job_queue.run_daily(resumo_diario, time=time(hour=22, minute=0))
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("help", help_command))
 
-    job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=10, minute=0))
-    job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=15, minute=0))
-    job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=20, minute=0))
+job_queue = application.job_queue
 
-    application.run_polling()
+intervalo_aleatorio = random.randint(900, 1500)
+job_queue.run_repeating(enviar_sinal, interval=intervalo_aleatorio, first=10)
+
+job_queue.run_daily(resumo_diario, time=time(hour=22, minute=0))
+
+job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=10, minute=0))
+job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=15, minute=0))
+job_queue.run_daily(enviar_prova_social_agendada, time=time(hour=20, minute=0))
 
 if __name__ == "__main__":
     application.run_polling()
+
