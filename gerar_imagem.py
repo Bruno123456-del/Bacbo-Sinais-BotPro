@@ -28,14 +28,18 @@ def gerar():
     draw.text((60, 420), mensagem, font=font, fill=(0, 0, 0))
     draw.text((500, 510), hora_atual, font=font, fill=(128, 128, 128))
 
-    # Define nome fixo para facilitar envio
-    nome_arquivo = "imagens/print_simulado.png"
+    # Escolhe aleatoriamente uma das pastas 1, 2 ou 3
+    pasta_escolhida = random.choice(["1", "2", "3"])
+    caminho_pasta = f"imagens/{pasta_escolhida}"
 
-    # Cria pasta se não existir
-    os.makedirs(os.path.dirname(nome_arquivo), exist_ok=True)
+    # Garante que a pasta existe
+    os.makedirs(caminho_pasta, exist_ok=True)
+
+    # Nome aleatório para a imagem
+    nome_arquivo = os.path.join(caminho_pasta, f"print_{random.randint(1000,9999)}.png")
 
     img.save(nome_arquivo)
 
-    print(f"[✅] Imagem gerada com sucesso: {nome_arquivo}")
+    print(f"[✅] Imagem gerada com sucesso em: {nome_arquivo}")
 
     return nome_arquivo
