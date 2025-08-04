@@ -3,10 +3,8 @@ import random
 import os
 from datetime import datetime
 
-# Caminho para a imagem de fundo (estilo WhatsApp limpo)
 CAMINHO_BG = "imagens/bg.png"
 
-# Frases simuladas (você pode adicionar mais)
 frases = [
     "Ganhei R$280 hoje com seus sinais, valeu mano 🔥🔥🔥",
     "Tamo junto irmão! Só bora que hoje tem mais 💸",
@@ -15,28 +13,29 @@ frases = [
     "Top demais mano, acertei todas 👊🏼",
 ]
 
-# Escolhe frase aleatória
-mensagem = random.choice(frases)
+def gerar():
+    mensagem = random.choice(frases)
+    hora_atual = datetime.now().strftime("%H:%M")
 
-# Gera horário simulado no estilo WhatsApp
-hora_atual = datetime.now().strftime("%H:%M")
+    img = Image.open(CAMINHO_BG).convert("RGB")
+    draw = ImageDraw.Draw(img)
 
-# Abre imagem de fundo
-img = Image.open(CAMINHO_BG).convert("RGB")
-draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("arial.ttf", size=28)
+    except:
+        font = ImageFont.load_default()
 
-# Fonte (use uma fonte TTF que você tenha, ex: Arial)
-try:
-    font = ImageFont.truetype("arial.ttf", size=28)
-except:
-    font = ImageFont.load_default()
+    draw.text((60, 420), mensagem, font=font, fill=(0, 0, 0))
+    draw.text((500, 510), hora_atual, font=font, fill=(128, 128, 128))
 
-# Desenha a mensagem simulada
-draw.text((60, 420), mensagem, font=font, fill=(0, 0, 0))  # texto escuro
-draw.text((500, 510), hora_atual, font=font, fill=(128, 128, 128))  # hora no canto
+    # Define nome fixo para facilitar envio
+    nome_arquivo = "imagens/print_simulado.png"
 
-# Salva imagem gerada
-nome_arquivo = f"imagens/print_simulado_{random.randint(1000,9999)}.png"
-img.save(nome_arquivo)
+    # Cria pasta se não existir
+    os.makedirs(os.path.dirname(nome_arquivo), exist_ok=True)
 
-print(f"[✅] Imagem gerada com sucesso: {nome_arquivo}")
+    img.save(nome_arquivo)
+
+    print(f"[✅] Imagem gerada com sucesso: {nome_arquivo}")
+
+    return nome_arquivo
