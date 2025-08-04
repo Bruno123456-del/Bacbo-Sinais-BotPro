@@ -24,8 +24,8 @@ GALE2 = "🔁 ENTRADA CONFIRMADA - GALE 2"
 GREEN = "✅ GREEN!"
 RED = "❌ RED"
 AVISO = "🚨 Atenção para a nova entrada!"
-MENSAGEM_FIXA = f"Clique aqui para se cadastrar gratuitamente e receber sinais:
-{URL_CADASTRO}"
+MENSAGEM_FIXA = f"""Clique aqui para se cadastrar gratuitamente e receber sinais:
+{URL_CADASTRO}"""
 MENSAGEM_POS_WIN = "🔥 Mais um green para conta!"
 
 # === PASTA DAS PROVAS SOCIAIS ===
@@ -84,3 +84,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
