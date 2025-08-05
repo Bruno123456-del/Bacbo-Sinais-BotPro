@@ -1,40 +1,29 @@
-import os
-from telegram import Bot
-from PIL import Image
+import random
+from telegram.constants import ParseMode
 
-# === CONFIGURAÇÕES DO TELEGRAM ===
-BOT_TOKEN = "7975008855:AAGEc1_htKryQnZ0qPemvoWs0Mz3PG22Q3U"
-CANAL_ID = -1002808626127  # ID numérico do canal
+PROVAS_SOCIAIS = [
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova1.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova2.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova3.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova4.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova5.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova6.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova7.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova8.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova9.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova10.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova11.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova12.png",
+    "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova13.png"
+]
+
 URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
 
-# === CAMINHO PARA A PASTA DAS IMAGENS ===
-PASTA_IMAGENS = os.path.join(os.path.dirname(__file__), "imagens")
+async def enviar_prova_social_agendada(context):
+    try:
+        usadas = context.bot_data.setdefault("provas_usadas", [])
+        restantes = [url for url in PROVAS_SOCIAIS if url not in usadas]
 
-def carregar_imagens():
-    imagens = []
-    for arquivo in os.listdir(PASTA_IMAGENS):
-        if arquivo.lower().endswith((".png", ".jpg", ".jpeg")):
-            caminho = os.path.join(PASTA_IMAGENS, arquivo)
-            try:
-                # Verifica se a imagem é válida
-                Image.open(caminho)
-                imagens.append(caminho)
-            except Exception as e:
-                print(f"Erro ao abrir {arquivo}: {e}")
-    return imagens
-
-def enviar_para_telegram(imagens):
-    bot = Bot(token=BOT_TOKEN)
-    for imagem in imagens:
-        try:
-            with open(imagem, 'rb') as file:
-                legenda = f"💬 Novo feedback de aluno!\n🔗 Faça parte também: {URL_CADASTRO}"
-                bot.send_photo(chat_id=CANAL_ID, photo=file, caption=legenda)
-                print(f"✅ Enviado: {os.path.basename(imagem)}")
-        except Exception as e:
-            print(f"❌ Erro ao enviar {imagem}: {e}")
-
-if __name__ == "__main__":
-    imagens = carregar_imagens()
-    print(f"📦 Total de imagens encontradas: {len(imagens)}")
-    enviar_para_telegram(imagens)
+        if not restantes:
+            usadas.clear()
+            restantes = PROVAS_SOC_
