@@ -57,8 +57,7 @@ mensagem_fim_noite_enviada = False
 
 # Verifica se está no horário permitido e envia mensagens de início/fim
 def dentro_do_horario():
-    global mensagem_inicio_manha_enviada, mensagem_fim_manha_enviada,
-           mensagem_inicio_noite_enviada, mensagem_fim_noite_enviada
+    global mensagem_inicio_manha_enviada, mensagem_fim_manha_enviada, mensagem_inicio_noite_enviada, mensagem_fim_noite_enviada
 
     agora = datetime.now().time()
     hora_atual = datetime.now().hour
