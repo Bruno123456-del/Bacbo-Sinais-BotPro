@@ -2,7 +2,7 @@ import os
 import asyncio
 import random
 from datetime import datetime, time as dt_time
-from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
 from telegram.error import TelegramError
 from dotenv import load_dotenv
 from flask import Flask
@@ -15,6 +15,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 bot = Bot(token=TOKEN)
 
 # Caminhos das imagens e gifs
+# Certifique-se de que esses arquivos estão na pasta 'imagens' no seu repositório
 IMG_WIN = "imagens/win-futurista.gif"
 IMG_EMPATE = "imagens/empate.png"
 IMG_AGRADECIMENTO = "imagens/agradecimento.png"
@@ -88,6 +89,7 @@ def dentro_do_horario():
         mensagem_inicio_noite_enviada = False # Reset para o próximo ciclo
 
     return False
+
 # Envia um sinal para o canal
 async def enviar_sinal():
     if not dentro_do_horario():
@@ -104,35 +106,38 @@ async def enviar_sinal():
             ]])
         )
 
+        # Lógica para envio de imagens/gifs mais orgânica
         # Imagem empate (aleatoriamente 20% das vezes)
         if random.random() < 0.2:
-            await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_EMPATE, "rb"))
+            await bot.send_photo(chat_id=CHAT_ID, photo=InputFile(IMG_EMPATE))
 
         # GIF vitória futurista (aleatoriamente 60% das vezes)
         if random.random() < 0.6:
-            await bot.send_animation(chat_id=CHAT_ID, animation=open(IMG_WIN, "rb"))
+            await bot.send_animation(chat_id=CHAT_ID, animation=InputFile(IMG_WIN))
 
         # Imagem de agradecimento (aleatoriamente 40% das vezes)
         if random.random() < 0.4:
             mensagem = random.choice(frases_agradecimento)
             await bot.send_photo(
                 chat_id=CHAT_ID,
-                photo=open(IMG_AGRADECIMENTO, "rb"),
+                photo=InputFile(IMG_AGRADECIMENTO),
                 caption=f"📩 *Mensagem recebida:*\n\n_{mensagem}_",
                 parse_mode="Markdown"
             )
 
     except TelegramError as e:
         print(f"Erro ao enviar sinal: {e}")
+    except FileNotFoundError as e:
+        print(f"Erro: Arquivo de imagem/gif não encontrado. Verifique o caminho: {e}")
 
-# Loop de envio automático com intervalo randomizado
+# Loop de envio automático com intervalo randomizado e orgânico
 async def agendar_sinais():
     while True:
         if dentro_do_horario():
             await enviar_sinal()
-            # Intervalo ajustado para o ritmo do Bac Bo (entre 30 e 90 segundos)
-            intervalo = random.randint(30, 90)  # Entre 30 e 90 segundos
-            print(f"⏳ Próximo sinal em {intervalo} segundos.")
+            # Intervalo mais orgânico: entre 10 e 20 minutos
+            intervalo = random.randint(600, 1200)  # Entre 10 e 20 min
+            print(f"⏳ Próximo sinal em {intervalo // 60} minutos.")
             await asyncio.sleep(intervalo)
         else:
             # Fora do horário, verifica a cada 1 minuto para pegar o início do próximo período
@@ -153,3 +158,4 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     threading.Thread(target=lambda: loop.run_until_complete(agendar_sinais())).start()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
