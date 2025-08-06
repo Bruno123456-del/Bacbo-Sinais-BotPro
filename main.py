@@ -1,4 +1,4 @@
-import os
+mport os
 import asyncio
 import random
 from datetime import datetime, time as dt_time
@@ -57,7 +57,8 @@ mensagem_fim_noite_enviada = False
 
 # Verifica se está no horário permitido e envia mensagens de início/fim
 def dentro_do_horario():
-    global mensagem_inicio_manha_enviada, mensagem_fim_manha_enviada, mensagem_inicio_noite_enviada, mensagem_fim_noite_enviada
+    global mensagem_inicio_manha_enviada, mensagem_fim_manha_enviada,
+           mensagem_inicio_noite_enviada, mensagem_fim_noite_enviada
 
     agora = datetime.now().time()
     hora_atual = datetime.now().hour
@@ -87,7 +88,6 @@ def dentro_do_horario():
         mensagem_inicio_noite_enviada = False # Reset para o próximo ciclo
 
     return False
-
 # Envia um sinal para o canal
 async def enviar_sinal():
     if not dentro_do_horario():
@@ -104,7 +104,6 @@ async def enviar_sinal():
             ]])
         )
 
-        # Lógica para envio de imagens/gifs mais orgânica
         # Imagem empate (aleatoriamente 20% das vezes)
         if random.random() < 0.2:
             await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_EMPATE, "rb"))
@@ -126,7 +125,7 @@ async def enviar_sinal():
     except TelegramError as e:
         print(f"Erro ao enviar sinal: {e}")
 
-# Loop de envio automático com intervalo randomizado e orgânico
+# Loop de envio automático com intervalo randomizado
 async def agendar_sinais():
     while True:
         if dentro_do_horario():
@@ -143,7 +142,7 @@ async def agendar_sinais():
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/')
+@app.route("/")
 def home():
     return "Bot BAC BO Sinais Ativo!"
 
@@ -154,4 +153,3 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     threading.Thread(target=lambda: loop.run_until_complete(agendar_sinais())).start()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
