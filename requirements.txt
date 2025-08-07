@@ -1,4 +1,4 @@
-python-telegram-bot
 python-dotenv
+python-telegram-bot[job-queue]
 Flask
 Flask-Cors
