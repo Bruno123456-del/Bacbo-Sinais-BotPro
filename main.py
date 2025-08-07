@@ -41,7 +41,7 @@ GIFS_COMEMORACAO = [
     "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaW9oZDN1dTY2a29uY2tqZzZzZzZzZzZzZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/a0h7sAqhlCQoM/giphy.gif"
 ]
 
-GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
+GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5ubF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
 GIF_LOSS = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 
 MENSAGEM_POS_WIN = f"""
@@ -136,7 +136,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
         if random.random() < 0.10: # 10% de chance de dar empate
             await asyncio.sleep(random.randint(80, 100))
             bot_data["diario_win"] += 1
-            placar = "📊 Placar do dia: {}W / {}L".format(bot_data["diario_win"], bot_data["diario_loss"])
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ GREEN NO EMPATE! ✅✅✅\n\n💰 LUCRO MASSIVO!\nA aposta principal foi devolvida e a cobertura no empate multiplicou a banca!\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_EMPATE, caption=resultado_msg)
             await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
@@ -147,7 +147,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.65: # 65% de chance de win na entrada
             bot_data["diario_win"] += 1
-            placar = "📊 Placar do dia: {}W / {}L".format(bot_data["diario_win"], bot_data["diario_loss"])
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ GREEN NA ENTRADA! ✅✅✅\n\n💰 LUCRO: +4%\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_ENTRADA, caption=resultado_msg)
             await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
@@ -161,7 +161,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.75: # 75% de chance de win no gale 1
             bot_data["diario_win"] += 1
-            placar = "📊 Placar do dia: {}W / {}L".format(bot_data["diario_win"], bot_data["diario_loss"])
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ GREEN NO GALE 1! ✅✅✅\n\n💰 LUCRO TOTAL: +8%\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE1, caption=resultado_msg)
             await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
@@ -175,7 +175,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(random.randint(80, 100))
         if random.random() < 0.85: # 85% de chance de win no gale 2
             bot_data["diario_win"] += 1
-            placar = "📊 Placar do dia: {}W / {}L".format(bot_data["diario_win"], bot_data["diario_loss"])
+            placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
             resultado_msg = f"✅✅✅ GREEN NO GALE 2! ✅✅✅\n\n💰 LUCRO TOTAL: +16%\n\n{placar}"
             await context.bot.send_photo(chat_id=CANAL_ID, photo=IMG_WIN_GALE2, caption=resultado_msg)
             await context.bot.send_animation(chat_id=CANAL_ID, animation=random.choice(GIFS_COMEMORACAO))
@@ -184,7 +184,7 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
 
         # Se chegou até aqui, todas as tentativas falharam. É RED.
         bot_data["diario_loss"] += 1
-        placar = "📊 Placar do dia: {}W / {}L".format(bot_data["diario_win"], bot_data["diario_loss"])
+        placar = f"📊 Placar do dia: {bot_data['diario_win']}W / {bot_data['diario_loss']}L"
         red_mensagens = [
             "❌❌❌ RED! ❌❌❌\n\nO mercado não foi a nosso favor. Disciplina é a chave. Voltaremos mais fortes na próxima!\n\n{placar}",
             "💔 Que pena! Hoje não foi nosso dia. Mas lembre-se: a persistência leva ao sucesso. Amanhã é um novo dia!\n\n{placar}",
