@@ -1,12 +1,19 @@
 import os
 import asyncio
 import random
-from datetime import datetime, time as dt_time
-from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.error import TelegramError
-from dotenv import load_dotenv
-from flask import Flask, Response
 import threading
+from datetime import datetime, time as dt_time
+
+# Tente importar as bibliotecas e forneça uma mensagem de erro clara se faltarem
+try:
+    from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
+    from telegram.error import TelegramError
+    from dotenv import load_dotenv
+    from flask import Flask
+except ImportError:
+    print("ERRO: Bibliotecas necessárias não encontradas.")
+    print("Execute 'pip install python-telegram-bot python-dotenv Flask' para instalá-las.")
+    exit()
 
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -17,10 +24,15 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 # Validação inicial para garantir que as variáveis foram carregadas
 if not TOKEN or not CHAT_ID:
-    print("Erro: BOT_TOKEN ou CHAT_ID não foram definidos no arquivo .env")
+    print("ERRO: BOT_TOKEN ou CHAT_ID não foram definidos no arquivo .env ou nas variáveis de ambiente do servidor.")
     exit()
 
-bot = Bot(token=TOKEN)
+try:
+    bot = Bot(token=TOKEN)
+except Exception as e:
+    print(f"ERRO: Falha ao criar a instância do Bot. Verifique se o TOKEN é válido. Detalhe: {e}")
+    exit()
+
 
 # --- Caminhos e Frases ---
 IMG_WIN = "imagens/win-futurista.gif"
@@ -54,6 +66,7 @@ frases_agradecimento = [
 ]
 
 # --- Variáveis de Controle de Estado ---
+# Usar um dicionário é uma forma mais organizada de gerenciar o estado
 estado = {
     "manha_iniciada": False,
     "noite_iniciada": False,
@@ -63,12 +76,13 @@ estado = {
 
 async def gerenciar_periodos():
     """Verifica continuamente o horário e envia mensagens de início/fim de período."""
-    print("Gerenciador de períodos iniciado.")
+    print("INFO: Gerenciador de períodos iniciado.")
     while True:
-        agora = datetime.now().time()
+        # Use datetime.utcnow() para compatibilidade com servidores (fuso UTC)
+        agora = datetime.utcnow().time()
         
-        # --- Lógica do Período da Manhã (13:00 - 17:00) ---
-        horario_manha = dt_time(13, 0) <= agora <= dt_time(17, 0)
+        # --- Lógica do Período da Manhã (16:00 - 20:00 UTC, equivale a 13:00 - 17:00 BRT) ---
+        horario_manha = dt_time(16, 0) <= agora <= dt_time(20, 0)
         if horario_manha and not estado["manha_iniciada"]:
             try:
                 await bot.send_message(chat_id=CHAT_ID, text="☀️ Bom dia, pessoal! Nossos sinais de BAC BO estão ativos. Fiquem ligados para as melhores oportunidades!")
@@ -85,8 +99,8 @@ async def gerenciar_periodos():
             except TelegramError as e:
                 print(f"ERRO ao enviar mensagem de fim da manhã: {e}")
 
-        # --- Lógica do Período da Noite (19:00 - 22:00) ---
-        horario_noite = dt_time(19, 0) <= agora <= dt_time(22, 0)
+        # --- Lógica do Período da Noite (22:00 - 01:00 UTC, equivale a 19:00 - 22:00 BRT) ---
+        horario_noite = dt_time(22, 0) <= agora or agora <= dt_time(1, 0)
         if horario_noite and not estado["noite_iniciada"]:
             try:
                 await bot.send_message(chat_id=CHAT_ID, text="🌙 Boa noite, traders! Estamos de volta com os sinais de BAC BO. Preparem-se para lucrar!")
@@ -103,7 +117,7 @@ async def gerenciar_periodos():
             except TelegramError as e:
                 print(f"ERRO ao enviar mensagem de fim da noite: {e}")
         
-        # Verifica a cada 30 segundos para não sobrecarregar
+        # Verifica a cada 30 segundos para ter uma resposta rápida às mudanças de período
         await asyncio.sleep(30)
 
 async def enviar_sinal():
@@ -118,6 +132,7 @@ async def enviar_sinal():
             ]])
         )
 
+        # Usar 'with open' garante que os arquivos sejam fechados corretamente
         if random.random() < 0.2:
             with open(IMG_EMPATE, "rb") as photo:
                 await bot.send_photo(chat_id=CHAT_ID, photo=photo)
@@ -138,25 +153,25 @@ async def enviar_sinal():
         print("✅ Sinal enviado com sucesso!")
 
     except FileNotFoundError as e:
-        print(f"ERRO: Arquivo de imagem não encontrado. Verifique os caminhos. Detalhe: {e}")
+        print(f"ERRO: Arquivo de imagem não encontrado. Verifique se a pasta 'imagens' e os arquivos estão no repositório. Detalhe: {e}")
     except TelegramError as e:
         print(f"ERRO ao enviar sinal: {e}")
 
 async def agendar_sinais():
     """Loop principal que agenda o envio de sinais em intervalos aleatórios."""
-    print("Agendador de sinais iniciado.")
+    print("INFO: Agendador de sinais iniciado.")
     while True:
         # Só envia sinais se estiver em um dos períodos ativos
         if estado["manha_iniciada"] or estado["noite_iniciada"]:
             await enviar_sinal()
             intervalo = random.randint(600, 1200)  # Entre 10 e 20 minutos
-            print(f"⏳ Próximo sinal em {intervalo // 60} minutos.")
+            print(f"INFO: Próximo sinal em {intervalo // 60} minutos.")
             await asyncio.sleep(intervalo)
         else:
             # Fora do horário, espera um pouco antes de verificar de novo
             await asyncio.sleep(60)
 
-async def main():
+async def main_async():
     """Função principal que executa as tarefas concorrentemente."""
     # Roda o gerenciador de períodos e o agendador de sinais ao mesmo tempo
     await asyncio.gather(
@@ -169,16 +184,20 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot de Sinais BAC BO está ativo!"
+    return "Bot de Sinais BAC BO está ativo e rodando!"
 
 def run_flask():
     # O Flask roda em sua própria thread para não bloquear o asyncio
     port = int(os.environ.get("PORT", 5000))
+    # Desativar o banner do Werkzeug para um log mais limpo
+    cli = sys.modules['flask.cli']
+    cli.show_server_banner = lambda *x: None
     app.run(host="0.0.0.0", port=port)
 
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == "__main__":
-    print("Bot de Sinais BAC BO INICIADO...")
+    import sys
+    print("INFO: Bot de Sinais BAC BO INICIADO...")
     
     # Inicia o Flask em uma thread separada
     flask_thread = threading.Thread(target=run_flask)
@@ -187,6 +206,9 @@ if __name__ == "__main__":
     
     # Inicia a lógica principal do bot (asyncio)
     try:
-        asyncio.run(main())
+        asyncio.run(main_async())
     except KeyboardInterrupt:
-        print("Bot encerrado manualmente.")
+        print("INFO: Bot encerrado manualmente.")
+    except Exception as e:
+        print(f"ERRO CRÍTICO no loop principal: {e}")
+
