@@ -1,10 +1,3 @@
-Com certeza! Aqui está o seu ficheiro `main.py` com todas as correções de sintaxe aplicadas.
-
-Basicamente, removi todas as barras invertidas (`\`) desnecessárias que estavam a causar o `SyntaxError`.
-
-Pode copiar e colar este código diretamente no seu projeto.
-
-```python
 # -*- coding: utf-8 -*-
 
 import logging
@@ -75,7 +68,7 @@ PROVAS_SOCIAIS = [
     "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova13.png"
 ]
 
-async def enviar_prova_social_agendada(context):
+async def enviar_prova_social_agendada(context ):
     try:
         usadas = context.bot_data.setdefault("provas_usadas", [])
         restantes = [url for url in PROVAS_SOCIAIS if url not in usadas]
@@ -115,7 +108,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a" )
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://lkwn.cc/f1c1c45a"  )
 
 if not BOT_TOKEN or CANAL_ID == "0":
     raise ValueError("ERRO CRÍTICO: BOT_TOKEN ou CANAL_ID não foram encontrados no arquivo .env.")
@@ -149,7 +142,7 @@ MENSAGEM_POS_WIN = f"""
 
 Nossos sinais são calibrados para a **1WIN**. Jogar em outra plataforma pode gerar resultados diferentes.
 
-👉 [**Clique aqui para se cadastrar na 1WIN**]({URL_CADASTRO}) e tenha acesso a:
+👉 [**Clique aqui para se cadastrar na 1WIN**]({URL_CADASTRO} ) e tenha acesso a:
 ✅ **Bônus Premium** de boas-vindas
 🏆 **Sorteios Milionários** e até carros de luxo!
 
@@ -334,4 +327,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
