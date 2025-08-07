@@ -5,21 +5,28 @@ from datetime import datetime, time as dt_time
 from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.error import TelegramError
 from dotenv import load_dotenv
-from flask import Flask
-from flask_cors import CORS
+from flask import Flask, Response
+import threading
 
+# Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
+# --- Configurações do Bot ---
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+
+# Validação inicial para garantir que as variáveis foram carregadas
+if not TOKEN or not CHAT_ID:
+    print("Erro: BOT_TOKEN ou CHAT_ID não foram definidos no arquivo .env")
+    exit()
+
 bot = Bot(token=TOKEN)
 
-# Caminhos das imagens e gifs
+# --- Caminhos e Frases ---
 IMG_WIN = "imagens/win-futurista.gif"
 IMG_EMPATE = "imagens/empate.png"
 IMG_AGRADECIMENTO = "imagens/agradecimento.png"
 
-# Frases personalizadas
 frases_ganhou = [
     "✅ ENTRADA CONFIRMADA! Aposte agora com estratégia e foco!",
     "🎯 SINAL ENVIADO! Aproveite com gestão de banca inteligente.",
@@ -46,112 +53,140 @@ frases_agradecimento = [
     "Meu dia mudou depois de seguir seus sinais. Muito feliz!",
 ]
 
-# Mensagem de boas-vindas no terminal
-print("Bot de Sinais BAC BO INICIADO...")
+# --- Variáveis de Controle de Estado ---
+estado = {
+    "manha_iniciada": False,
+    "noite_iniciada": False,
+}
 
-# Variáveis de controle para mensagens de início/fim de período
-mensagem_inicio_manha_enviada = False
-mensagem_fim_manha_enviada = False
-mensagem_inicio_noite_enviada = False
-mensagem_fim_noite_enviada = False
+# --- Funções Assíncronas do Bot ---
 
-# Verifica se está no horário permitido e envia mensagens de início/fim
-def dentro_do_horario():
-    global mensagem_inicio_manha_enviada, mensagem_fim_manha_enviada,
-           mensagem_inicio_noite_enviada, mensagem_fim_noite_enviada
+async def gerenciar_periodos():
+    """Verifica continuamente o horário e envia mensagens de início/fim de período."""
+    print("Gerenciador de períodos iniciado.")
+    while True:
+        agora = datetime.now().time()
+        
+        # --- Lógica do Período da Manhã (13:00 - 17:00) ---
+        horario_manha = dt_time(13, 0) <= agora <= dt_time(17, 0)
+        if horario_manha and not estado["manha_iniciada"]:
+            try:
+                await bot.send_message(chat_id=CHAT_ID, text="☀️ Bom dia, pessoal! Nossos sinais de BAC BO estão ativos. Fiquem ligados para as melhores oportunidades!")
+                print("INFO: Período da manhã iniciado.")
+                estado["manha_iniciada"] = True
+            except TelegramError as e:
+                print(f"ERRO ao enviar mensagem de início da manhã: {e}")
 
-    agora = datetime.now().time()
-    hora_atual = datetime.now().hour
+        elif not horario_manha and estado["manha_iniciada"]:
+            try:
+                await bot.send_message(chat_id=CHAT_ID, text="👋 Pessoal, o período de sinais da manhã foi encerrado. Voltamos à noite com mais oportunidades!")
+                print("INFO: Período da manhã encerrado.")
+                estado["manha_iniciada"] = False
+            except TelegramError as e:
+                print(f"ERRO ao enviar mensagem de fim da manhã: {e}")
 
-    # Período da manhã
-    if dt_time(13, 0) <= agora <= dt_time(17, 0):
-        if not mensagem_inicio_manha_enviada:
-            asyncio.create_task(bot.send_message(chat_id=CHAT_ID, text="☀️ Bom dia, pessoal! Nossos sinais de BAC BO estão ativos. Fiquem ligados para as melhores oportunidades!"))
-            mensagem_inicio_manha_enviada = True
-            mensagem_fim_manha_enviada = False # Reset para o próximo ciclo
-        return True
-    elif hora_atual > 17 and not mensagem_fim_manha_enviada and mensagem_inicio_manha_enviada:
-        asyncio.create_task(bot.send_message(chat_id=CHAT_ID, text="👋 Pessoal, o período de sinais da manhã foi encerrado. Voltamos à noite com mais oportunidades!"))
-        mensagem_fim_manha_enviada = True
-        mensagem_inicio_manha_enviada = False # Reset para o próximo ciclo
+        # --- Lógica do Período da Noite (19:00 - 22:00) ---
+        horario_noite = dt_time(19, 0) <= agora <= dt_time(22, 0)
+        if horario_noite and not estado["noite_iniciada"]:
+            try:
+                await bot.send_message(chat_id=CHAT_ID, text="🌙 Boa noite, traders! Estamos de volta com os sinais de BAC BO. Preparem-se para lucrar!")
+                print("INFO: Período da noite iniciado.")
+                estado["noite_iniciada"] = True
+            except TelegramError as e:
+                print(f"ERRO ao enviar mensagem de início da noite: {e}")
 
-    # Período da noite
-    if dt_time(19, 0) <= agora <= dt_time(22, 0):
-        if not mensagem_inicio_noite_enviada:
-            asyncio.create_task(bot.send_message(chat_id=CHAT_ID, text="🌙 Boa noite, traders! Estamos de volta com os sinais de BAC BO. Preparem-se para lucrar!"))
-            mensagem_inicio_noite_enviada = True
-            mensagem_fim_noite_enviada = False # Reset para o próximo ciclo
-        return True
-    elif hora_atual > 22 and not mensagem_fim_noite_enviada and mensagem_inicio_noite_enviada:
-        asyncio.create_task(bot.send_message(chat_id=CHAT_ID, text="😴 É isso aí, galera! Encerramos os sinais de BAC BO por hoje. Amanhã tem mais! Boa noite a todos."))
-        mensagem_fim_noite_enviada = True
-        mensagem_inicio_noite_enviada = False # Reset para o próximo ciclo
+        elif not horario_noite and estado["noite_iniciada"]:
+            try:
+                await bot.send_message(chat_id=CHAT_ID, text="😴 É isso aí, galera! Encerramos os sinais de BAC BO por hoje. Amanhã tem mais! Boa noite a todos.")
+                print("INFO: Período da noite encerrado.")
+                estado["noite_iniciada"] = False
+            except TelegramError as e:
+                print(f"ERRO ao enviar mensagem de fim da noite: {e}")
+        
+        # Verifica a cada 30 segundos para não sobrecarregar
+        await asyncio.sleep(30)
 
-    return False
-
-# Envia um sinal para o canal
 async def enviar_sinal():
-    if not dentro_do_horario():
-        print("⏰ Fora do horário dos sinais.")
-        return
-
+    """Envia um sinal completo com texto, botões e mídias aleatórias."""
     try:
         frase = random.choice(frases_ganhou)
         await bot.send_message(
             chat_id=CHAT_ID,
             text=f"🎲 BAC BO SINAL AO VIVO\n\n{frase}",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🎰 Jogar Bac Bo Agora", url="https://lkwn.cc/f1c1c45a")
+                InlineKeyboardButton("🎰 Jogar Bac Bo Agora", url="https://lkwn.cc/f1c1c45a" )
             ]])
         )
 
-        # Lógica para envio de imagens/gifs mais orgânica
-        # Imagem empate (aleatoriamente 20% das vezes)
         if random.random() < 0.2:
-            await bot.send_photo(chat_id=CHAT_ID, photo=open(IMG_EMPATE, "rb"))
+            with open(IMG_EMPATE, "rb") as photo:
+                await bot.send_photo(chat_id=CHAT_ID, photo=photo)
 
-        # GIF vitória futurista (aleatoriamente 60% das vezes)
         if random.random() < 0.6:
-            await bot.send_animation(chat_id=CHAT_ID, animation=open(IMG_WIN, "rb"))
+            with open(IMG_WIN, "rb") as animation:
+                await bot.send_animation(chat_id=CHAT_ID, animation=animation)
 
-        # Imagem de agradecimento (aleatoriamente 40% das vezes)
         if random.random() < 0.4:
             mensagem = random.choice(frases_agradecimento)
-            await bot.send_photo(
-                chat_id=CHAT_ID,
-                photo=open(IMG_AGRADECIMENTO, "rb"),
-                caption=f"📩 *Mensagem recebida:*\n\n_{mensagem}_",
-                parse_mode="Markdown"
-            )
+            with open(IMG_AGRADECIMENTO, "rb") as photo:
+                await bot.send_photo(
+                    chat_id=CHAT_ID,
+                    photo=photo,
+                    caption=f"📩 *Mensagem recebida:*\n\n_{mensagem}_",
+                    parse_mode="Markdown"
+                )
+        print("✅ Sinal enviado com sucesso!")
 
+    except FileNotFoundError as e:
+        print(f"ERRO: Arquivo de imagem não encontrado. Verifique os caminhos. Detalhe: {e}")
     except TelegramError as e:
-        print(f"Erro ao enviar sinal: {e}")
+        print(f"ERRO ao enviar sinal: {e}")
 
-# Loop de envio automático com intervalo randomizado e orgânico
 async def agendar_sinais():
+    """Loop principal que agenda o envio de sinais em intervalos aleatórios."""
+    print("Agendador de sinais iniciado.")
     while True:
-        if dentro_do_horario():
+        # Só envia sinais se estiver em um dos períodos ativos
+        if estado["manha_iniciada"] or estado["noite_iniciada"]:
             await enviar_sinal()
-            # Intervalo mais orgânico: entre 10 e 20 minutos
-            intervalo = random.randint(600, 1200)  # Entre 10 e 20 min
+            intervalo = random.randint(600, 1200)  # Entre 10 e 20 minutos
             print(f"⏳ Próximo sinal em {intervalo // 60} minutos.")
             await asyncio.sleep(intervalo)
         else:
-            # Fora do horário, verifica a cada 1 minuto para pegar o início do próximo período
-            await asyncio.sleep(60)  # Espera 1 minuto fora do horário
+            # Fora do horário, espera um pouco antes de verificar de novo
+            await asyncio.sleep(60)
 
-# Flask para manter vivo no Render
+async def main():
+    """Função principal que executa as tarefas concorrentemente."""
+    # Roda o gerenciador de períodos e o agendador de sinais ao mesmo tempo
+    await asyncio.gather(
+        gerenciar_periodos(),
+        agendar_sinais()
+    )
+
+# --- Flask para Manter o Bot Ativo ---
 app = Flask(__name__)
-CORS(app)
 
 @app.route('/')
 def home():
-    return "Bot BAC BO Sinais Ativo!"
+    return "Bot de Sinais BAC BO está ativo!"
 
-# Executa bot e webserver
+def run_flask():
+    # O Flask roda em sua própria thread para não bloquear o asyncio
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
+# --- Ponto de Entrada da Aplicação ---
 if __name__ == "__main__":
-    import threading
-
-    loop = asyncio.get_event_loop()
-    threading.Thread(target=lambda: loop.run_until_complete(agendar_sinais())).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    print("Bot de Sinais BAC BO INICIADO...")
+    
+    # Inicia o Flask em uma thread separada
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # Inicia a lógica principal do bot (asyncio)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot encerrado manualmente.")
