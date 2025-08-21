@@ -747,7 +747,7 @@ def main():
         text=f"🌅 **BOM DIA, TRADERS!** 🌅\n\n{random.choice(MENSAGENS_MOTIVACIONAIS)}\n\n🚀 **Que hoje seja um dia de grandes lucros!**",
         parse_mode='Markdown'
     ), time=time(hour=8, minute=0))
-    
+
     job_queue.run_daily(lambda context: context.bot.send_message(
         chat_id=CANAL_ID,
         text=f"🌆 **BOA TARDE!** 🌆\n\n{random.choice(MENSAGENS_MOTIVACIONAIS)}\n\n💎 **Continue focado nos seus objetivos!**",
@@ -801,24 +801,23 @@ def main():
     ), time=time(hour=16, minute=30))
 
     # Desafio semanal (toda segunda-feira)
-    job_queue.run_daily(lambda context: context.bot.send_message(
-        chat_id=CANAL_ID,
-        text=f"🏆 **NOVO DESAFIO SEMANAL!** 🏆\n\n{random.choice(DESAFIOS_SEMANAIS)['titulo']}\n\n💪 **Use /desafio para ver os detalhes completos!**\n\n🎯 **Prove que você é um trader de elite!**",
-        parse_mode='Markdown'
-    ), time=time(hour=9, minute=0, weekday=0))  # Segunda-feira
+    job_queue.run_daily(
+        lambda context: context.bot.send_message(
+            chat_id=CANAL_ID,
+            text=f"🏆 **NOVO DESAFIO SEMANAL!** 🏆\n\n{random.choice(DESAFIOS_SEMANAIS)['titulo']}\n\n💪 **Use /desafio para ver os detalhes completos!**\n\n🎯 **Prove que você é um trader de elite!**",
+            parse_mode='Markdown'
+        ),
+        time=time(hour=9, minute=0),
+        days=(0,)  # Segunda-feira (0 = Monday)
+    )
 
     # Tutorial da semana (toda quarta-feira)
-    job_queue.run_daily(lambda context: context.bot.send_message(
-        chat_id=CANAL_ID,
-        text="📚 **TUTORIAL DA SEMANA!** 📚\n\n🧠 **Dica Pro:** Use /tutorial para acessar nossos guias completos!\n\n🎯 **Conhecimento é poder no mundo do trading!**",
-        parse_mode='Markdown'
-    ), time=time(hour=15, minute=0, weekday=2))  # Quarta-feira
-
-    logger.info("Bot iniciado e tarefas agendadas. O bot está online e operando.")
-    
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
-
-
+    job_queue.run_daily(
+        lambda context: context.bot.send_message(
+            chat_id=CANAL_ID,
+            text="📚 **TUTORIAL DA SEMANA!** 📚\n\n🧠 **Dica Pro:** Use /tutorial para acessar nossos guias completos!\n\n🎯 **Conhecimento é poder no mundo do trading!**",
+            parse_mode='Markdown'
+        ),
+        time=time(hour=15, minute=0),
+        days=(2,)  # Quarta-feira (2 = Wednesday)
+    )
