@@ -5,7 +5,6 @@
 # FOCO EM FUNIL DE CONVERSÃO, ESCASSEZ, URGÊNCIA E VALOR PERCEBIDO
 # ===================================================================================
 
-# ... (Importações e configurações básicas permanecem as mesmas) ...
 import logging
 import os
 import random
@@ -20,19 +19,18 @@ load_dotenv()
 # --- Credenciais e IDs ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CANAL_ID = os.getenv("CANAL_ID", "0").strip()
-URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seu-link-aqui.com" )
-ADMIN_ID = 5011424031
-### NOVO: Link para o seu Grupo VIP (pode ser um link de convite) ###
-LINK_GRUPO_VIP = os.getenv("LINK_GRUPO_VIP", "https://t.me/seu_grupo_vip_privado" )
+URL_CADASTRO = os.getenv("URL_CADASTRO", "https://seu-link-aqui.com" ).strip()
+ADMIN_ID = 5011424031  # SEU ID DE ADMINISTRADOR
+LINK_GRUPO_VIP = os.getenv("LINK_GRUPO_VIP", "https://t.me/seu_grupo_vip_privado" ).strip()
 
 if not BOT_TOKEN or CANAL_ID == "0" or URL_CADASTRO == "https://seu-link-aqui.com":
-    raise ValueError("ERRO CRÍTICO: Variáveis de ambiente não configuradas!" )
+    raise ValueError("ERRO CRÍTICO: Variáveis de ambiente (BOT_TOKEN, CANAL_ID, URL_CADASTRO ) não configuradas!")
 CANAL_ID = int(CANAL_ID)
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ... (Mídias e outras mensagens permanecem as mesmas) ...
+# --- Mídias ---
 IMG_WIN = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_entrada.png"
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
 GIF_COMEMORACAO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3JzcjUwYmh6d3J4N2djaWtqZGN0aWd6dGRxY2V2c2o5eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LdOyjZ7io5Msw/giphy.gif"
@@ -42,7 +40,7 @@ GIF_COMEMORACAO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM21oZzZ5N3Jz
 # 3. BANCO DE MENSAGENS E ESTRATÉGIAS DE MARKETING (ATUALIZADO )
 # -----------------------------------------------------------------------------------
 
-### NOVO: Mensagens focadas na conversão para o VIP ###
+### MENSAGEM COM O USUÁRIO DE SUPORTE JÁ INSERIDO ###
 MARKETING_MESSAGES = {
     "oferta_vip": (
         f"💎 **QUER ACESSO AO NOSSO GRUPO VIP 100% DE GRAÇA?** 💎\n\n"
@@ -50,8 +48,8 @@ MARKETING_MESSAGES = {
         f"**Para entrar é simples:**\n"
         f"1️⃣ **Cadastre-se** na plataforma através do nosso link oficial: [CLIQUE AQUI]({URL_CADASTRO})\n"
         f"2️⃣ Faça seu **primeiro depósito** (de qualquer valor).\n"
-        f"3️⃣ **Envie o comprovante** para o nosso suporte (@seu_usuario_de_suporte) e receba seu acesso vitalício!\n\n"
-        f"Você não paga NADA a mais por isso. Apenas usa a plataforma correta e ganha acesso a um mundo de oportunidades. Vagas limitadas!"
+        f"3️⃣ **Envie o comprovante** para o nosso suporte (@manus) e receba seu acesso vitalício!\n\n" # <-- ALTERAÇÃO FEITA AQUI
+        f"Você não paga NADA a mais por isso. Apenas usa a plataforma correta e ganha um mundo de oportunidades. Vagas limitadas!"
     ),
     "estrategia_secreta": (
         f"🤫 **A ESTRATÉGIA DOS GIGANTES...**\n\n"
@@ -91,7 +89,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
     
     try:
         # Etapa 1: Análise Rápida
-        await context.bot.send_animation(
+        msg_analise = await context.bot.send_animation(
             chat_id=CANAL_ID,
             animation=GIF_ANALISANDO,
             caption=f"🔎 Analisando padrões para a entrada em **{jogo.upper()}**... Fiquem atentos!"
@@ -106,6 +104,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
             f"🔗 **[ENTRAR NA PLATAFORMA CORRETA]({URL_CADASTRO})**\n\n"
             f"✨ *No Grupo VIP, as análises como esta são 24h!*"
         )
+        await msg_analise.delete()
         await context.bot.send_message(chat_id=CANAL_ID, text=mensagem_sinal, parse_mode='Markdown')
         logger.info(f"Sinal agendado enviado para {jogo}: {aposta}.")
 
@@ -143,25 +142,25 @@ def agendar_tarefas(app: Application):
     """Agenda todos os sinais e mensagens de marketing."""
     jq = app.job_queue
 
-    # --- Bloco da Manhã (09:00 - 10:00) ---
+    # --- Bloco da Manhã (09:00 - 10:30) ---
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Roleta", "Vermelho ⚫"), time=time(hour=9, minute=5))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Mines 💣", "3 Minas - Abrir 7 campos"), time=time(hour=9, minute=35))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Aviator ✈️", "Buscar vela de 1.80x"), time=time(hour=10, minute=5))
     jq.run_daily(lambda ctx: enviar_mensagem_marketing(ctx, "oferta_vip"), time=time(hour=10, minute=30))
 
-    # --- Bloco da Tarde (14:00 - 15:00) ---
+    # --- Bloco da Tarde (14:00 - 15:45) ---
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Bac Bo 🎲", "Player 🔵"), time=time(hour=14, minute=10))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Futebol (Gols) 🥅", "Mais de 1.5 Gols"), time=time(hour=14, minute=40))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Roleta", "Ímpar"), time=time(hour=15, minute=15))
     jq.run_daily(lambda ctx: enviar_mensagem_marketing(ctx, "estrategia_secreta"), time=time(hour=15, minute=45))
 
-    # --- Bloco da Noite (20:00 - 21:00) ---
+    # --- Bloco da Noite (20:00 - 21:30) ---
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Aviator ✈️", "Buscar vela de 2.10x"), time=time(hour=20, minute=5))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Mines 💣", "5 Minas - Abrir 4 campos"), time=time(hour=20, minute=35))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Bac Bo 🎲", "Banker 🔴"), time=time(hour=21, minute=5))
     jq.run_daily(lambda ctx: enviar_mensagem_marketing(ctx, "escassez"), time=time(hour=21, minute=30))
 
-    # --- Bloco do Fim da Noite (23:00 - 00:00) ---
+    # --- Bloco do Fim da Noite (23:00 - 23:55) ---
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Roleta", "Preto ⚫"), time=time(hour=23, minute=5))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Futebol (Gols) 🥅", "Menos de 3.5 Gols"), time=time(hour=23, minute=30))
     jq.run_daily(lambda ctx: enviar_sinal_especifico(ctx, "Mines 💣", "3 Minas - Abrir 5 campos"), time=time(hour=23, minute=55))
@@ -202,7 +201,15 @@ async def admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif query.data == 'admin_enviar_oferta_vip':
         await query.edit_message_text("✅ Enviando a oferta VIP para o canal...")
         await enviar_mensagem_marketing(context, "oferta_vip")
-    # ... (outros callbacks se necessário)
+    # Adicionar lógica para 'admin_toggle_manutencao' se necessário
+    elif query.data == 'admin_toggle_manutencao':
+        bd = context.bot_data
+        bd['manutencao'] = not bd.get('manutencao', False)
+        status_text = 'PAUSADOS' if bd['manutencao'] else 'ATIVOS'
+        await query.answer(f"Sinais automáticos agora estão {status_text}", show_alert=True)
+        # Recria o painel para atualizar o texto do botão
+        await admin_command(query, context)
+
 
 # -----------------------------------------------------------------------------------
 # 7. FUNÇÃO PRINCIPAL (MAIN)
