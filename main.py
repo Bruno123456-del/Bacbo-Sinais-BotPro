@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO FINAL "EXPERIÊNCIA VIP R$600"
+# BOT DE SINAIS - VERSÃO FINAL "APOSTAS MILIONÁRIAS VIP"
 # CRIADO E OTIMIZADO POR MANUS
-# Foco em: Prova Social, Oferta Irresistível e Conversão VIP.
+# Foco em: Experiência VIP, Prova Social e Funil de Conversão Direto.
 # ===================================================================================
 
 # -----------------------------------------------------------------------------------
@@ -30,8 +30,7 @@ CANAL_ID = os.getenv("CANAL_ID", "0").strip()
 ADMIN_ID = 5011424031  # SEU ID DE ADMINISTRADOR
 
 # --- Links Estratégicos ---
-URL_CADASTRO = "https://lkwn.cc/f1c1c45a" # SEU LINK DE AFILIADO
-URL_VIDEO_DEPOSITO = "https://t.me/ApostasMilionariaVIP/338"
+URL_CADASTRO = "https://lkwn.cc/f1c1c45a"
 URL_SUPORTE_VIP = "https://t.me/seu_usuario_suporte" # TROQUE PELO SEU CONTATO DE SUPORTE
 
 # --- Validação Crítica ---
@@ -40,39 +39,34 @@ if not BOT_TOKEN or CANAL_ID == "0":
 CANAL_ID = int(CANAL_ID)
 
 # --- Configuração do Logging ---
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Configurações de Operação ---
 HORARIOS_ATIVOS = [(13, 0, 17, 0), (19, 0, 22, 0)]
 META_WINS_DIARIA_MIN = 10
 META_WINS_DIARIA_MAX = 15
-PROBABILIDADE_SINAL_POR_MINUTO = 1 / 18
-PROBABILIDADE_MARKETING_POR_MINUTO = 1 / 70
-PROBABILIDADE_CONTEUDO_VALOR_POR_MINUTO = 1 / 90
+PROBABILIDADE_SINAL_POR_MINUTO = 1 / 20
+# Frequência de marketing aumentada para atender ao pedido de 2-3x por dia
+PROBABILIDADE_MARKETING_POR_MINUTO = 1 / 120 
+PROBABILIDADE_CONTEUDO_VALOR_POR_MINUTO = 1 / 150
 
 # -----------------------------------------------------------------------------------
 # 3. BANCO DE MÍDIAS, JOGOS E CONTEÚDO DE VALOR
 # -----------------------------------------------------------------------------------
 
-# --- Mídias Visuais ---
 IMG_HEADER_SINAL = "https://i.ibb.co/9g6v3c6/sinal-header.png"
 IMG_GREEN = "https://i.ibb.co/M6r5b5x/green.png"
 IMG_RED = "https://i.ibb.co/Y0g9g5d/red.png"
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
 GIF_META_BATIDA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3JvZ3g1cWJqY2w4eXJqZzZzZzZzZzZzZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 
-# --- Hierarquia de Jogos e Estratégias ---
 JOGOS = {
     "Bac Bo 🎲": {"entradas": ["Banker 🔴", "Player 🔵"], "estrategia": "Análise de tendências e quebra de padrão.", "pesos_resultado": [65, 20, 5, 10]},
     "Roleta 🎰": {"entradas": ["1ª Dúzia", "2ª Dúzia", "Vermelho ⚫", "Preto 🔴"], "estrategia": "Monitoramento de colunas e dúzias 'quentes' e 'frias'.", "pesos_resultado": [65, 20, 5, 10]},
     "Fortune Tiger 🐯": {"entradas": ["Buscar 10 rodadas", "Ativar o turbo por 7 rodadas"], "estrategia": "Identificação dos 'minutos pagantes' com RTP elevado.", "pesos_resultado": [60, 15, 10, 15]}
 }
 
-# --- Banco de Conteúdo de Valor (Prova Social, Dicas, Motivação ) ---
 CONTEUDO_DE_VALOR = {
     "provas_sociais": ["https://i.ibb.co/dG0B2zW/prova1.png", "https://i.ibb.co/jWnB1bQ/prova2.png", "https://i.ibb.co/k1C7z5T/prova3.png"],
     "dicas_gestao": ["🧠 **DICA DE GESTÃO:** Nunca aposte mais de 5% da sua banca em uma única entrada. A consistência vence a ganância.", "🧠 **DICA DE GESTÃO:** Defina metas de ganho e perda DIÁRIAS. Se atingir, pare! O mercado estará aí amanhã.", "🧠 **DICA DE GESTÃO:** Não tente 'recuperar' um red de uma vez. Volte para sua aposta padrão e siga o plano."],
@@ -85,50 +79,23 @@ CONTEUDO_DE_VALOR = {
 
 def get_welcome_message():
     texto = (
-        f"💎 *BEM-VINDO À SALA VIP - BAC BO DE ELITE* 💎\n\n"
-        f"Prezado(a) investidor(a), você acaba de entrar no canal de sinais mais completo do mercado.\n\n"
-        f"Aqui está tudo o que você precisa para começar a lucrar em menos de 5 minutos:\n\n"
-        f"1️⃣ *ATIVE SEU BÔNUS DE R$600*\n"
-        f"Para ter os mesmos resultados que nós, use nosso link exclusivo. A plataforma vai te dar um bônus especial no seu primeiro depósito.\n\n"
-        f"2️⃣ *APRENDA A DEPOSITAR (VÍDEO)*\n"
-        f"Assista ao nosso tutorial rápido e veja como é fácil colocar saldo para operar.\n"
-        f"👉 {URL_VIDEO_DEPOSITO}\n\n"
-        f"3️⃣ *ENTENDA NOSSA ESTRATÉGIA*\n"
-        f"Nós usamos um método de gestão profissional com até 2 gales (proteções). Respeite a gestão para garantir seu lucro a longo prazo.\n\n"
-        f"🚀 *Tudo pronto?* Acompanhe os sinais abaixo e comece a operar!"
+        f"🚀 **Bem-vindo ao Apostas Milionárias VIP**\n"
+        f"Aqui você recebe sinais automáticos + bônus exclusivo\n\n"
+        f"🎁 **Bônus Especial:** Deposite agora pelo link abaixo e receba até R$600 extras!\n"
+        f"👉 {URL_CADASTRO}\n\n"
+        f"📊 Gestão de banca • 💸 Sinais ao vivo • 🔥 Provas de ganhos"
     )
-    botoes = [[InlineKeyboardButton("👉 JOGAR AGORA COM BÔNUS DE R$600 👈", url=URL_CADASTRO)]]
+    botoes = [[InlineKeyboardButton("👉 Jogar agora 👈", url=URL_CADASTRO)]]
     return texto, botoes
-
-def get_private_start_message():
-    texto = (
-        f"💎 *BEM-VINDO(A) À NOSSA CENTRAL VIP* 💎\n\n"
-        f"Olá! Sou seu assistente de lucros. Para começar a operar e ativar seu **bônus de R$600**, siga os passos abaixo:"
-    )
-    botoes = [
-        [InlineKeyboardButton("1️⃣ ATIVAR BÔNUS DE R$600 AGORA", url=URL_CADASTRO)],
-        [InlineKeyboardButton("2️⃣ VÍDEO: COMO DEPOSITAR", url=URL_VIDEO_DEPOSITO)],
-        [InlineKeyboardButton("3️⃣ LER SOBRE A ESTRATÉGIA", callback_data="explain_strategy")]
-    ]
-    return texto, botoes
-
-def get_strategy_explanation():
-    return (
-        "🧠 *NOSSA ESTRATÉGIA DE GESTÃO PROFISSIONAL*\n\n"
-        "Nosso método é simples e eficaz, focado em proteger seu capital e maximizar os lucros a longo prazo.\n\n"
-        "1. **ENTRADA INICIAL:** Fazemos a entrada no sinal recomendado com um valor base (sugerimos 1% a 2% da sua banca).\n\n"
-        "2. **GALE 1 (Proteção 1):** Se o resultado da primeira entrada for 'RED' (perda), nós dobramos o valor da aposta inicial e entramos novamente para recuperar a perda e ainda sair com lucro.\n\n"
-        "3. **GALE 2 (Proteção 2):** Se o GALE 1 também for 'RED', dobramos o valor do GALE 1 para uma última tentativa.\n\n"
-        "**REGRA DE OURO:** Se o GALE 2 resultar em 'RED', nós aceitamos a perda (stop loss) e esperamos o próximo sinal. **NUNCA** tente um GALE 3. A disciplina de parar é o que garante o lucro no final do mês."
-    )
 
 def get_marketing_message():
-    return (
-        f"💰 **OFERTA EXCLUSIVA AINDA ATIVA!** 💰\n\n"
-        f"Lembre-se: nosso link de parceiro te garante um **bônus de R$600** no seu primeiro depósito.\n\n"
-        f"Não deixe esse dinheiro na mesa. Ative sua oferta e aumente sua banca para lucrar ainda mais com nossos sinais.\n\n"
-        f"👉 [**ATIVAR MEU BÔNUS DE R$600 AGORA**]({URL_CADASTRO})"
+    texto = (
+        f"🔥 **Promoção Exclusiva de Hoje** 🔥\n"
+        f"Ganhe até R$600 no seu 1º depósito pela nossa plataforma parceira.\n\n"
+        f"✅ Após depósito, chame nosso suporte e desbloqueie acesso ao Grupo VIP Secreto 🔒"
     )
+    botoes = [[InlineKeyboardButton("Aposte agora e receba o bônus", url=URL_CADASTRO)]]
+    return texto, botoes
 
 def get_placar_message(bd):
     wins, losses = bd.get('diario_win', 0), bd.get('diario_loss', 0)
@@ -188,7 +155,8 @@ async def enviar_sinal(context: ContextTypes.DEFAULT_TYPE):
         if not bd.get("meta_batida") and bd["diario_win"] >= bd["meta_wins_diaria"]:
             bd["meta_batida"] = True
             await context.bot.send_animation(chat_id=CANAL_ID, animation=GIF_META_BATIDA)
-            await context.bot.send_message(chat_id=CANAL_ID, text=f"🏆 **META BATIDA!** 🏆\n\nBatemos a meta de **{bd['meta_wins_diaria']} WINS**! Isso não é sorte, é método.\n\n👇 **Ainda não ativou seu bônus de R$600? A hora é AGORA:**\n[**QUERO MEU BÔNUS E LUCRAR JUNTO!**]({URL_CADASTRO})", parse_mode='Markdown')
+            texto_meta, botoes_meta = get_marketing_message()
+            await context.bot.send_message(chat_id=CANAL_ID, text=f"🏆 **META BATIDA!** 🏆\n\n{texto_meta}", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(botoes_meta))
         
         if bd["loss_streak"] >= 2:
             bd["loss_streak"] = 0
@@ -217,7 +185,9 @@ async def agendador_principal(context: ContextTypes.DEFAULT_TYPE):
     if is_active_time and not bd.get("sinal_em_andamento", False):
         rand_num = random.random()
         if rand_num < PROBABILIDADE_SINAL_POR_MINUTO: await enviar_sinal(context)
-        elif rand_num < PROBABILIDADE_SINAL_POR_MINUTO + PROBABILIDADE_MARKETING_POR_MINUTO: await context.bot.send_message(chat_id=CANAL_ID, text=get_marketing_message(), parse_mode='Markdown', disable_web_page_preview=True)
+        elif rand_num < PROBABILIDADE_SINAL_POR_MINUTO + PROBABILIDADE_MARKETING_POR_MINUTO:
+            texto, botoes = get_marketing_message()
+            await context.bot.send_message(chat_id=CANAL_ID, text=texto, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(botoes), disable_web_page_preview=True)
         elif rand_num < PROBABILIDADE_SINAL_POR_MINUTO + PROBABILIDADE_MARKETING_POR_MINUTO + PROBABILIDADE_CONTEUDO_VALOR_POR_MINUTO: await enviar_conteudo_de_valor(context)
 
 # -----------------------------------------------------------------------------------
@@ -225,7 +195,7 @@ async def agendador_principal(context: ContextTypes.DEFAULT_TYPE):
 # -----------------------------------------------------------------------------------
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto, botoes = get_private_start_message()
+    texto, botoes = get_welcome_message()
     await update.message.reply_text(texto, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(botoes))
 
 async def comecar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -260,11 +230,6 @@ async def admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"Sinais automáticos {'ATIVADOS' if not bd['manutencao'] else 'DESATIVADOS'}", show_alert=True)
         await admin_command(query, context)
 
-async def strategy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.message.reply_text(text=get_strategy_explanation(), parse_mode='Markdown')
-
 async def game_strategy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     jogo_key = query.data.split('_')[1]
@@ -275,7 +240,7 @@ async def game_strategy_callback(update: Update, context: ContextTypes.DEFAULT_T
 # -----------------------------------------------------------------------------------
 
 def main() -> None:
-    logger.info("Iniciando o bot - Edição Experiência VIP R$600...")
+    logger.info("Iniciando o bot - Edição Apostas Milionárias VIP...")
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start_command))
@@ -284,7 +249,6 @@ def main() -> None:
     app.add_handler(CommandHandler("admin", admin_command, filters=filters.User(user_id=ADMIN_ID)))
     
     app.add_handler(CallbackQueryHandler(admin_callbacks, pattern='^admin_'))
-    app.add_handler(CallbackQueryHandler(strategy_callback, pattern='^explain_strategy$'))
     app.add_handler(CallbackQueryHandler(game_strategy_callback, pattern='^strat_'))
 
     jq = app.job_queue
@@ -293,7 +257,7 @@ def main() -> None:
     jq.run_daily(lambda ctx: ctx.bot.send_message(chat_id=CANAL_ID, text="```ansi\n[2;31m// STATUS: OFFLINE //[0m\n```\nOperações finalizadas. Descansem, amanhã tem mais.", parse_mode='Markdown'), time=time(hour=22, minute=5))
     jq.run_daily(lambda ctx: post_init(ctx.application), time=time(hour=0, minute=1))
 
-    logger.info("Bot iniciado com sucesso. Estratégia VIP R$600 ativa.")
+    logger.info("Bot iniciado com sucesso. Estratégia Apostas Milionárias VIP ativa.")
     app.run_polling()
 
 if __name__ == "__main__":
