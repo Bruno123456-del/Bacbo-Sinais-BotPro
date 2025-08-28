@@ -373,8 +373,8 @@ def main() -> None:
     # Reset diário das estatísticas à meia-noite
     jq.run_daily(reset_daily_stats, time=time(hour=0, minute=0, second=0))
 
-    # --- PARTE RESTAURADA ---
+    # --- SEÇÃO DE AGENDAMENTO COMPLETA ---
+
     # Sinais para o Canal VIP (mais frequentes)
-    # A cada 25 a 45 minutos, envia um sinal VIP de um jogo aleatório
-    jq.run_repeating(
-        lambda ctx: asyncio.create_task(enviar
+    async def job_vip_signal(context: ContextTypes.DEFAULT_TYPE):
+        jogo, apostas = random.choice(list(JOGOS.
