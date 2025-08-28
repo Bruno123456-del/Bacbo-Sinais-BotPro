@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 19.0 "A VERSÃO FINAL"
+# BOT DE SINAIS - VERSÃO 20.0 "A VERSÃO AUTOMÁTICA"
 # CRIADO E APRIMORADO POR MANUS
-# - CÓDIGO COMPLETO, VERIFICADO E FINALIZADO.
+# - CÓDIGO COMPLETO, COM AGENDAMENTO AUTOMÁTICO E NOVOS COMANDOS.
 # ===================================================================================
 
 import logging
@@ -150,7 +150,34 @@ JOGOS = {
 }
 JOGOS_MAP = {key.split(" ")[0].lower(): key for key in JOGOS.keys()}
 
-# --- 5. LÓGICA PRINCIPAL DO BOT ---
+# --- 5. AGENDAMENTO DE SINAIS AUTOMÁTICOS ---
+# Formato: (hora, minuto, 'jogo_curto', 'canal_tipo')
+# canal_tipo pode ser 'free' ou 'vip'
+# **PERSONALIZAR AQUI**
+AGENDA_SINAIS = [
+    # --- Sinais Canal Gratuito ---
+    (10, 30, 'roleta', 'free'),
+    (14, 30, 'mines', 'free'),
+    (18, 30, 'aviator', 'free'),
+
+    # --- Sinais Canal VIP (Exemplo de agenda mais intensa) ---
+    (9, 0, 'bacbo', 'vip'),
+    (9, 15, 'dragontiger', 'vip'),
+    (11, 0, 'roleta', 'vip'),
+    (11, 15, 'penalty', 'vip'),
+    (13, 0, 'spaceman', 'vip'),
+    (13, 15, 'aviator', 'vip'),
+    (15, 0, 'slots', 'vip'),
+    (15, 15, 'fortunedragon', 'vip'),
+    (17, 0, 'mines', 'vip'),
+    (17, 15, 'roleta', 'vip'),
+    (19, 0, 'bacbo', 'vip'),
+    (19, 15, 'dragontiger', 'vip'),
+    (21, 0, 'aviator', 'vip'),
+    (21, 15, 'penalty', 'vip'),
+]
+
+# --- 6. LÓGICA PRINCIPAL DO BOT ---
 async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
     if tipo == "inicio":
         mensagem = f"🚨 **ATENÇÃO, JOGADORES VIP!** 🚨\n\nPreparem-se! Em 10 minutos iniciaremos nossa maratona de sinais para o jogo **{jogo}**. Fiquem atentos e com a plataforma aberta!"
@@ -223,7 +250,7 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-# --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
+# --- 7. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
 async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     try:
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
@@ -232,6 +259,29 @@ async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+
+async def placar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Envia o placar do dia para o canal."""
+    bd = context.bot_data
+    inicializar_estatisticas(bd) 
+    
+    greens_free = bd.get('daily_win_primeira_free', 0) + bd.get('daily_win_gale_free', 0)
+    reds_free = bd.get('daily_loss_free', 0)
+    greens_vip = bd.get('daily_win_primeira_vip', 0) + bd.get('daily_win_gale_vip', 0)
+    reds_vip = bd.get('daily_loss_vip', 0)
+
+    placar_text = (
+        f"📊 **PLACAR DE HOJE** 📊\n\n"
+        f"Aqui estão nossos resultados parciais de hoje. A transparência é a nossa maior força!\n\n"
+        f"🟢 **Canal Gratuito:** {greens_free} GREEN(S) ✅\n"
+        f"🔴 **Canal Gratuito:** {reds_free} RED(S) ❌\n\n"
+        f"💎 **Canal VIP:** {greens_vip} GREEN(S) ✅\n"
+        f"💎 **Canal VIP:** {reds_vip} RED(S) ❌\n\n"
+        f"O placar do VIP é sempre maior porque enviamos dezenas de sinais exclusivos por lá todos os dias!\n\n"
+        f"Não fique de fora! Garanta seu acesso VIP e maximize seus lucros!\n"
+        f"➡️ [**QUERO ACESSO VIP AGORA!**]({URL_CADASTRO_DEPOSITO})"
+    )
+    await update.message.reply_text(placar_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
@@ -316,69 +366,3 @@ async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
         bd['id_mensagem_oferta'] = msg_oferta.message_id
         context.job_queue.run_once(
-            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode=ParseMode.MARKDOWN),
-            timedelta(hours=11)
-        )
-        log_message = f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas. Mensagem de última chance agendada."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
-    except Exception as e:
-        logger.error(f"Falha ao enviar a oferta relâmpago: {e}")
-        await update.message.reply_text(f"❌ Erro ao enviar a oferta: `{e}`")
-
-async def vaga_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    bd = context.bot_data
-    if 'vagas_restantes' not in bd or 'id_mensagem_oferta' not in bd:
-        await update.message.reply_text("⚠️ Nenhuma oferta ativa para atualizar. Use o comando `/oferta` primeiro.")
-        return
-    if bd['vagas_restantes'] > 0:
-        bd['vagas_restantes'] -= 1
-    vagas_atualizadas = bd['vagas_restantes']
-    mensagem_atualizada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_atualizadas)
-    try:
-        await context.bot.edit_message_text(
-            chat_id=FREE_CANAL_ID,
-            message_id=bd['id_mensagem_oferta'],
-            text=mensagem_atualizada,
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=False
-        )
-        log_message = f"Comando `/vaga` executado. Vagas restantes atualizadas para: {vagas_atualizadas}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text(f"✅ Mensagem da oferta atualizada! Vagas restantes: {vagas_atualizadas}.")
-    except Exception as e:
-        logger.error(f"Falha ao editar a mensagem da oferta: {e}")
-        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`")
-
-async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.effective_user
-    if update.message.chat_id != FREE_CANAL_ID:
-        try:
-            await update.message.delete()
-        except: pass
-        return
-    depoimento_texto = " ".join(context.args)
-    if not depoimento_texto:
-        try:
-            await update.message.delete()
-            msg = await update.message.reply_text("⚠️ Para enviar seu depoimento, escreva sua mensagem após o comando. Ex: `/depoimento Ganhamos muito hoje!`")
-            await asyncio.sleep(10)
-            await msg.delete()
-        except: pass
-        return
-    if DEPOIMENTOS_CANAL_ID != 0:
-        try:
-            # CORREÇÃO APLICADA AQUI
-            await context.bot.send_message(
-                chat_id=DEPOIMENTOS_CANAL_ID,
-                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.full_name} (@{user.username})"
-            )
-        except Exception as e:
-            logger.error(f"Falha ao encaminhar depoimento: {e}")
-    try:
-        await update.message.delete()
-        msg = await update.message.reply_text(f"✅ Obrigado, {user.first_name}! Seu depoimento foi recebido e será analisado.")
-        await asyncio.sleep(10)
-        await msg.delete()
-    except: pass
