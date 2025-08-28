@@ -48,7 +48,7 @@ if FREE_CANAL_ID == 0: erros_config.append("CHAT_ID")
 if VIP_CANAL_ID == 0: erros_config.append("VIP_CANAL_ID")
 
 if erros_config:
-    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {', '.join(erros_config)}")
+    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {", ".join(erros_config)}")
     exit()
 
 if DEPOIMENTOS_CANAL_ID == 0:
@@ -159,7 +159,7 @@ async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo
     else: # encerramento
         mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
     await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
+    logger.info(f"Aviso de \'{tipo}\' para {jogo} enviado ao canal VIP.")
 
 def inicializar_estatisticas(bot_data):
     if 'start_time' not in bot_data:
@@ -256,118 +256,193 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
         _, jogo_curto, canal = context.args
         jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
         if not jogo_completo:
-            await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
+            await update.message.reply_text(f"❌ Jogo \'{jogo_curto}\' não encontrado. Use um dos: {", ".join(JOGOS_MAP.keys())}")
             return
         target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
         aposta = random.choice(JOGOS[jogo_completo])
         context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
-        log_message = f"Comando `/sinal {jogo_curto} {canal}` executado. Sinal de '{jogo_completo}' enviado para o canal {canal.upper()}."
+        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
         await log_admin_action(context, log_message)
-        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
-    except (IndexError, ValueError):
-        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
+    except ValueError:
+        await update.message.reply_text("Uso: /sinal <jogo> <canal> (ex: /sinal bacbo vip)")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
+        logger.error(f"Erro ao enviar sinal manual: {e}")
 
-async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    try:
-        user_to_ban = context.args[0]
-        if not user_to_ban.startswith('@'):
-            await update.message.reply_text("⚠️ Formato inválido. Use o @username do usuário. Ex: `/ban @username`")
+async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
+    message_type = context.job.data["type"]
+    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
+    message_text = MARKETING_MESSAGES[message_type]
+    if message_type == "oferta_relampago":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+    elif message_type == "ultima_chance":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+
+    if message_type == "divulgacao":
+        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+    else:
+        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+    logger.info(f"Mensagem de marketing \'{message_type}\' enviada.")
+
+async def send_social_proof(context: ContextTypes.DEFAULT_TYPE):
+    await enviar_prova_social(context)
+    logger.info("Prova social enviada.")
+
+async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
+    bd = context.bot_data
+    for ch in ['free', 'vip']:
+        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
+            bd[f'daily_{stat}_{ch}'] = 0
+    logger.info("Estatísticas diárias resetadas.")
+
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    for member in update.message.new_chat_members:
+        if member.id == context.bot.id: # O próprio bot foi adicionado
+            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
+            if update.effective_chat.id == FREE_CANAL_ID:
+                await context.bot.send_message(chat_id=FREE_CANAL_ID, text="Obrigado por me adicionar ao seu canal gratuito! Para começar a enviar sinais, por favor, configure as variáveis de ambiente BOT_TOKEN, ADMIN_ID e CHAT_ID.")
+            elif update.effective_chat.id == VIP_CANAL_ID:
+                await context.bot.send_message(chat_id=VIP_CANAL_ID, text="Obrigado por me adicionar ao seu canal VIP! Certifique-se de que o VIP_CANAL_ID está configurado corretamente.")
             return
-        log_message = f"Comando `/ban {user_to_ban}` executado.\n"
-        banned_in_any = False
-        for chat_id in [FREE_CANAL_ID, VIP_CANAL_ID]:
-            try:
-                await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_to_ban)
-                log_message += f"  - ✅ Banido com sucesso do canal {chat_id}.\n"
-                banned_in_any = True
-            except Exception as e:
-                log_message += f"  - ❌ Falha ao banir do canal {chat_id}: {e}\n"
-        await log_admin_action(context, log_message)
-        if banned_in_any:
-            await update.message.reply_text(f"✅ Tentativa de banimento de {user_to_ban} concluída. Veja o log para detalhes.")
-        else:
-            await update.message.reply_text(f"❌ Não foi possível banir {user_to_ban} de nenhum canal. Verifique o log.")
-    except IndexError:
-        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/ban @username`")
+        # Mensagem de boas-vindas para novos membros no canal gratuito
+        if update.effective_chat.id == FREE_CANAL_ID:
+            await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+            logger.info(f"Mensagem de boas-vindas enviada para novo membro {member.full_name} no canal gratuito.")
 
-async def divulgar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    try:
-        target_chat_id = context.args[0]
-        mensagem = MARKETING_MESSAGES["divulgacao"]
-        await context.bot.send_message(chat_id=target_chat_id, text=mensagem, disable_web_page_preview=False)
-        log_message = f"Comando `/divulgar` executado. Mensagem enviada para o chat ID: {target_chat_id}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text(f"✅ Mensagem de divulgação enviada com sucesso!")
-    except IndexError:
-        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/divulgar <ID do chat de destino>`")
-    except Exception as e:
-        await update.message.reply_text(f"❌ **Erro ao enviar mensagem:**\n`{e}`")
+async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message.left_chat_member.id == context.bot.id:
+        logger.info(f"Bot removido do chat {update.effective_chat.id} ({update.effective_chat.title})")
 
-async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    bd = context.bot_data
-    vagas_iniciais = 20
-    bd['vagas_restantes'] = vagas_iniciais
-    mensagem_formatada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_iniciais)
-    try:
-        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA)
-        msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-        bd['id_mensagem_oferta'] = msg_oferta.message_id
-        context.job_queue.run_once(
-            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode=ParseMode.MARKDOWN),
-            timedelta(hours=11)
-        )
-        log_message = f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas. Mensagem de última chance agendada."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
-    except Exception as e:
-        logger.error(f"Falha ao enviar a oferta relâmpago: {e}")
-        await update.message.reply_text(f"❌ Erro ao enviar a oferta: `{e}`")
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id == ADMIN_ID and update.message.document:
+        await update.message.reply_text("Documento recebido. Se for um comprovante, estou verificando...")
+        # Simulação de verificação e liberação de acesso VIP
+        await asyncio.sleep(3) # Simula um tempo de processamento
+        await context.bot.send_message(chat_id=ADMIN_ID, text=MARKETING_MESSAGES["acesso_liberado_vip"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+        logger.info(f"Comprovante recebido do admin e acesso VIP simuladamente liberado.")
 
-async def vaga_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    bd = context.bot_data
-    if 'vagas_restantes' not in bd or 'id_mensagem_oferta' not in bd:
-        await update.message.reply_text("⚠️ Nenhuma oferta ativa para atualizar. Use o comando `/oferta` primeiro.")
-        return
-    if bd['vagas_restantes'] > 0:
-        bd['vagas_restantes'] -= 1
-    vagas_atualizadas = bd['vagas_restantes']
-    mensagem_atualizada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_atualizadas)
-    try:
-        await context.bot.edit_message_text(
-            chat_id=FREE_CANAL_ID,
-            message_id=bd['id_mensagem_oferta'],
-            text=mensagem_atualizada,
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=False
-        )
-        log_message = f"Comando `/vaga` executado. Vagas restantes atualizadas para: {vagas_atualizadas}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text(f"✅ Mensagem da oferta atualizada! Vagas restantes: {vagas_atualizadas}.")
-    except Exception as e:
-        logger.error(f"Falha ao editar a mensagem da oferta: {e}")
-        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`")
+async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer() # Always answer the callback query
+    data = query.data
 
-async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.effective_user
-    if update.message.chat_id != FREE_CANAL_ID:
+    if data == "depoimento_sim":
+        if DEPOIMENTOS_CANAL_ID == 0:
+            await query.edit_message_text("Desculpe, o canal de depoimentos não está configurado.")
+            logger.warning("Tentativa de enviar depoimento, mas DEPOIMENTOS_CANAL_ID não configurado.")
+            return
+
+        # Encaminha a mensagem original do usuário para o canal de depoimentos
         try:
-            await update.message.delete()
-        except: pass
+            # A mensagem original está em query.message.reply_to_message
+            original_message = query.message.reply_to_message
+            if original_message:
+                await context.bot.forward_message(
+                    chat_id=DEPOIMENTOS_CANAL_ID,
+                    from_chat_id=original_message.chat.id,
+                    message_id=original_message.message_id
+                )
+                await query.edit_message_text("✅ Seu depoimento foi enviado com sucesso para o canal! Muito obrigado! 🙏")
+                logger.info(f"Depoimento de {query.from_user.full_name} encaminhado para o canal de depoimentos.")
+            else:
+                await query.edit_message_text("Não consegui encontrar a mensagem original para encaminhar como depoimento.")
+                logger.warning("Mensagem original não encontrada para encaminhar depoimento.")
+        except Exception as e:
+            await query.edit_message_text(f"Ocorreu um erro ao enviar seu depoimento: {e}")
+            logger.error(f"Erro ao encaminhar depoimento: {e}")
+
+    elif data == "depoimento_nao":
+        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
+        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
+
+async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    if not update.message.reply_to_message:
+        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
         return
-    depoimento_texto = " ".join(context.args)
-    if not depoimento_texto:
-        try:
-            await update.message.delete()
-            msg = await update.message.reply_text("⚠️ Para enviar seu depoimento, escreva sua mensagem após o comando. Ex: `/depoimento Ganhamos muito hoje!`")
-            await asyncio.sleep(10)
-            await msg.delete()
-        except: pass
-        return
-    if DEPOIMENTOS_CANAL_ID != 0:
-        try:
-            await context.bot.send_message(
-                chat_id=DEPOIMENTOS_CANAL_ID
+
+    original_message = update.message.reply_to_message
+    keyboard = [
+        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
+        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await original_message.reply_text(
+        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
+        reply_markup=reply_markup
+    )
+    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error(f"Update {update} causou erro {context.error}")
+
+def main() -> None:
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    # Comandos
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("sinal", manual_signal_command))
+    application.add_handler(CommandHandler("depoimento", post_depoimento_admin))
+
+    # Callbacks de botões
+    application.add_handler(CallbackQueryHandler(button_callback_handler))
+
+    # Mensagens
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+    # Agendamentos
+    job_queue = application.job_queue
+
+    # Sinais automáticos para o canal VIP (exemplo: a cada 30 minutos)
+    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Bac Bo 🎲", random.choice(JOGOS["Bac Bo 🎲"]), VIP_CANAL_ID)), interval=timedelta(minutes=30), first=timedelta(minutes=1))
+
+    # Sinais automáticos para o canal FREE (exemplo: a cada 60 minutos)
+    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Roleta 룰렛", random.choice(JOGOS["Roleta 룰렛"]), FREE_CANAL_ID)), interval=timedelta(minutes=60), first=timedelta(minutes=5))
+
+    # Bloco de sinais VIP - Início (ex: 9h, 14h, 19h)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=9, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=14, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=19, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Bloco de sinais VIP - Último sinal (ex: 9h50, 14h50, 19h50)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=9, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=14, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=19, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Bloco de sinais VIP - Encerramento (ex: 10h, 15h, 20h)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=10, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=15, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=20, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Mensagens de marketing agendadas
+    # Oferta Relâmpago (ex: 10h30, 16h30)
+    # job_queue.run_daily(send_marketing_message, time(hour=10, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(send_marketing_message, time(hour=16, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Última Chance (ex: 21h30)
+    # job_queue.run_daily(send_marketing_message, time(hour=21, minute=30), data={"type": "ultima_chance"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Divulgação (ex: 12h, 18h)
+    # job_queue.run_daily(send_marketing_message, time(hour=12, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(send_marketing_message, time(hour=18, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Provas Sociais (ex: a cada 4 horas)
+    # job_queue.run_repeating(send_social_proof, interval=timedelta(hours=4), first=timedelta(minutes=10))
+
+    # Resetar estatísticas diárias à meia-noite
+    # job_queue.run_daily(reset_daily_stats, time(hour=0, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Error handler
+    application.add_error_handler(error_handler)
+
+    # Run the bot until the user presses Ctrl-C
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
+
