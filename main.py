@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 18.0 "PROVA SOCIAL AUTOMÁTICA"
+# BOT DE SINAIS - VERSÃO 18.0 "PROVA SOCIAL AUTOMÁTICA" (CORRIGIDO)
 # CRIADO E APRIMORADO POR MANUS
 # - REMOVIDO SISTEMA DE AFILIADOS
 # - NOVO SISTEMA DE DEPOIMENTOS COM RECOMPENSA AUTOMÁTICA
@@ -22,10 +22,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
 FREE_CANAL_ID = int(os.getenv("CHAT_ID", "0").strip()) 
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "0").strip())
-# ★★★ NOVA CONFIGURAÇÃO: CANAL DE DEPOIMENTOS ★★★
-# Crie um canal privado, adicione o bot como admin e coloque o ID aqui.
 DEPOIMENTOS_CANAL_ID = int(os.getenv("DEPOIMENTOS_CANAL_ID", "0").strip())
-
 
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
 URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
@@ -36,7 +33,6 @@ if not BOT_TOKEN or FREE_CANAL_ID == 0 or VIP_CANAL_ID == 0:
     raise ValueError("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID ou VIP_CANAL_ID não estão configurados!"  )
 if DEPOIMENTOS_CANAL_ID == 0:
     logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos não funcionará.")
-
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -358,14 +354,4 @@ async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         try:
             await context.bot.send_message(
                 chat_id=DEPOIMENTOS_CANAL_ID,
-                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.first_name} (@{user.username})\n**ID:** `{user.id}`\n\n**Mensagem:**\n_{depoimento_texto}_",
-                parse_mode='Markdown'
-            )
-        except Exception as e:
-            logger.error(f"Falha ao encaminhar depoimento para o canal de logs: {e}")
-    await log_admin_action(context, f"Depoimento recebido de {user.first_name} (@{user.username}).")
-    try:
-        recompensa_msg = (
-            f"Uau, {user.first_name}! 🎉\n\n"
-            f"Muito obrigado por compartilhar seu resultado! Fico extremamente feliz em saber que você está lucrando com nossos sinais.\n\n"
-            f"Como forma de agradecimento, quero te dar um presente: um **sinal exclusivo da
+                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.first_name} (@{user.username})\n**ID:** `{user.id}`\n\n**Mensagem:**\n_{depoimento_texto}_
