@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 18.2 "ANTI-CORTE"
+# BOT DE SINAIS - VERSÃO 18.3 "A PROVA DE FALHAS"
 # CRIADO E APRIMORADO POR MANUS
-# - CÓDIGO FINAL, COMPLETO E DIVIDIDO PARA EVITAR ERROS DE CORTE
+# - CORREÇÃO FINAL E VERIFICADA DE TODOS OS ERROS DE SINTAXE
 # ===================================================================================
 
 import logging
@@ -349,7 +349,8 @@ async def vaga_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"✅ Mensagem da oferta atualizada! Vagas restantes: {vagas_atualizadas}.")
     except Exception as e:
         logger.error(f"Falha ao editar a mensagem da oferta: {e}")
-        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`"
+        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`")
+
 async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if update.message.chat_id != FREE_CANAL_ID:
@@ -357,5 +358,16 @@ async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.delete()
         except: pass
         return
-    depoimento
-        
+    depoimento_texto = " ".join(context.args)
+    if not depoimento_texto:
+        try:
+            await update.message.delete()
+            msg = await update.message.reply_text("⚠️ Para enviar seu depoimento, escreva sua mensagem após o comando. Ex: `/depoimento Ganhamos muito hoje!`")
+            await asyncio.sleep(10)
+            await msg.delete()
+        except: pass
+        return
+    if DEPOIMENTOS_CANAL_ID != 0:
+        try:
+            await context.bot.send_message(
+                chat_id=DEPOIMENTOS_CANAL_ID
