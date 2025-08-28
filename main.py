@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 23.1 "A VERSÃO DEFINITIVA"
+# BOT DE SINAIS - VERSÃO 23.2 "A VERSÃO DEFINITIVA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -348,22 +348,4 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             logger.error(f"Erro ao encaminhar depoimento: {e}")
 
     elif data == "depoimento_nao":
-        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
-        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
-
-async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    if not update.message.reply_to_message:
-        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
-        return
-
-    original_message = update.message.reply_to_message
-    keyboard = [
-        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
-        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await original_message.reply_text(
-        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
-        reply_markup=
+        await query.edit_message_text("Ok
