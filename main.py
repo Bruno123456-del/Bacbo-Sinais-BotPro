@@ -30,7 +30,7 @@ URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot" 
 
 if not BOT_TOKEN or FREE_CANAL_ID == 0 or VIP_CANAL_ID == 0:
-    raise ValueError("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID ou VIP_CANAL_ID não estão configurados!"  )
+    raise ValueError("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID ou VIP_CANAL_ID não estão configurados!"   )
 if DEPOIMENTOS_CANAL_ID == 0:
     logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos não funcionará.")
 
@@ -43,7 +43,7 @@ GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52Z
 GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14  )]
+PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14   )]
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
@@ -104,7 +104,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-      ),
+       ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -354,4 +354,11 @@ async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         try:
             await context.bot.send_message(
                 chat_id=DEPOIMENTOS_CANAL_ID,
-                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.first_name} (@{user.username})\n**ID:** `{user.id}`\n\n**Mensagem:**\n_{depoimento_texto}_
+                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.first_name} (@{user.username})\n**ID:** `{user.id}`\n\n**Mensagem:**\n_{depoimento_texto}_"
+            )
+        except Exception as e:
+            logger.error(f"Falha ao enviar depoimento para o canal de depoimentos: {e}")
+            
+# ... (O restante do seu código continua a partir daqui)
+# ... (A função main() e o resto do script não foram fornecidos, mas estariam aqui)
+
