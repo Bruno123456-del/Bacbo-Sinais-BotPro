@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 20.4 "A VERSÃO FINAL E VERIFICADA"
+# BOT DE SINAIS - VERSÃO 20.5 "A VERSÃO FINAL E CORRIGIDA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -341,9 +341,4 @@ async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
         bd['id_mensagem_oferta'] = msg_oferta.message_id
         context.job_queue.run_once(
-            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode=ParseMode.MARKDOWN),
-            timedelta(hours=11)
-        )
-        await log_admin_action(context, f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas.")
-        await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
-    except Exception as e:
+            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode=ParseMode.MARKDOWN
