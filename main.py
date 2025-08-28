@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 21.0 "ESTABILIDADE TOTAL"
+# BOT DE SINAIS - VERSÃO 18.1 "CORREÇÃO FINAL"
 # CRIADO E APRIMORADO POR MANUS
-# - CORRIGIDO ERRO CRÍTICO DE LOGGING (KeyError: 'asctime ')
-# - CÓDIGO FINALIZADO E COMPLETO PARA EXECUÇÃO
-# - REMOÇÃO DE DEPENDÊNCIAS INÚTEIS RECOMENDADA
+# - CORREÇÃO DEFINITIVA DO ERRO DE SINTAXE NA FUNÇÃO DE DEPOIMENTOS
 # ===================================================================================
 
 import logging
@@ -14,45 +12,29 @@ import asyncio
 from datetime import time, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application,
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-    PicklePersistence,
-    CallbackQueryHandler,
+    Application, CommandHandler, ContextTypes, PersistenceInput, PicklePersistence,
+    ChatMemberHandler, MessageHandler, filters
 )
-from telegram.constants import ParseMode
 
 # --- 1. CONFIGURAÇÕES E CREDENCIAIS ---
-BOT_TOKEN = os.getenv("BOT_TOKEN", "SEU_TOKEN_AQUI").strip()
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
 FREE_CANAL_ID = int(os.getenv("CHAT_ID", "0").strip())
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "0").strip())
-
-depoimentos_id_str = os.getenv("DEPOIMENTOS_CANAL_ID", "0").strip()
-DEPOIMENTOS_CANAL_ID = int(depoimentos_id_str) if depoimentos_id_str.replace("-", "").isdigit() else 0
+DEPOIMENTOS_CANAL_ID = int(os.getenv("DEPOIMENTOS_CANAL_ID", "0").strip())
 
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
 URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# --- CORREÇÃO DO ERRO DE LOGGING ---
-# Removido o espaço extra de '%(asctime )s ' para '%(asctime)s'
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# Validação inicial das credenciais
-if "SEU_TOKEN_AQUI" in BOT_TOKEN or FREE_CANAL_ID == 0 or VIP_CANAL_ID == 0 or ADMIN_ID == 0:
-    logger.critical("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID, VIP_CANAL_ID ou ADMIN_ID não estão configurados!")
-    exit()
-
+if not BOT_TOKEN or FREE_CANAL_ID == 0 or VIP_CANAL_ID == 0:
+    raise ValueError("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID ou VIP_CANAL_ID não estão configurados!" )
 if DEPOIMENTOS_CANAL_ID == 0:
-    logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos estará desativada.")
+    logging.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos não funcionará.")
+
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- 2. MÍDIAS E CONTEÚDO VISUAL ---
 GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
@@ -121,12 +103,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-       ),
-    "comprovante_recebido": (
-        "✅ **Comprovante recebido!**\n\n"
-        "Já enviei para análise da minha equipe. Assim que for confirmado, você receberá seu link de acesso VIP aqui mesmo.\n\n"
-        "A análise costuma ser bem rápida! 😉"
-    ),
+      ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -156,6 +133,15 @@ JOGOS = {
 JOGOS_MAP = {key.split(" ")[0].lower(): key for key in JOGOS.keys()}
 
 # --- 5. LÓGICA PRINCIPAL DO BOT ---
+async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
+    if tipo == "inicio":
+        mensagem = f"🚨 **ATENÇÃO, JOGADORES VIP!** 🚨\n\nPreparem-se! Em 10 minutos iniciaremos nossa maratona de sinais para o jogo **{jogo}**. Fiquem atentos e com a plataforma aberta!"
+    elif tipo == "ultimo":
+        mensagem = f"⏳ **ÚLTIMO SINAL DO BLOCO!** ⏳\n\nVamos para a última entrada da nossa maratona de **{jogo}**. Foco total para fechar com chave de ouro!"
+    else: # encerramento
+        mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
+    await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
+    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
 
 def inicializar_estatisticas(bot_data):
     if 'start_time' not in bot_data:
@@ -163,58 +149,47 @@ def inicializar_estatisticas(bot_data):
     for ch in ['free', 'vip']:
         for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
             if f'{stat}_{ch}' not in bot_data: bot_data[f'{stat}_{ch}'] = 0
-
-async def enviar_sinal_callback(context: ContextTypes.DEFAULT_TYPE):
-    job_data = context.job.data
-    jogo = job_data["jogo"]
-    target_id = job_data["target_id"]
-    aposta = random.choice(JOGOS[jogo])
-    await enviar_sinal_especifico(context, jogo, aposta, target_id)
+            if f'daily_{stat}_{ch}' not in bot_data: bot_data[f'daily_{stat}_{ch}'] = 0
 
 async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str, aposta: str, target_id: int):
     bd = context.bot_data
     channel_type = 'vip' if target_id == VIP_CANAL_ID else 'free'
-    
     if bd.get(f"sinal_em_andamento_{target_id}", False):
         logger.warning(f"Pulei o sinal de {jogo} para o canal {target_id} pois outro já estava em andamento.")
         return
-        
     bd[f"sinal_em_andamento_{target_id}"] = True
     try:
         await context.bot.send_animation(chat_id=target_id, animation=GIF_ANALISANDO, caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**...")
         await asyncio.sleep(random.randint(5, 10))
-        
         mensagem_sinal = (f"🔥 **ENTRADA CONFIRMADA | {jogo}** 🔥\n\n"
                           f"🎯 **Apostar em:** {aposta}\n"
                           f"🔗 **JOGAR NA PLATAFORMA CERTA:** [**CLIQUE AQUI**]({URL_CADASTRO_DEPOSITO})")
         if target_id == VIP_CANAL_ID:
             mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP!_"
-            
-        await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
+        await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode='Markdown')
         logger.info(f"Sinal de {jogo} enviado para o canal {target_id}.")
-        
         bd[f'sinais_{channel_type}'] += 1
-        
+        bd[f'daily_sinais_{channel_type}'] += 1
         await asyncio.sleep(random.randint(45, 75))
-        
         probabilidades = ASSERTIVIDADE_JOGOS.get(jogo, ASSERTIVIDADE_JOGOS["default"])
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1)[0]
         bd[f'{resultado}_{channel_type}'] += 1
+        bd[f'daily_{resultado}_{channel_type}'] += 1
 
-        wins_total = bd.get(f'win_primeira_{channel_type}', 0) + bd.get(f'win_gale_{channel_type}', 0)
-        losses_total = bd.get(f'loss_{channel_type}', 0)
-        placar_total = f"📊 **Placar Geral ({channel_type.upper()}):** {wins_total}W - {losses_total}L"
+        greens_dia = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
+        reds_dia = bd.get(f'daily_loss_{channel_type}', 0)
+        placar_do_dia = f"📊 **Placar do Dia ({channel_type.upper()}):** {greens_dia}W - {reds_dia}L"
 
         if resultado == "win_primeira":
-            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_total}"
+            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
         elif resultado == "win_gale":
-            caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_total}"
+            caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
             await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
         else:
-            caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_total}"
+            caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
-            
+
     except Exception as e:
         logger.error(f"Erro no ciclo de sinal para {jogo} no canal {target_id}: {e}")
     finally:
@@ -227,11 +202,10 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
         chat_id=FREE_CANAL_ID,
         photo=url_prova,
         caption=f"{legenda}\n\n[**QUERO LUCRAR ASSIM TAMBÉM!**]({URL_CADASTRO_DEPOSITO})",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode='Markdown'
     )
 
-# --- 6. COMANDOS, MODERAÇÃO E EVENTOS ---
-
+# --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
 async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     try:
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
@@ -239,22 +213,15 @@ async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
         logger.error(f"Falha ao enviar log para o admin: {e}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        text=MARKETING_MESSAGES["boas_vindas_start"],
-        parse_mode=ParseMode.MARKDOWN,
-        disable_web_page_preview=False
-    )
+    await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode='Markdown', disable_web_page_preview=False)
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
-    
+    await log_admin_action(context, "Comando `/stats` executado.")
     bd = context.bot_data
     inicializar_estatisticas(bd)
     uptime = datetime.now() - bd.get('start_time', datetime.now())
-    days, rem = divmod(uptime.total_seconds(), 86400)
-    hours, rem = divmod(rem, 3600)
-    minutes, _ = divmod(rem, 60)
-    
+    days, rem = divmod(uptime.total_seconds(), 86400); hours, rem = divmod(rem, 3600); minutes, _ = divmod(rem, 60)
     stats_text = (
         f"📊 **PAINEL DE ESTATÍSTICAS GERAIS** 📊\n\n"
         f"🕒 **Tempo Ativo:** {int(days)}d, {int(hours)}h, {int(minutes)}m\n\n"
@@ -273,125 +240,129 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
         if not jogo_completo:
             await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
             return
-            
         target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
         aposta = random.choice(JOGOS[jogo_completo])
-        
-        context.job_queue.run_once(
-            lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0
-        )
-        
-        log_message = f"Comando `/sinal {jogo_curto} {canal}` executado."
+        context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
+        log_message = f"Comando `/sinal {jogo_curto} {canal}` executado. Sinal de '{jogo_completo}' enviado para o canal {canal.upper()}."
         await log_admin_action(context, log_message)
         await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
     except (IndexError, ValueError):
         await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
 
-async def handle_comprovante(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        user_to_ban = context.args[0]
+        if not user_to_ban.startswith('@'):
+            await update.message.reply_text("⚠️ Formato inválido. Use o @username do usuário. Ex: `/ban @username`")
+            return
+        log_message = f"Comando `/ban {user_to_ban}` executado.\n"
+        banned_in_any = False
+        for chat_id in [FREE_CANAL_ID, VIP_CANAL_ID]:
+            try:
+                await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_to_ban)
+                log_message += f"  - ✅ Banido com sucesso do canal {chat_id}.\n"
+                banned_in_any = True
+            except Exception as e:
+                log_message += f"  - ❌ Falha ao banir do canal {chat_id}: {e}\n"
+        await log_admin_action(context, log_message)
+        if banned_in_any:
+            await update.message.reply_text(f"✅ Tentativa de banimento de {user_to_ban} concluída. Veja o log para detalhes.")
+        else:
+            await update.message.reply_text(f"❌ Não foi possível banir {user_to_ban} de nenhum canal. Verifique o log.")
+    except IndexError:
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/ban @username`")
+
+async def divulgar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        target_chat_id = context.args[0]
+        mensagem = MARKETING_MESSAGES["divulgacao"]
+        await context.bot.send_message(chat_id=target_chat_id, text=mensagem, disable_web_page_preview=False)
+        log_message = f"Comando `/divulgar` executado. Mensagem enviada para o chat ID: {target_chat_id}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Mensagem de divulgação enviada com sucesso!")
+    except IndexError:
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/divulgar <ID do chat de destino>`")
+    except Exception as e:
+        await update.message.reply_text(f"❌ **Erro ao enviar mensagem:**\n`{e}`")
+
+async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    bd = context.bot_data
+    vagas_iniciais = 20
+    bd['vagas_restantes'] = vagas_iniciais
+    mensagem_formatada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_iniciais)
+    try:
+        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA)
+        msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode='Markdown', disable_web_page_preview=False)
+        bd['id_mensagem_oferta'] = msg_oferta.message_id
+        context.job_queue.run_once(
+            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode='Markdown'),
+            timedelta(hours=11)
+        )
+        log_message = f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas. Mensagem de última chance agendada."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
+    except Exception as e:
+        logger.error(f"Falha ao enviar a oferta relâmpago: {e}")
+        await update.message.reply_text(f"❌ Erro ao enviar a oferta: `{e}`")
+
+async def vaga_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    bd = context.bot_data
+    if 'vagas_restantes' not in bd or 'id_mensagem_oferta' not in bd:
+        await update.message.reply_text("⚠️ Nenhuma oferta ativa para atualizar. Use o comando `/oferta` primeiro.")
+        return
+    if bd['vagas_restantes'] > 0:
+        bd['vagas_restantes'] -= 1
+    vagas_atualizadas = bd['vagas_restantes']
+    mensagem_atualizada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_atualizadas)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=FREE_CANAL_ID,
+            message_id=bd['id_mensagem_oferta'],
+            text=mensagem_atualizada,
+            parse_mode='Markdown',
+            disable_web_page_preview=False
+        )
+        log_message = f"Comando `/vaga` executado. Vagas restantes atualizadas para: {vagas_atualizadas}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Mensagem da oferta atualizada! Vagas restantes: {vagas_atualizadas}.")
+    except Exception as e:
+        logger.error(f"Falha ao editar a mensagem da oferta: {e}")
+        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`")
+
+async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    
-    await update.message.reply_text(MARKETING_MESSAGES["comprovante_recebido"])
-    
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Liberar Acesso VIP", callback_data=f"liberar_{user.id}")],
-        [InlineKeyboardButton("❌ Recusar", callback_data=f"recusar_{user.id}")]
-    ])
-    
-    await context.bot.send_photo(
-        chat_id=ADMIN_ID,
-        photo=update.message.photo[-1].file_id,
-        caption=f"🚨 **Novo Comprovante para Análise** 🚨\n\n"
-                f"**De:** {user.full_name} (@{user.username})\n"
-                f"**ID:** `{user.id}`\n\n"
-                f"Por favor, verifique e aprove ou recuse o acesso VIP.",
-        reply_markup=keyboard,
-        parse_mode=ParseMode.MARKDOWN
-    )
-    logger.info(f"Comprovante recebido de {user.id} e encaminhado para o admin.")
-
-async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    
-    action, user_id_str = query.data.split("_", 1)
-    user_id = int(user_id_str)
-    
-    original_caption = query.message.caption if query.message.caption else ""
-
-    if action == "liberar":
+    if update.message.chat_id != FREE_CANAL_ID:
+        try:
+            await update.message.delete()
+        except: pass
+        return
+    depoimento_texto = " ".join(context.args)
+    if not depoimento_texto:
+        try:
+            await update.message.delete()
+            msg = await update.message.reply_text("⚠️ Para enviar seu depoimento, escreva sua mensagem após o comando. Ex: `/depoimento Ganhamos muito hoje!`")
+            await asyncio.sleep(10)
+            await msg.delete()
+        except: pass
+        return
+    if DEPOIMENTOS_CANAL_ID != 0:
         try:
             await context.bot.send_message(
-                chat_id=user_id,
-                text=MARKETING_MESSAGES["acesso_liberado_vip"],
-                parse_mode=ParseMode.MARKDOWN
+                chat_id=DEPOIMENTOS_CANAL_ID,
+                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.first_name} (@{user.username})\n**ID:** `{user.id}`\n\n**Mensagem:**\n_{depoimento_texto}_",
+                parse_mode='Markdown'
             )
-            await query.edit_message_caption(caption=f"{original_caption}\n\n**Status: ✅ ACESSO LIBERADO**", parse_mode=ParseMode.MARKDOWN)
-            logger.info(f"Acesso VIP liberado para o usuário {user_id} pelo admin.")
         except Exception as e:
-            await query.edit_message_caption(caption=f"{original_caption}\n\n**Status: ⚠️ FALHA AO LIBERAR!**\nErro: {e}", parse_mode=ParseMode.MARKDOWN)
-            logger.error(f"Falha ao liberar acesso para {user_id}: {e}")
-    elif action == "recusar":
-        await query.edit_message_caption(caption=f"{original_caption}\n\n**Status: ❌ RECUSADO**", parse_mode=ParseMode.MARKDOWN)
-        logger.info(f"Comprovante do usuário {user_id} recusado pelo admin.")
-
-# --- 7. INICIALIZAÇÃO E AGENDAMENTO ---
-
-def main() -> None:
-    """Função principal que constrói e executa o bot."""
-    
-    persistence = PicklePersistence(filepath="bot_data.pickle")
-    
-    application = (
-        ApplicationBuilder()
-        .token(BOT_TOKEN)
-        .persistence(persistence)
-        .build()
-    )
-
-    inicializar_estatisticas(application.bot_data)
-
-    # --- Agendamento de Sinais Automáticos ---
-    job_queue = application.job_queue
-    
-    # Exemplo de agendamento: um sinal a cada 2 horas no canal VIP
-    job_queue.run_repeating(
-        enviar_sinal_callback,
-        interval=timedelta(hours=2),
-        first=timedelta(seconds=10),
-        data={"jogo": "Aviator ✈️", "target_id": VIP_CANAL_ID},
-        name="sinal_vip_aviator"
-    )
-    
-    # Exemplo: um sinal a cada 4 horas no canal Gratuito
-    job_queue.run_repeating(
-        enviar_sinal_callback,
-        interval=timedelta(hours=4),
-        first=timedelta(seconds=20),
-        data={"jogo": "Mines 💣", "target_id": FREE_CANAL_ID},
-        name="sinal_free_mines"
-    )
-
-    # Exemplo: prova social a cada 3 horas no canal Gratuito
-    job_queue.run_repeating(
-        enviar_prova_social,
-        interval=timedelta(hours=3),
-        first=timedelta(minutes=30),
-        name="prova_social_free"
-    )
-
-    # --- Handlers de Comandos e Mensagens ---
-    application.add_handler(CommandHandler("start", start_command, filters=filters.ChatType.PRIVATE))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("sinal", manual_signal_command))
-    
-    # Handler para receber fotos (comprovantes) em conversas privadas
-    application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_comprovante))
-    
-    # Handler para os botões de aprovação/recusa
-    application.add_handler(CallbackQueryHandler(button_callback_handler))
-
-    logger.info("Bot iniciado e rodando...")
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
+            logger.error(f"Falha ao encaminhar depoimento para o canal de logs: {e}")
+    await log_admin_action(context, f"Depoimento recebido de {user.first_name} (@{user.username}).")
+    try:
+        recompensa_msg = (
+            f"Uau, {user.first_name}! 🎉\n\n"
+            f"Muito obrigado por compartilhar seu resultado! Fico extremamente feliz em saber que você está lucrando com nossos sinais.\n\n"
+            f"Como forma de agradecimento, quero te dar um presente: um **sinal exclusivo da Sala VIP**.\n\n"
+            f"Fale com nosso suporte para resgatar seu presente e saber mais sobre como ter acesso a dezenas de sinais como este todos os dias!\n\n"
+            f"➡️ **Clique aqui
