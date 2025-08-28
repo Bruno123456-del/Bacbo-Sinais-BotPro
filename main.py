@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 22.0 "A VERSÃO FINAL E COMPLETA"
+# BOT DE SINAIS - VERSÃO 23.0 "A VERSÃO DEFINITIVA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -105,7 +105,7 @@ MARKETING_MESSAGES = {
         f"🔗 {URL_TELEGRAM_FREE}\n🔗 {URL_TELEGRAM_FREE}\n"
     ),
     "boas_vindas_start": (
-        f"💎 **QUER LUCRAR COM СOM SINAIS DE ALTA ASSERTIVIDADE?** 💎\n\n"
+        f"💎 **QUER LUCRAR COM SINAIS DE ALTA ASSERTIVIDADE?** 💎\n\n"
         f"Você está no lugar certo! Meu nome é Super Finds, e meu trabalho é te ajudar a lucrar.\n\n"
         f"No nosso canal gratuito você recebe algumas amostras, mas o verdadeiro potencial está na **Sala VIP Exclusiva**, com dezenas de sinais todos os dias!\n\n"
         f"**COMO FUNCIONA O ACESSO VIP?**\n\n"
@@ -360,4 +360,15 @@ async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TY
     original_message = update.message.reply_to_message
     keyboard = [
         [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
-        [InlineKeyboardButton("Não, obrigado
+        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await original_message.reply_text(
+        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
+        reply_markup=reply_markup
+    )
+    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Loga os
