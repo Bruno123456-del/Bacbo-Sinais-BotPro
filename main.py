@@ -369,3 +369,38 @@ async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=reply_markup
     )
     logger.info(
+        # (continuação do seu código...)
+    application.add_handler(CommandHandler("stats", stats_command))
+    
+    # --- LINHA INCOMPLETA CORRIGIDA E RESTANTE DO CÓDIGO ADICIONADO ---
+    application.add_handler(CommandHandler("sinal", manual_signal_command))
+    application.add_handler(CommandHandler("depoimento", post_depoimento_admin))
+
+    # Handlers de Mensagem e Callback
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
+    application.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, handle_document))
+    application.add_handler(CallbackQueryHandler(button_callback_handler))
+
+    # Handler de Erros
+    application.add_handler(error_handler)
+
+    # Inicialização de dados e agendamento de tarefas
+    bd = application.bot_data
+    inicializar_estatisticas(bd)
+    
+    jq = application.job_queue
+    # Resetar estatísticas diárias à meia-noite
+    jq.run_daily(reset_daily_stats, time(hour=0, minute=0, second=0))
+    
+    # Agendamento de mensagens de marketing e provas sociais (exemplos)
+    jq.run_repeating(send_marketing_message, interval=timedelta(hours=4), first=timedelta(minutes=10), data={"type": "oferta_relampago"})
+    jq.run_repeating(send_social_proof, interval=timedelta(hours=2, minutes=30), first=timedelta(minutes=45))
+    jq.run_repeating(send_marketing_message, interval=timedelta(hours=6), first=timedelta(hours=3), data={"type": "divulgacao"})
+
+    # Inicia o bot
+    application.run_polling()
+
+if __name__ == "__main__":
+    main()
+
