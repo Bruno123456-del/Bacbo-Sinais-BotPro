@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 20.0 "A VERSÃO AUTOMÁTICA"
+# BOT DE SINAIS - VERSÃO 20.1 "A VERSÃO COMPLETA"
 # CRIADO E APRIMORADO POR MANUS
-# - CÓDIGO COMPLETO, COM AGENDAMENTO AUTOMÁTICO E NOVOS COMANDOS.
+# - CÓDIGO COMPLETO, COM AGENDAMENTO, NOVOS COMANDOS E CORREÇÕES DE SINTAXE.
 # ===================================================================================
 
 import logging
@@ -12,8 +12,8 @@ import asyncio
 from datetime import time, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, ContextTypes, PersistenceInput, PicklePersistence,
-    ChatMemberHandler, MessageHandler, filters, CallbackQueryHandler
+    Application, CommandHandler, ContextTypes, PicklePersistence,
+    MessageHandler, filters
 )
 from telegram.constants import ParseMode
 
@@ -363,6 +363,4 @@ async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     mensagem_formatada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_iniciais)
     try:
         await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA)
-        msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-        bd['id_mensagem_oferta'] = msg_oferta.message_id
-        context.job_queue.run_once(
+        msg_oferta = await context.bot.send_message(chat
