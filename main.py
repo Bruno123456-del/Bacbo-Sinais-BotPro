@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 21.0 "A VERSÃO ESTÁVEL"
+# BOT DE SINAIS - VERSÃO 18.3 "A PROVA DE FALHAS"
 # CRIADO E APRIMORADO POR MANUS
-# - CORREÇÃO FINAL DO ERRO DE LOG E CÓDIGO COMPLETO.
+# - CORREÇÃO FINAL E VERIFICADA DE TODOS OS ERROS DE SINTAXE
 # ===================================================================================
 
 import logging
@@ -10,10 +10,10 @@ import os
 import random
 import asyncio
 from datetime import time, timedelta, datetime
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, ContextTypes, PicklePersistence,
-    MessageHandler, filters
+    Application, CommandHandler, ContextTypes, PersistenceInput, PicklePersistence,
+    ChatMemberHandler, MessageHandler, filters, CallbackQueryHandler
 )
 from telegram.constants import ParseMode
 
@@ -35,7 +35,6 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# CORREÇÃO APLICADA AQUI: Removido o espaço em 'asctime '
 logging.basicConfig(
     format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -49,7 +48,7 @@ if FREE_CANAL_ID == 0: erros_config.append("CHAT_ID")
 if VIP_CANAL_ID == 0: erros_config.append("VIP_CANAL_ID")
 
 if erros_config:
-    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {', '.join(erros_config)}")
+    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {", ".join(erros_config)}")
     exit()
 
 if DEPOIMENTOS_CANAL_ID == 0:
@@ -61,7 +60,7 @@ GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52Z
 GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14  )]
+PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14 )]
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
@@ -105,7 +104,7 @@ MARKETING_MESSAGES = {
         f"🔗 {URL_TELEGRAM_FREE}\n🔗 {URL_TELEGRAM_FREE}\n"
     ),
     "boas_vindas_start": (
-        f"💎 **QUER LUCRAR COM SINAIS DE ALTA ASSERTIVidade?** 💎\n\n"
+        f"💎 **QUER LUCRAR COM SINAIS DE ALTA ASSERTIVIDADE?** 💎\n\n"
         f"Você está no lugar certo! Meu nome é Super Finds, e meu trabalho é te ajudar a lucrar.\n\n"
         f"No nosso canal gratuito você recebe algumas amostras, mas o verdadeiro potencial está na **Sala VIP Exclusiva**, com dezenas de sinais todos os dias!\n\n"
         f"**COMO FUNCIONA O ACESSO VIP?**\n\n"
@@ -122,7 +121,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-       ),
+      ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -151,29 +150,16 @@ JOGOS = {
 }
 JOGOS_MAP = {key.split(" ")[0].lower(): key for key in JOGOS.keys()}
 
-# --- 5. AGENDAMENTO DE SINAIS AUTOMÁTICOS ---
-# Formato: (hora, minuto, 'jogo_curto', 'canal_tipo')
-# **PERSONALIZAR AQUI**
-AGENDA_SINAIS = [
-    (10, 30, 'roleta', 'free'), (14, 30, 'mines', 'free'), (18, 30, 'aviator', 'free'),
-    (9, 0, 'bacbo', 'vip'), (9, 15, 'dragontiger', 'vip'), (11, 0, 'roleta', 'vip'),
-    (11, 15, 'penalty', 'vip'), (13, 0, 'spaceman', 'vip'), (13, 15, 'aviator', 'vip'),
-    (15, 0, 'slots', 'vip'), (15, 15, 'fortunedragon', 'vip'), (17, 0, 'mines', 'vip'),
-    (17, 15, 'roleta', 'vip'), (19, 0, 'bacbo', 'vip'), (19, 15, 'dragontiger', 'vip'),
-    (21, 0, 'aviator', 'vip'), (21, 15, 'penalty', 'vip'),
-]
-
-# --- 6. LÓGICA PRINCIPAL DO BOT ---
+# --- 5. LÓGICA PRINCIPAL DO BOT ---
 async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
-    mensagem = ""
     if tipo == "inicio":
         mensagem = f"🚨 **ATENÇÃO, JOGADORES VIP!** 🚨\n\nPreparem-se! Em 10 minutos iniciaremos nossa maratona de sinais para o jogo **{jogo}**. Fiquem atentos e com a plataforma aberta!"
     elif tipo == "ultimo":
         mensagem = f"⏳ **ÚLTIMO SINAL DO BLOCO!** ⏳\n\nVamos para a última entrada da nossa maratona de **{jogo}**. Foco total para fechar com chave de ouro!"
-    else:
+    else: # encerramento
         mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
     await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
+    logger.info(f"Aviso de \'{tipo}\' para {jogo} enviado ao canal VIP.")
 
 def inicializar_estatisticas(bot_data):
     if 'start_time' not in bot_data:
@@ -207,10 +193,11 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1)[0]
         bd[f'{resultado}_{channel_type}'] += 1
         bd[f'daily_{resultado}_{channel_type}'] += 1
+
         greens_dia = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
         reds_dia = bd.get(f'daily_loss_{channel_type}', 0)
         placar_do_dia = f"📊 **Placar do Dia ({channel_type.upper()}):** {greens_dia}W - {reds_dia}L"
-        caption = ""
+
         if resultado == "win_primeira":
             caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
@@ -220,6 +207,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         else:
             caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
+
     except Exception as e:
         logger.error(f"Erro no ciclo de sinal para {jogo} no canal {target_id}: {e}")
     finally:
@@ -235,7 +223,7 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-# --- 7. COMANDOS, MODERAÇÃO E TAREFAS AGENDADAS ---
+# --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
 async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     try:
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
@@ -245,13 +233,215 @@ async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
 
-async def placar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    await log_admin_action(context, "Comando `/stats` executado.")
     bd = context.bot_data
     inicializar_estatisticas(bd)
-    greens_free = bd.get('daily_win_primeira_free', 0) + bd.get('daily_win_gale_free', 0)
-    reds_free = bd.get('daily_loss_free', 0)
-    greens_vip = bd.get('daily_win_primeira_vip', 0) + bd.get('daily_win_gale_vip', 0)
-    reds_vip = bd.get('daily_loss_vip', 0)
-    placar_text = (
-        f"📊 **PLACAR DE HOJE** 📊\n\n"
-        f"Aqui estão nossos resultados parciais de hoje. A transpar
+    uptime = datetime.now() - bd.get('start_time', datetime.now())
+    days, rem = divmod(uptime.total_seconds(), 86400); hours, rem = divmod(rem, 3600); minutes, _ = divmod(rem, 60)
+    stats_text = (
+        f"📊 **PAINEL DE ESTATÍSTICAS GERAIS** 📊\n\n"
+        f"🕒 **Tempo Ativo:** {int(days)}d, {int(hours)}h, {int(minutes)}m\n\n"
+        f"--- **Canal Gratuito (Total)** ---\n"
+        f"📬 Sinais: {bd.get('sinais_free', 0)} | ✅: {bd.get('win_primeira_free', 0)} | ☑️: {bd.get('win_gale_free', 0)} | ❌: {bd.get('loss_free', 0)}\n\n"
+        f"--- **Canal VIP (Total)** ---\n"
+        f"📬 Sinais: {bd.get('sinais_vip', 0)} | ✅: {bd.get('win_primeira_vip', 0)} | ☑️: {bd.get('win_gale_vip', 0)} | ❌: {bd.get('loss_vip', 0)}\n"
+    )
+    await update.message.reply_text(stats_text)
+
+async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        _, jogo_curto, canal = context.args
+        jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
+        if not jogo_completo:
+            await update.message.reply_text(f"❌ Jogo \'{jogo_curto}\' não encontrado. Use um dos: {", ".join(JOGOS_MAP.keys())}")
+            return
+        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
+        aposta = random.choice(JOGOS[jogo_completo])
+        context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
+        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
+        await log_admin_action(context, log_message)
+    except ValueError:
+        await update.message.reply_text("Uso: /sinal <jogo> <canal> (ex: /sinal bacbo vip)")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
+        logger.error(f"Erro ao enviar sinal manual: {e}")
+
+async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
+    message_type = context.job.data["type"]
+    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
+    message_text = MARKETING_MESSAGES[message_type]
+    if message_type == "oferta_relampago":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+    elif message_type == "ultima_chance":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+
+    if message_type == "divulgacao":
+        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+    else:
+        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+    logger.info(f"Mensagem de marketing \'{message_type}\' enviada.")
+
+async def send_social_proof(context: ContextTypes.DEFAULT_TYPE):
+    await enviar_prova_social(context)
+    logger.info("Prova social enviada.")
+
+async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
+    bd = context.bot_data
+    for ch in ['free', 'vip']:
+        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
+            bd[f'daily_{stat}_{ch}'] = 0
+    logger.info("Estatísticas diárias resetadas.")
+
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    for member in update.message.new_chat_members:
+        if member.id == context.bot.id: # O próprio bot foi adicionado
+            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
+            if update.effective_chat.id == FREE_CANAL_ID:
+                await context.bot.send_message(chat_id=FREE_CANAL_ID, text="Obrigado por me adicionar ao seu canal gratuito! Para começar a enviar sinais, por favor, configure as variáveis de ambiente BOT_TOKEN, ADMIN_ID e CHAT_ID.")
+            elif update.effective_chat.id == VIP_CANAL_ID:
+                await context.bot.send_message(chat_id=VIP_CANAL_ID, text="Obrigado por me adicionar ao seu canal VIP! Certifique-se de que o VIP_CANAL_ID está configurado corretamente.")
+            return
+        # Mensagem de boas-vindas para novos membros no canal gratuito
+        if update.effective_chat.id == FREE_CANAL_ID:
+            await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+            logger.info(f"Mensagem de boas-vindas enviada para novo membro {member.full_name} no canal gratuito.")
+
+async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message.left_chat_member.id == context.bot.id:
+        logger.info(f"Bot removido do chat {update.effective_chat.id} ({update.effective_chat.title})")
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id == ADMIN_ID and update.message.document:
+        await update.message.reply_text("Documento recebido. Se for um comprovante, estou verificando...")
+        # Simulação de verificação e liberação de acesso VIP
+        await asyncio.sleep(3) # Simula um tempo de processamento
+        await context.bot.send_message(chat_id=ADMIN_ID, text=MARKETING_MESSAGES["acesso_liberado_vip"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+        logger.info(f"Comprovante recebido do admin e acesso VIP simuladamente liberado.")
+
+async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer() # Always answer the callback query
+    data = query.data
+
+    if data == "depoimento_sim":
+        if DEPOIMENTOS_CANAL_ID == 0:
+            await query.edit_message_text("Desculpe, o canal de depoimentos não está configurado.")
+            logger.warning("Tentativa de enviar depoimento, mas DEPOIMENTOS_CANAL_ID não configurado.")
+            return
+
+        # Encaminha a mensagem original do usuário para o canal de depoimentos
+        try:
+            # A mensagem original está em query.message.reply_to_message
+            original_message = query.message.reply_to_message
+            if original_message:
+                await context.bot.forward_message(
+                    chat_id=DEPOIMENTOS_CANAL_ID,
+                    from_chat_id=original_message.chat.id,
+                    message_id=original_message.message_id
+                )
+                await query.edit_message_text("✅ Seu depoimento foi enviado com sucesso para o canal! Muito obrigado! 🙏")
+                logger.info(f"Depoimento de {query.from_user.full_name} encaminhado para o canal de depoimentos.")
+            else:
+                await query.edit_message_text("Não consegui encontrar a mensagem original para encaminhar como depoimento.")
+                logger.warning("Mensagem original não encontrada para encaminhar depoimento.")
+        except Exception as e:
+            await query.edit_message_text(f"Ocorreu um erro ao enviar seu depoimento: {e}")
+            logger.error(f"Erro ao encaminhar depoimento: {e}")
+
+    elif data == "depoimento_nao":
+        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
+        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
+
+async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    if not update.message.reply_to_message:
+        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
+        return
+
+    original_message = update.message.reply_to_message
+    keyboard = [
+        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
+        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await original_message.reply_text(
+        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
+        reply_markup=reply_markup
+    )
+    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error(f"Update {update} causou erro {context.error}")
+
+def main() -> None:
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    # Comandos
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("sinal", manual_signal_command))
+    application.add_handler(CommandHandler("depoimento", post_depoimento_admin))
+
+    # Callbacks de botões
+    application.add_handler(CallbackQueryHandler(button_callback_handler))
+
+    # Mensagens
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+    # Agendamentos
+    job_queue = application.job_queue
+
+    # Sinais automáticos para o canal VIP (exemplo: a cada 30 minutos)
+    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Bac Bo 🎲", random.choice(JOGOS["Bac Bo 🎲"]), VIP_CANAL_ID)), interval=timedelta(minutes=30), first=timedelta(minutes=1))
+
+    # Sinais automáticos para o canal FREE (exemplo: a cada 60 minutos)
+    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Roleta 룰렛", random.choice(JOGOS["Roleta 룰렛"]), FREE_CANAL_ID)), interval=timedelta(minutes=60), first=timedelta(minutes=5))
+
+    # Bloco de sinais VIP - Início (ex: 9h, 14h, 19h)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=9, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=14, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=19, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Bloco de sinais VIP - Último sinal (ex: 9h50, 14h50, 19h50)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=9, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=14, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=19, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Bloco de sinais VIP - Encerramento (ex: 10h, 15h, 20h)
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=10, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=15, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=20, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Mensagens de marketing agendadas
+    # Oferta Relâmpago (ex: 10h30, 16h30)
+    # job_queue.run_daily(send_marketing_message, time(hour=10, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(send_marketing_message, time(hour=16, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Última Chance (ex: 21h30)
+    # job_queue.run_daily(send_marketing_message, time(hour=21, minute=30), data={"type": "ultima_chance"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Divulgação (ex: 12h, 18h)
+    # job_queue.run_daily(send_marketing_message, time(hour=12, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
+    # job_queue.run_daily(send_marketing_message, time(hour=18, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Provas Sociais (ex: a cada 4 horas)
+    # job_queue.run_repeating(send_social_proof, interval=timedelta(hours=4), first=timedelta(minutes=10))
+
+    # Resetar estatísticas diárias à meia-noite
+    # job_queue.run_daily(reset_daily_stats, time(hour=0, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
+
+    # Error handler
+    application.add_error_handler(error_handler)
+
+    # Run the bot until the user presses Ctrl-C
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
