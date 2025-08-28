@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 23.0 "A VERSÃO DEFINITIVA"
+# BOT DE SINAIS - VERSÃO 23.1 "A VERSÃO DEFINITIVA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -366,9 +366,4 @@ async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TY
 
     await original_message.reply_text(
         "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
-        reply_markup=reply_markup
-    )
-    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Loga os
+        reply_markup=
