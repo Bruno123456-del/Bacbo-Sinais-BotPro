@@ -35,8 +35,10 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
+# --- CORREÇÃO APLICADA AQUI ---
+# O espaço extra em "%(asctime  )s" foi removido.
 logging.basicConfig(
-    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ if FREE_CANAL_ID == 0: erros_config.append("CHAT_ID")
 if VIP_CANAL_ID == 0: erros_config.append("VIP_CANAL_ID")
 
 if erros_config:
-    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {", ".join(erros_config)}")
+    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {', '.join(erros_config)}")
     exit()
 
 if DEPOIMENTOS_CANAL_ID == 0:
@@ -60,7 +62,7 @@ GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52Z
 GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14 )]
+PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14  )]
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
@@ -121,7 +123,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-      ),
+       ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -316,133 +318,62 @@ async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_chat.id == ADMIN_ID and update.message.document:
         await update.message.reply_text("Documento recebido. Se for um comprovante, estou verificando...")
-        # Simulação de verificação e liberação de acesso VIP
-        await asyncio.sleep(3) # Simula um tempo de processamento
-        await context.bot.send_message(chat_id=ADMIN_ID, text=MARKETING_MESSAGES["acesso_liberado_vip"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-        logger.info(f"Comprovante recebido do admin e acesso VIP simuladamente liberado.")
+        # Simulação de verificação e liberação
+        await asyncio.sleep(5)
+        await update.message.reply_text(MARKETING_MESSAGES["acesso_liberado_vip"])
+        await log_admin_action(context, f"Acesso VIP liberado para o usuário {update.effective_user.full_name} após envio de documento.")
 
-async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer() # Always answer the callback query
-    data = query.data
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Apenas processa fotos em conversas privadas (não em canais)
+    if update.message.chat.type == 'private':
+        user_id = update.effective_user.id
+        # Responde ao usuário que está "verificando" o comprovante
+        await update.message.reply_text("Comprovante recebido! Só um momento enquanto verifico...")
+        
+        # Simula um tempo de verificação
+        await asyncio.sleep(random.randint(3, 6))
+        
+        # Envia a mensagem de liberação do acesso VIP
+        await update.message.reply_text(
+            text=MARKETING_MESSAGES["acesso_liberado_vip"],
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
+        )
+        
+        # Log para o administrador
+        log_message = (
+            f"✅ **Acesso VIP Liberado Automaticamente** ✅\n\n"
+            f"**Usuário:** {update.effective_user.full_name} (ID: `{user_id}`)\n"
+            f"**Motivo:** Enviou uma imagem (provável comprovante) no privado."
+        )
+        await log_admin_action(context, log_message)
+        logger.info(f"Acesso VIP liberado para {update.effective_user.full_name} (ID: {user_id}) após envio de foto.")
 
-    if data == "depoimento_sim":
-        if DEPOIMENTOS_CANAL_ID == 0:
-            await query.edit_message_text("Desculpe, o canal de depoimentos não está configurado.")
-            logger.warning("Tentativa de enviar depoimento, mas DEPOIMENTOS_CANAL_ID não configurado.")
-            return
-
-        # Encaminha a mensagem original do usuário para o canal de depoimentos
-        try:
-            # A mensagem original está em query.message.reply_to_message
-            original_message = query.message.reply_to_message
-            if original_message:
-                await context.bot.forward_message(
-                    chat_id=DEPOIMENTOS_CANAL_ID,
-                    from_chat_id=original_message.chat.id,
-                    message_id=original_message.message_id
-                )
-                await query.edit_message_text("✅ Seu depoimento foi enviado com sucesso para o canal! Muito obrigado! 🙏")
-                logger.info(f"Depoimento de {query.from_user.full_name} encaminhado para o canal de depoimentos.")
-            else:
-                await query.edit_message_text("Não consegui encontrar a mensagem original para encaminhar como depoimento.")
-                logger.warning("Mensagem original não encontrada para encaminhar depoimento.")
-        except Exception as e:
-            await query.edit_message_text(f"Ocorreu um erro ao enviar seu depoimento: {e}")
-            logger.error(f"Erro ao encaminhar depoimento: {e}")
-
-    elif data == "depoimento_nao":
-        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
-        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
-
-async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    if not update.message.reply_to_message:
-        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
-        return
-
-    original_message = update.message.reply_to_message
-    keyboard = [
-        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
-        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await original_message.reply_text(
-        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
-        reply_markup=reply_markup
-    )
-    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.error(f"Update {update} causou erro {context.error}")
-
+# --- 7. INICIALIZAÇÃO DO BOT ---
 def main() -> None:
-    persistence = PicklePersistence(filepath="bot_data.pkl")
+    """Inicia o bot e agenda as tarefas."""
+    persistence = PicklePersistence(filepath="bot_persistence")
     application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
+    # Inicializa os dados do bot
+    inicializar_estatisticas(application.bot_data)
+
     # Comandos
-    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("start", start_command, filters=filters.ChatType.PRIVATE))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("sinal", manual_signal_command))
-    application.add_handler(CommandHandler("depoimento", post_depoimento_admin))
 
-    # Callbacks de botões
-    application.add_handler(CallbackQueryHandler(button_callback_handler))
-
-    # Mensagens
+    # Handlers de Mensagem e Membros
+    application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_photo))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
-    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    application.add_handler(MessageHandler(filters.Document.ALL & filters.User(user_id=ADMIN_ID), handle_document))
 
-    # Agendamentos
-    job_queue = application.job_queue
+    # Agendamento de Tarefas (Jobs)
+    jq = application.job_queue
+    
+    # Reset diário das estatísticas à meia-noite
+    jq.run_daily(reset_daily_stats, time=time(hour=0, minute=0, second=0))
 
-    # Sinais automáticos para o canal VIP (exemplo: a cada 30 minutos)
-    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Bac Bo 🎲", random.choice(JOGOS["Bac Bo 🎲"]), VIP_CANAL_ID)), interval=timedelta(minutes=30), first=timedelta(minutes=1))
-
-    # Sinais automáticos para o canal FREE (exemplo: a cada 60 minutos)
-    # job_queue.run_repeating(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, "Roleta 룰렛", random.choice(JOGOS["Roleta 룰렛"]), FREE_CANAL_ID)), interval=timedelta(minutes=60), first=timedelta(minutes=5))
-
-    # Bloco de sinais VIP - Início (ex: 9h, 14h, 19h)
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=9, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=14, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "inicio")), time(hour=19, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Bloco de sinais VIP - Último sinal (ex: 9h50, 14h50, 19h50)
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=9, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=14, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "ultimo")), time(hour=19, minute=50), days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Bloco de sinais VIP - Encerramento (ex: 10h, 15h, 20h)
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=10, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=15, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(lambda ctx: asyncio.create_task(enviar_aviso_bloco(ctx, "Bac Bo 🎲", "encerramento")), time(hour=20, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Mensagens de marketing agendadas
-    # Oferta Relâmpago (ex: 10h30, 16h30)
-    # job_queue.run_daily(send_marketing_message, time(hour=10, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(send_marketing_message, time(hour=16, minute=30), data={"type": "oferta_relampago"}, days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Última Chance (ex: 21h30)
-    # job_queue.run_daily(send_marketing_message, time(hour=21, minute=30), data={"type": "ultima_chance"}, days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Divulgação (ex: 12h, 18h)
-    # job_queue.run_daily(send_marketing_message, time(hour=12, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
-    # job_queue.run_daily(send_marketing_message, time(hour=18, minute=0), data={"type": "divulgacao"}, days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Provas Sociais (ex: a cada 4 horas)
-    # job_queue.run_repeating(send_social_proof, interval=timedelta(hours=4), first=timedelta(minutes=10))
-
-    # Resetar estatísticas diárias à meia-noite
-    # job_queue.run_daily(reset_daily_stats, time(hour=0, minute=0), days=(0, 1, 2, 3, 4, 5, 6))
-
-    # Error handler
-    application.add_error_handler(error_handler)
-
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == "__main__":
-    main()
-
+    # Sinais para o Canal VIP (mais frequentes)
+    jq.
