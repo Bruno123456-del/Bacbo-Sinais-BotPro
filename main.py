@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 19.0 "EXCELÊNCIA"
+# BOT DE SINAIS - VERSÃO 20.0 "ROBUSTEZ MÁXIMA"
 # CRIADO E APRIMORADO POR MANUS
+# - CORRIGIDO ERRO DE INICIALIZAÇÃO (ValueError)
+# - VARIÁVEIS DE AMBIENTE OPCIONAIS SÃO TRATADAS COM SEGURANÇA
 # - AUTOMAÇÃO COMPLETA DE SINAIS E MARKETING
-# - SISTEMA DE COMPROVANTES E APROVAÇÃO
-# - ESTRUTURA ROBUSTA E SEGURA
 # ===================================================================================
 
 import logging
@@ -21,6 +21,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
     PicklePersistence,
+    CallbackQueryHandler,
 )
 from telegram.constants import ParseMode
 
@@ -28,9 +29,13 @@ from telegram.constants import ParseMode
 # Carregue as variáveis de ambiente. É mais seguro do que colocar os valores aqui.
 BOT_TOKEN = os.getenv("BOT_TOKEN", "SEU_TOKEN_AQUI").strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
-FREE_CANAL_ID = int(os.getenv("CHAT_ID", "SEU_CANAL_GRATUITO_ID_AQUI").strip())
-VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "SEU_CANAL_VIP_ID_AQUI").strip())
-DEPOIMENTOS_CANAL_ID = int(os.getenv("DEPOIMENTOS_CANAL_ID", "SEU_CANAL_DEPOIMENTOS_ID_AQUI").strip())
+FREE_CANAL_ID = int(os.getenv("CHAT_ID", "0").strip())
+VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "0").strip())
+
+# --- CORREÇÃO DO ERRO ValueError ---
+# Torna o DEPOIMENTOS_CANAL_ID opcional. Se não for um número válido, será 0.
+depoimentos_id_str = os.getenv("DEPOIMENTOS_CANAL_ID", "0").strip()
+DEPOIMENTOS_CANAL_ID = int(depoimentos_id_str) if depoimentos_id_str.isdigit() else 0
 
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
 URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
@@ -47,6 +52,10 @@ logger = logging.getLogger(__name__)
 if "SEU_TOKEN_AQUI" in BOT_TOKEN or FREE_CANAL_ID == 0 or VIP_CANAL_ID == 0:
     logger.critical("ERRO CRÍTICO: BOT_TOKEN, CHAT_ID ou VIP_CANAL_ID não estão configurados!")
     exit() # Impede a execução do bot se as credenciais essenciais não estiverem definidas
+
+if DEPOIMENTOS_CANAL_ID == 0:
+    logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos estará desativada.")
+
 
 # --- 2. MÍDIAS E CONTEÚDO VISUAL ---
 GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
@@ -280,7 +289,6 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
         target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
         aposta = random.choice(JOGOS[jogo_completo])
         
-        # Agendando a execução para não bloquear o bot
         context.job_queue.run_once(
             lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0
         )
@@ -326,7 +334,6 @@ async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         bd['id_mensagem_oferta'] = msg_oferta.message_id
         
-        # Agendamento da mensagem de última chance
         context.job_queue.run_once(
             lambda ctx: ctx.bot.send_message(
                 chat_id=FREE_CANAL_ID,
@@ -347,16 +354,13 @@ async def handle_comprovante(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Recebe comprovantes (fotos) no chat privado, responde ao usuário e notifica o admin."""
     user = update.effective_user
     
-    # Responde ao usuário confirmando o recebimento
     await update.message.reply_text(MARKETING_MESSAGES["comprovante_recebido"])
     
-    # Prepara botões para o admin
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Liberar Acesso VIP", callback_data=f"liberar_vip_{user.id}")],
-        [InlineKeyboardButton("❌ Recusar", callback_data=f"recusar_vip_{user.id}")]
+        [InlineKeyboardButton("✅ Liberar Acesso VIP", callback_data=f"liberar_{user.id}")],
+        [InlineKeyboardButton("❌ Recusar", callback_data=f"recusar_{user.id}")]
     ])
     
-    # Encaminha a foto para o admin com os botões de ação
     await context.bot.send_photo(
         chat_id=ADMIN_ID,
         photo=update.message.photo[-1].file_id,
@@ -384,13 +388,13 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 text=MARKETING_MESSAGES["acesso_liberado_vip"],
                 parse_mode=ParseMode.MARKDOWN
             )
-            await query.edit_message_caption(caption=f"{query.message.caption}\n\n**Status: ✅ ACESSO LIBERADO**")
+            await query.edit_message_caption(caption=f"{query.message.caption.text}\n\n**Status: ✅ ACESSO LIBERADO**", parse_mode=ParseMode.MARKDOWN)
             logger.info(f"Acesso VIP liberado para o usuário {user_id} pelo admin.")
         except Exception as e:
-            await query.edit_message_caption(caption=f"{query.message.caption}\n\n**Status: ⚠️ FALHA AO LIBERAR!**\nErro: {e}")
+            await query.edit_message_caption(caption=f"{query.message.caption.text}\n\n**Status: ⚠️ FALHA AO LIBERAR!**\nErro: {e}", parse_mode=ParseMode.MARKDOWN)
             logger.error(f"Falha ao liberar acesso para {user_id}: {e}")
     elif action == "recusar":
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n**Status: ❌ RECUSADO**")
+        await query.edit_message_caption(caption=f"{query.message.caption.text}\n\n**Status: ❌ RECUSADO**", parse_mode=ParseMode.MARKDOWN)
         logger.info(f"Comprovante do usuário {user_id} recusado pelo admin.")
 
 # --- 7. INICIALIZAÇÃO E AGENDAMENTO ---
@@ -398,7 +402,6 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 def main() -> None:
     """Função principal que constrói e executa o bot."""
     
-    # Usando persistência para salvar dados do bot (como estatísticas)
     persistence = PicklePersistence(filepath="bot_data.pickle")
     
     application = (
@@ -408,7 +411,6 @@ def main() -> None:
         .build()
     )
 
-    # Inicializa as estatísticas se for a primeira vez
     inicializar_estatisticas(application.bot_data)
 
-    # --- Agendamento de Sinais Automáticos ---
+    # --- Agendamento de Sinais
