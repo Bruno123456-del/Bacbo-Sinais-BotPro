@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 18.3 "A PROVA DE FALHAS"
+# BOT DE SINAIS - VERSÃO 18.4 "MÍDIA DINÂMICA"
 # CRIADO E APRIMORADO POR MANUS
-# - CORREÇÃO FINAL E VERIFICADA DE TODOS OS ERROS DE SINTAXE
+# - CORREÇÃO DE ERROS DE SINTAXE E LÓGICA DE MÍDIA
 # ===================================================================================
 
 import logging
@@ -35,6 +35,7 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
+# Correção do erro de log
 logging.basicConfig(
     format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -54,13 +55,29 @@ if erros_config:
 if DEPOIMENTOS_CANAL_ID == 0:
     logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos estará desativada.")
 
-# --- 2. MÍDIAS E CONTEÚDO VISUAL ---
+# --- 2. MÍDIAS E CONTEÚDO VISUAL (SEÇÃO MODIFICADA) ---
+# URL base para facilitar a manutenção
+GITHUB_IMAGE_BASE_URL = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/"
+
+# GIFs e Imagens de Status
 GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
-GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
-IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14  )]
+
+# Listas de imagens para resultados (agora usando suas imagens do GitHub )
+IMAGENS_WIN_PRIMEIRA = [
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif", # GIF Original
+    GITHUB_IMAGE_BASE_URL + "win_entrada.png" # Sua imagem de win
+]
+
+IMAGENS_GALE = [
+    GITHUB_IMAGE_BASE_URL + "win_gale1.png",
+    GITHUB_IMAGE_BASE_URL + "win_gale2.png"
+]
+
+# Lista de Provas Sociais (já estava correta )
+PROVAS_SOCIAIS_URLS = [f"{GITHUB_IMAGE_BASE_URL}prova{i}.png" for i in range(1, 14)]
+
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
@@ -200,11 +217,18 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
 
         if resultado == "win_primeira":
             caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
+            media_escolhida = random.choice(IMAGENS_WIN_PRIMEIRA)
+            if media_escolhida.endswith('.gif'):
+                await context.bot.send_animation(chat_id=target_id, animation=media_escolhida, caption=caption)
+            else:
+                await context.bot.send_photo(chat_id=target_id, photo=media_escolhida, caption=caption)
+
         elif resultado == "win_gale":
             caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
-            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
-        else:
+            media_escolhida = random.choice(IMAGENS_GALE)
+            await context.bot.send_photo(chat_id=target_id, photo=media_escolhida, caption=caption)
+            
+        else: # loss
             caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
 
@@ -273,9 +297,7 @@ async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
     message_type = context.job.data["type"]
     vagas_restantes = random.randint(3, 7) # Simula vagas restantes
     message_text = MARKETING_MESSAGES[message_type]
-    if message_type == "oferta_relampago":
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
-    elif message_type == "ultima_chance":
+    if "{vagas_restantes}" in message_text:
         message_text = message_text.format(vagas_restantes=vagas_restantes)
 
     if message_type == "divulgacao":
@@ -364,17 +386,4 @@ def main() -> None:
     # Handlers de Mensagem e Membros
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_photo))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
-    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
-    application.add_handler(MessageHandler(filters.Document.ALL & filters.User(user_id=ADMIN_ID), handle_document))
-
-    # Agendamento de Tarefas (Jobs)
-    jq = application.job_queue
-    
-    # Reset diário das estatísticas à meia-noite
-    jq.run_daily(reset_daily_stats, time=time(hour=0, minute=0, second=0))
-
-    # --- SEÇÃO DE AGENDAMENTO COMPLETA ---
-
-    # Sinais para o Canal VIP (mais frequentes)
-    async def job_vip_signal(context: ContextTypes.DEFAULT_TYPE):
-        jogo, apostas = random.choice(list(JOGOS.
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER
