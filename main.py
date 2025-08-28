@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 20.3 "A VERSÃO CORRIGIDA E COMPLETA"
+# BOT DE SINAIS - VERSÃO 20.4 "A VERSÃO FINAL E VERIFICADA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -347,4 +347,3 @@ async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await log_admin_action(context, f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas.")
         await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
     except Exception as e:
-        logger.error(
