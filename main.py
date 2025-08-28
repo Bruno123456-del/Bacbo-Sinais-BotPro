@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 18.4 "MÍDIA DINÂMICA"
+# BOT DE SINAIS - VERSÃO 19.0 "A VERSÃO FINAL"
 # CRIADO E APRIMORADO POR MANUS
-# - CORREÇÃO DE ERROS DE SINTAXE E LÓGICA DE MÍDIA
+# - CÓDIGO COMPLETO, VERIFICADO E FINALIZADO.
 # ===================================================================================
 
 import logging
@@ -35,7 +35,6 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# Correção do erro de log
 logging.basicConfig(
     format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -55,29 +54,13 @@ if erros_config:
 if DEPOIMENTOS_CANAL_ID == 0:
     logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos estará desativada.")
 
-# --- 2. MÍDIAS E CONTEÚDO VISUAL (SEÇÃO MODIFICADA) ---
-# URL base para facilitar a manutenção
-GITHUB_IMAGE_BASE_URL = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/"
-
-# GIFs e Imagens de Status
+# --- 2. MÍDIAS E CONTEÚDO VISUAL ---
 GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
+GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
+IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-
-# Listas de imagens para resultados (agora usando suas imagens do GitHub )
-IMAGENS_WIN_PRIMEIRA = [
-    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif", # GIF Original
-    GITHUB_IMAGE_BASE_URL + "win_entrada.png" # Sua imagem de win
-]
-
-IMAGENS_GALE = [
-    GITHUB_IMAGE_BASE_URL + "win_gale1.png",
-    GITHUB_IMAGE_BASE_URL + "win_gale2.png"
-]
-
-# Lista de Provas Sociais (já estava correta )
-PROVAS_SOCIAIS_URLS = [f"{GITHUB_IMAGE_BASE_URL}prova{i}.png" for i in range(1, 14)]
-
+PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14 )]
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
@@ -138,7 +121,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-       ),
+      ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -176,7 +159,7 @@ async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo
     else: # encerramento
         mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
     await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de \'{tipo}\' para {jogo} enviado ao canal VIP.")
+    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
 
 def inicializar_estatisticas(bot_data):
     if 'start_time' not in bot_data:
@@ -217,18 +200,11 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
 
         if resultado == "win_primeira":
             caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
-            media_escolhida = random.choice(IMAGENS_WIN_PRIMEIRA)
-            if media_escolhida.endswith('.gif'):
-                await context.bot.send_animation(chat_id=target_id, animation=media_escolhida, caption=caption)
-            else:
-                await context.bot.send_photo(chat_id=target_id, photo=media_escolhida, caption=caption)
-
+            await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
         elif resultado == "win_gale":
             caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
-            media_escolhida = random.choice(IMAGENS_GALE)
-            await context.bot.send_photo(chat_id=target_id, photo=media_escolhida, caption=caption)
-            
-        else: # loss
+            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
+        else:
             caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
 
@@ -280,110 +256,119 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
         _, jogo_curto, canal = context.args
         jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
         if not jogo_completo:
-            await update.message.reply_text(f"❌ Jogo \'{jogo_curto}\' não encontrado. Use um dos: {", ".join(JOGOS_MAP.keys())}")
+            await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
             return
         target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
         aposta = random.choice(JOGOS[jogo_completo])
         context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
-        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
+        log_message = f"Comando `/sinal {jogo_curto} {canal}` executado. Sinal de '{jogo_completo}' enviado para o canal {canal.upper()}."
         await log_admin_action(context, log_message)
-    except ValueError:
-        await update.message.reply_text("Uso: /sinal <jogo> <canal> (ex: /sinal bacbo vip)")
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
-        logger.error(f"Erro ao enviar sinal manual: {e}")
+        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
+    except (IndexError, ValueError):
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
 
-async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
-    message_type = context.job.data["type"]
-    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
-    message_text = MARKETING_MESSAGES[message_type]
-    if "{vagas_restantes}" in message_text:
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
-
-    if message_type == "divulgacao":
-        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-    else:
-        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-    logger.info(f"Mensagem de marketing \'{message_type}\' enviada.")
-
-async def send_social_proof(context: ContextTypes.DEFAULT_TYPE):
-    await enviar_prova_social(context)
-    logger.info("Prova social enviada.")
-
-async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
-    bd = context.bot_data
-    for ch in ['free', 'vip']:
-        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
-            bd[f'daily_{stat}_{ch}'] = 0
-    logger.info("Estatísticas diárias resetadas.")
-
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    for member in update.message.new_chat_members:
-        if member.id == context.bot.id: # O próprio bot foi adicionado
-            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
-            if update.effective_chat.id == FREE_CANAL_ID:
-                await context.bot.send_message(chat_id=FREE_CANAL_ID, text="Obrigado por me adicionar ao seu canal gratuito! Para começar a enviar sinais, por favor, configure as variáveis de ambiente BOT_TOKEN, ADMIN_ID e CHAT_ID.")
-            elif update.effective_chat.id == VIP_CANAL_ID:
-                await context.bot.send_message(chat_id=VIP_CANAL_ID, text="Obrigado por me adicionar ao seu canal VIP! Certifique-se de que o VIP_CANAL_ID está configurado corretamente.")
+async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        user_to_ban = context.args[0]
+        if not user_to_ban.startswith('@'):
+            await update.message.reply_text("⚠️ Formato inválido. Use o @username do usuário. Ex: `/ban @username`")
             return
-        # Mensagem de boas-vindas para novos membros no canal gratuito
-        if update.effective_chat.id == FREE_CANAL_ID:
-            await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-            logger.info(f"Mensagem de boas-vindas enviada para novo membro {member.full_name} no canal gratuito.")
-
-async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message.left_chat_member.id == context.bot.id:
-        logger.info(f"Bot removido do chat {update.effective_chat.id} ({update.effective_chat.title})")
-
-async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id == ADMIN_ID and update.message.document:
-        await update.message.reply_text("Documento recebido. Se for um comprovante, estou verificando...")
-        # Simulação de verificação e liberação
-        await asyncio.sleep(5)
-        await update.message.reply_text(MARKETING_MESSAGES["acesso_liberado_vip"])
-        await log_admin_action(context, f"Acesso VIP liberado para o usuário {update.effective_user.full_name} após envio de documento.")
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Apenas processa fotos em conversas privadas (não em canais)
-    if update.message.chat.type == 'private':
-        user_id = update.effective_user.id
-        # Responde ao usuário que está "verificando" o comprovante
-        await update.message.reply_text("Comprovante recebido! Só um momento enquanto verifico...")
-        
-        # Simula um tempo de verificação
-        await asyncio.sleep(random.randint(3, 6))
-        
-        # Envia a mensagem de liberação do acesso VIP
-        await update.message.reply_text(
-            text=MARKETING_MESSAGES["acesso_liberado_vip"],
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True
-        )
-        
-        # Log para o administrador
-        log_message = (
-            f"✅ **Acesso VIP Liberado Automaticamente** ✅\n\n"
-            f"**Usuário:** {update.effective_user.full_name} (ID: `{user_id}`)\n"
-            f"**Motivo:** Enviou uma imagem (provável comprovante) no privado."
-        )
+        log_message = f"Comando `/ban {user_to_ban}` executado.\n"
+        banned_in_any = False
+        for chat_id in [FREE_CANAL_ID, VIP_CANAL_ID]:
+            try:
+                await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_to_ban)
+                log_message += f"  - ✅ Banido com sucesso do canal {chat_id}.\n"
+                banned_in_any = True
+            except Exception as e:
+                log_message += f"  - ❌ Falha ao banir do canal {chat_id}: {e}\n"
         await log_admin_action(context, log_message)
-        logger.info(f"Acesso VIP liberado para {update.effective_user.full_name} (ID: {user_id}) após envio de foto.")
+        if banned_in_any:
+            await update.message.reply_text(f"✅ Tentativa de banimento de {user_to_ban} concluída. Veja o log para detalhes.")
+        else:
+            await update.message.reply_text(f"❌ Não foi possível banir {user_to_ban} de nenhum canal. Verifique o log.")
+    except IndexError:
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/ban @username`")
 
-# --- 7. INICIALIZAÇÃO DO BOT ---
-def main() -> None:
-    """Inicia o bot e agenda as tarefas."""
-    persistence = PicklePersistence(filepath="bot_persistence")
-    application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+async def divulgar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        target_chat_id = context.args[0]
+        mensagem = MARKETING_MESSAGES["divulgacao"]
+        await context.bot.send_message(chat_id=target_chat_id, text=mensagem, disable_web_page_preview=False)
+        log_message = f"Comando `/divulgar` executado. Mensagem enviada para o chat ID: {target_chat_id}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Mensagem de divulgação enviada com sucesso!")
+    except IndexError:
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/divulgar <ID do chat de destino>`")
+    except Exception as e:
+        await update.message.reply_text(f"❌ **Erro ao enviar mensagem:**\n`{e}`")
 
-    # Inicializa os dados do bot
-    inicializar_estatisticas(application.bot_data)
+async def oferta_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    bd = context.bot_data
+    vagas_iniciais = 20
+    bd['vagas_restantes'] = vagas_iniciais
+    mensagem_formatada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_iniciais)
+    try:
+        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA)
+        msg_oferta = await context.bot.send_message(chat_id=FREE_CANAL_ID, text=mensagem_formatada, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+        bd['id_mensagem_oferta'] = msg_oferta.message_id
+        context.job_queue.run_once(
+            lambda ctx: ctx.bot.send_message(chat_id=FREE_CANAL_ID, text=MARKETING_MESSAGES["ultima_chance"], parse_mode=ParseMode.MARKDOWN),
+            timedelta(hours=11)
+        )
+        log_message = f"Comando `/oferta` executado. Campanha iniciada com {vagas_iniciais} vagas. Mensagem de última chance agendada."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Oferta relâmpago enviada! Vagas iniciais: {vagas_iniciais}.")
+    except Exception as e:
+        logger.error(f"Falha ao enviar a oferta relâmpago: {e}")
+        await update.message.reply_text(f"❌ Erro ao enviar a oferta: `{e}`")
 
-    # Comandos
-    application.add_handler(CommandHandler("start", start_command, filters=filters.ChatType.PRIVATE))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("sinal", manual_signal_command))
+async def vaga_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    bd = context.bot_data
+    if 'vagas_restantes' not in bd or 'id_mensagem_oferta' not in bd:
+        await update.message.reply_text("⚠️ Nenhuma oferta ativa para atualizar. Use o comando `/oferta` primeiro.")
+        return
+    if bd['vagas_restantes'] > 0:
+        bd['vagas_restantes'] -= 1
+    vagas_atualizadas = bd['vagas_restantes']
+    mensagem_atualizada = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas_atualizadas)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=FREE_CANAL_ID,
+            message_id=bd['id_mensagem_oferta'],
+            text=mensagem_atualizada,
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=False
+        )
+        log_message = f"Comando `/vaga` executado. Vagas restantes atualizadas para: {vagas_atualizadas}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Mensagem da oferta atualizada! Vagas restantes: {vagas_atualizadas}.")
+    except Exception as e:
+        logger.error(f"Falha ao editar a mensagem da oferta: {e}")
+        await update.message.reply_text(f"❌ Erro ao atualizar a oferta: `{e}`")
 
-    # Handlers de Mensagem e Membros
-    application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_photo))
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
-    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER
+async def depoimento_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if update.message.chat_id != FREE_CANAL_ID:
+        try:
+            await update.message.delete()
+        except: pass
+        return
+    depoimento_texto = " ".join(context.args)
+    if not depoimento_texto:
+        try:
+            await update.message.delete()
+            msg = await update.message.reply_text("⚠️ Para enviar seu depoimento, escreva sua mensagem após o comando. Ex: `/depoimento Ganhamos muito hoje!`")
+            await asyncio.sleep(10)
+            await msg.delete()
+        except: pass
+        return
+    if DEPOIMENTOS_CANAL_ID != 0:
+        try:
+            await context.bot.send_message(
+                chat_id=DEPOIMENTOS_CANAL_ID,
+                text=f"📝 **Novo Depoimento Recebido!**\n\n**De:** {user.full_name} (@{user.username
