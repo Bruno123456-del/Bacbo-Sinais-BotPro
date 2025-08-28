@@ -35,10 +35,8 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# --- CORREÇÃO APLICADA AQUI ---
-# O espaço extra em "%(asctime  )s" foi removido.
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -375,5 +373,8 @@ def main() -> None:
     # Reset diário das estatísticas à meia-noite
     jq.run_daily(reset_daily_stats, time=time(hour=0, minute=0, second=0))
 
+    # --- PARTE RESTAURADA ---
     # Sinais para o Canal VIP (mais frequentes)
-    jq.
+    # A cada 25 a 45 minutos, envia um sinal VIP de um jogo aleatório
+    jq.run_repeating(
+        lambda ctx: asyncio.create_task(enviar
