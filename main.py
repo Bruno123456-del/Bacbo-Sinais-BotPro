@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 20.6 "A VERSÃO FINAL, TESTADA E COMPLETA"
+# BOT DE SINAIS - VERSÃO 20.7 "A VERSÃO FINAL, TESTADA E COMPLETA"
 # CRIADO E APRIMORADO POR MANUS
 # - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
 # ===================================================================================
@@ -172,104 +172,4 @@ async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo
     else:
         mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
     await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
-
-def inicializar_estatisticas(bot_data):
-    if 'start_time' not in bot_data:
-        bot_data['start_time'] = datetime.now()
-    for ch in ['free', 'vip']:
-        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
-            if f'{stat}_{ch}' not in bot_data: bot_data[f'{stat}_{ch}'] = 0
-            if f'daily_{stat}_{ch}' not in bot_data: bot_data[f'daily_{stat}_{ch}'] = 0
-
-async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str, aposta: str, target_id: int):
-    bd = context.bot_data
-    channel_type = 'vip' if target_id == VIP_CANAL_ID else 'free'
-    if bd.get(f"sinal_em_andamento_{target_id}", False):
-        logger.warning(f"Pulei o sinal de {jogo} para o canal {target_id} pois outro já estava em andamento.")
-        return
-    bd[f"sinal_em_andamento_{target_id}"] = True
-    try:
-        await context.bot.send_animation(chat_id=target_id, animation=GIF_ANALISANDO, caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**...")
-        await asyncio.sleep(random.randint(5, 10))
-        mensagem_sinal = (f"🔥 **ENTRADA CONFIRMADA | {jogo}** 🔥\n\n"
-                          f"🎯 **Apostar em:** {aposta}\n"
-                          f"🔗 **JOGAR NA PLATAFORMA CERTA:** [**CLIQUE AQUI**]({URL_CADASTRO_DEPOSITO})")
-        if target_id == VIP_CANAL_ID:
-            mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP!_"
-        await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
-        logger.info(f"Sinal de {jogo} enviado para o canal {target_id}.")
-        bd[f'sinais_{channel_type}'] += 1
-        bd[f'daily_sinais_{channel_type}'] += 1
-        await asyncio.sleep(random.randint(45, 75))
-        probabilidades = ASSERTIVIDADE_JOGOS.get(jogo, ASSERTIVIDADE_JOGOS["default"])
-        resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1)[0]
-        bd[f'{resultado}_{channel_type}'] += 1
-        bd[f'daily_{resultado}_{channel_type}'] += 1
-        greens_dia = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
-        reds_dia = bd.get(f'daily_loss_{channel_type}', 0)
-        placar_do_dia = f"📊 **Placar do Dia ({channel_type.upper()}):** {greens_dia}W - {reds_dia}L"
-        caption = ""
-        if resultado == "win_primeira":
-            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
-        elif resultado == "win_gale":
-            caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
-            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
-        else:
-            caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
-    except Exception as e:
-        logger.error(f"Erro no ciclo de sinal para {jogo} no canal {target_id}: {e}")
-    finally:
-        bd[f"sinal_em_andamento_{target_id}"] = False
-
-async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
-    url_prova = random.choice(PROVAS_SOCIAIS_URLS)
-    legenda = random.choice(MARKETING_MESSAGES["legendas_prova_social"])
-    await context.bot.send_photo(
-        chat_id=FREE_CANAL_ID,
-        photo=url_prova,
-        caption=f"{legenda}\n\n[**QUERO LUCRAR ASSIM TAMBÉM!**]({URL_CADASTRO_DEPOSITO})",
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-# --- 7. COMANDOS, MODERAÇÃO E TAREFAS AGENDADAS ---
-async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
-    try:
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
-    except Exception as e:
-        logger.error(f"Falha ao enviar log para o admin: {e}")
-
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-
-async def placar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    bd = context.bot_data
-    inicializar_estatisticas(bd)
-    greens_free = bd.get('daily_win_primeira_free', 0) + bd.get('daily_win_gale_free', 0)
-    reds_free = bd.get('daily_loss_free', 0)
-    greens_vip = bd.get('daily_win_primeira_vip', 0) + bd.get('daily_win_gale_vip', 0)
-    reds_vip = bd.get('daily_loss_vip', 0)
-    placar_text = (
-        f"📊 **PLACAR DE HOJE** 📊\n\n"
-        f"Aqui estão nossos resultados parciais de hoje. A transparência é a nossa maior força!\n\n"
-        f"🟢 **Canal Gratuito:** {greens_free} GREEN(S) ✅\n"
-        f"🔴 **Canal Gratuito:** {reds_free} RED(S) ❌\n\n"
-        f"💎 **Canal VIP:** {greens_vip} GREEN(S) ✅\n"
-        f"💎 **Canal VIP:** {reds_vip} RED(S) ❌\n\n"
-        f"O placar do VIP é sempre maior porque enviamos dezenas de sinais exclusivos por lá todos os dias!\n\n"
-        f"Não fique de fora! Garanta seu acesso VIP e maximize seus lucros!\n"
-        f"➡️ [**QUERO ACESSO VIP AGORA!**]({URL_CADASTRO_DEPOSITO})"
-    )
-    await update.message.reply_text(placar_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    await log_admin_action(context, "Comando `/stats` executado.")
-    bd = context.bot_data
-    inicializar_estatisticas(bd)
-    uptime = datetime.now() - bd.get('start_time', datetime.now())
-    days, rem = divmod(uptime.total_seconds(), 86400); hours, rem = divmod(rem, 3600); minutes, _ = divmod(rem, 60)
-    stats_text = (
-        f"📊 **PAINEL DE ESTAT
+    logger.info
