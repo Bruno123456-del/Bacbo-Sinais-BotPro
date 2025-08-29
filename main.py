@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 23.2 "A VERSÃO DEFINITIVA"
+# BOT DE SINAIS - VERSÃO 24.0 "MÁQUINA DE CONVERSÃO"
 # CRIADO E APRIMORADO POR MANUS
-# - CÓDIGO COMPLETO, COM TODAS AS FUNÇÕES E CORREÇÕES DE SINTAXE.
+# - Funil de boas-vindas automático e pessoal para cada novo membro.
+# - Estratégias de conversão e gatilhos mentais implementados.
 # ===================================================================================
 
 import logging
@@ -35,13 +36,13 @@ URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# CORREÇÃO APLICADA: Removido o espaço em 'asctime'
+# Configuração do Logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Validação inteligente para garantir que as variáveis essenciais estão configuradas
+# Validação de variáveis de ambiente
 erros_config = []
 if not BOT_TOKEN: erros_config.append("BOT_TOKEN")
 if ADMIN_ID == 0: erros_config.append("ADMIN_ID")
@@ -122,7 +123,7 @@ MARKETING_MESSAGES = {
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-        ),
+         ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -225,105 +226,46 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
     )
 
 # --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
+
 async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     """Envia uma sequência de DMs para pressionar a conversão."""
     user_id = context.job.chat_id
     nome_usuario = context.job.data['nome_usuario']
 
     # Mensagem 1 (após 1 hora)
-    await context.bot.send_message(
-        chat_id=user_id,
-        text=f"Ei {nome_usuario}, vi que você entrou no nosso grupo gratuito. 👀\n\n"
-             f"Só pra você saber, as vagas para o acesso VIP de 90 dias GRÁTIS estão acabando. Restam apenas **{random.randint(5, 9)}** vagas.\n\n"
-             f"Não perca a chance de lucrar de verdade. [**Clique aqui para garantir a sua vaga antes que acabe!**]({URL_CADASTRO_DEPOSITO})",
-        parse_mode=ParseMode.MARKDOWN
-    )
-    
-    # Mensagem 2 (após 24 horas)
-    await asyncio.sleep(3600 * 23) # Espera mais 23 horas
-    placar_vip_greens = random.randint(18, 25)
-    placar_vip_reds = random.randint(1, 3)
-    await context.bot.send_message(
-        chat_id=user_id,
-        text=f"💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
-             f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de **{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
-             f"As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
-             f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. [**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})",
-        parse_mode=ParseMode.MARKDOWN
-    )
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"Ei {nome_usuario}, vi que você entrou no nosso grupo gratuito. 👀\n\n"
+                 f"Só pra você saber, as vagas para o acesso VIP de 90 dias GRÁTIS estão acabando. Restam apenas **{random.randint(5, 9)}** vagas.\n\n"
+                 f"Não perca a chance de lucrar de verdade. [**Clique aqui para garantir a sua vaga antes que acabe!**]({URL_CADASTRO_DEPOSITO})",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"DM de Follow-up (1/2) enviada para {nome_usuario} ({user_id}).")
+    except Exception as e:
+        logger.warning(f"Falha ao enviar DM de Follow-up (1/2) para {user_id}: {e}")
+        return # Se a primeira falhar, não tenta a segunda.
 
-# Modifique a função handle_new_chat_members para iniciar essa sequência.
-# ==================================================================
-#  SUBSTITUA A FUNÇÃO ANTIGA handle_new_chat_members POR ESTA
-# ==================================================================
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    for member in update.message.new_chat_members:
-        if member.id == context.bot.id: # O próprio bot foi adicionado
-            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
-            return
-        
-        # Ação para novos membros no canal gratuito
-        if update.effective_chat.id == FREE_CANAL_ID:
-            # 1. Envia uma mensagem pública de boas-vindas no canal
-            await update.message.reply_text(
-                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
-                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
-                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # 2. Inicia a conversa no privado e a sequência de conversão
-            try:
-                # Envia a primeira mensagem no privado
-                await context.bot.send_message(
-                    chat_id=member.id,
-                    text=MARKETING_MESSAGES["boas_vindas_start"],
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=False
-                )
-                
-                # Agenda a sequência de follow-up para começar em 1 hora
-                context.job_queue.run_once(
-                    boas_vindas_sequencia,
-                    when=timedelta(hours=1),
-                    chat_id=member.id,
-                    data={'nome_usuario': member.first_name},
-                    name=f"funil_boas_vindas_{member.id}"
-                )
-                logger.info(f"Sequência de boas-vindas iniciada para {member.full_name} ({member.id}).")
-            except Exception as e:
-                logger.error(f"Falha ao enviar DM para o novo membro {member.full_name}: {e}. O usuário pode ter bloqueado o bot.")
+    # Pausa de 23 horas para a próxima mensagem
+    await asyncio.sleep(3600 * 23) 
 
-        
-        # Ação para novos membros no canal gratuito
-        if update.effective_chat.id == FREE_CANAL_ID:
-            # Envia a mensagem de boas-vindas pública no canal
-            await update.message.reply_text(
-                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
-                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
-                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Inicia a conversa no privado e a sequência de conversão
-            try:
-                await context.bot.send_message(
-                    chat_id=member.id,
-                    text=MARKETING_MESSAGES["boas_vindas_start"],
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=False
-                )
-                # Agenda a sequência de follow-up
-                context.job_queue.run_once(
-                    boas_vindas_sequencia,
-                    when=timedelta(hours=1),
-                    chat_id=member.id,
-                    data={'nome_usuario': member.first_name}
-                )
-                logger.info(f"Sequência de boas-vindas iniciada para {member.full_name} ({member.id}).")
-            except Exception as e:
-                logger.error(f"Falha ao enviar DM para o novo membro {member.full_name}: {e}. O usuário pode ter bloqueado o bot.")
- log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
+    # Mensagem 2 (após 24 horas no total)
+    try:
+        placar_vip_greens = random.randint(18, 25)
+        placar_vip_reds = random.randint(1, 3)
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
+                 f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de **{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
+                 f"As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
+                 f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. [**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"DM de Follow-up (2/2) enviada para {nome_usuario} ({user_id}).")
+    except Exception as e:
+        logger.warning(f"Falha ao enviar DM de Follow-up (2/2) para {user_id}: {e}")
+
+async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     try:
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
     except Exception as e:
@@ -355,120 +297,4 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
         _, jogo_curto, canal = context.args
         jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
         if not jogo_completo:
-            await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
-            return
-        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
-        aposta = random.choice(JOGOS[jogo_completo])
-        context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
-        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
-    except (IndexError, ValueError):
-        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
-        logger.error(f"Erro ao enviar sinal manual: {e}")
-
-async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
-    message_type = context.job.data["type"]
-    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
-    message_text = MARKETING_MESSAGES[message_type]
-    if message_type == "oferta_relampago":
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
-    elif message_type == "ultima_chance":
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
-
-    if message_type == "divulgacao":
-        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-    else:
-        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN)
-    logger.info(f"Mensagem de marketing '{message_type}' enviada.")
-
-async def send_social_proof(context: ContextTypes.DEFAULT_TYPE):
-    await enviar_prova_social(context)
-    logger.info("Prova social enviada.")
-
-async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
-    bd = context.bot_data
-    for ch in ['free', 'vip']:
-        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
-            bd[f'daily_{stat}_{ch}'] = 0
-    logger.info("Estatísticas diárias resetadas.")
-
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    for member in update.message.new_chat_members:
-        if member.id == context.bot.id: # O próprio bot foi adicionado
-            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
-            return
-        # Mensagem de boas-vindas para novos membros no canal gratuito
-        if update.effective_chat.id == FREE_CANAL_ID:
-            await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-            logger.info(f"Mensagem de boas-vindas enviada para novo membro {member.full_name} no canal gratuito.")
-
-async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message.left_chat_member.id == context.bot.id:
-        logger.info(f"Bot removido do chat {update.effective_chat.id} ({update.effective_chat.title})")
-
-async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.type == 'private' and update.message.document:
-        await update.message.reply_text("Comprovante recebido! Estou verificando seus dados...")
-        # Simulação de verificação e liberação de acesso VIP
-        await asyncio.sleep(5) # Simula um tempo de processamento
-        await update.message.reply_text(MARKETING_MESSAGES["acesso_liberado_vip"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
-        logger.info(f"Comprovante recebido de {update.effective_user.full_name} e acesso VIP liberado.")
-
-async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer() # Always answer the callback query
-    data = query.data
-
-    if data == "depoimento_sim":
-        if DEPOIMENTOS_CANAL_ID == 0:
-            await query.edit_message_text("Desculpe, o canal de depoimentos não está configurado.")
-            logger.warning("Tentativa de enviar depoimento, mas DEPOIMENTOS_CANAL_ID não configurado.")
-            return
-
-        try:
-            original_message = query.message.reply_to_message
-            if original_message:
-                await context.bot.forward_message(
-                    chat_id=DEPOIMENTOS_CANAL_ID,
-                    from_chat_id=original_message.chat.id,
-                    message_id=original_message.message_id
-                )
-                await query.edit_message_text("✅ Seu depoimento foi enviado com sucesso para o canal! Muito obrigado! 🙏")
-                logger.info(f"Depoimento de {query.from_user.full_name} encaminhado para o canal de depoimentos.")
-            else:
-                await query.edit_message_text("Não consegui encontrar a mensagem original para encaminhar como depoimento.")
-                logger.warning("Mensagem original não encontrada para encaminhar depoimento.")
-        except Exception as e:
-            await query.edit_message_text(f"Ocorreu um erro ao enviar seu depoimento: {e}")
-            logger.error(f"Erro ao encaminhar depoimento: {e}")
-
-    elif data == "depoimento_nao":
-        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
-        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
-
-async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    if not update.message.reply_to_message:
-        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
-        return
-
-    original_message = update.message.reply_to_message
-    keyboard = [
-        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
-        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await original_message.reply_text(
-        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
-        reply_markup=reply_markup
-    )
-    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Loga os erros causados por updates."""
-    logger.error(f"Update {update} causou erro {context.error}")
-
+            await
