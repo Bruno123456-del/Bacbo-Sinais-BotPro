@@ -230,7 +230,7 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
 async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     """Envia uma sequência de DMs para pressionar a conversão."""
     user_id = context.job.chat_id
-    nome_usuario = context.job.data['nome
+    nome_usuario = context.job.data['nome']
     nome_usuario = context.job.data['nome_usuario']
 
     # Mensagem 1 (após 1 hora)
