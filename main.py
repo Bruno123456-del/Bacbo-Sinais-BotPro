@@ -291,10 +291,192 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
     await update.message.reply_text(stats_text)
 
+# ==================================================================
+# PASSO 1: SUBSTITUA A FUNÇÃO INCOMPLETA POR ESTA
+# ==================================================================
 async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
         _, jogo_curto, canal = context.args
         jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
         if not jogo_completo:
-            await
+            await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
+            return
+        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
+        aposta = random.choice(JOGOS[jogo_completo])
+        context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
+        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
+    except (IndexError, ValueError):
+        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
+        logger.error(f"Erro ao enviar sinal manual: {e}")
+# ==================================================================
+# PASSO 2: COLE TODO ESTE BLOCO APÓS A FUNÇÃO manual_signal_command
+# ==================================================================
+
+async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
+    message_type = context.job.data["type"]
+    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
+    message_text = MARKETING_MESSAGES[message_type]
+    if message_type == "oferta_relampago":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+    elif message_type == "ultima_chance":
+        message_text = message_text.format(vagas_restantes=vagas_restantes)
+
+    if message_type == "divulgacao":
+        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
+    else:
+        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN)
+    logger.info(f"Mensagem de marketing '{message_type}' enviada.")
+
+async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
+    bd = context.bot_data
+    for ch in ['free', 'vip']:
+        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
+            bd[f'daily_{stat}_{ch}'] = 0
+    logger.info("Estatísticas diárias resetadas.")
+
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    for member in update.message.new_chat_members:
+        if member.id == context.bot.id: # O próprio bot foi adicionado
+            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
+            return
+        
+        # Ação para novos membros no canal gratuito
+        if update.effective_chat.id == FREE_CANAL_ID:
+            # 1. Envia uma mensagem pública de boas-vindas no canal
+            await update.message.reply_text(
+                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
+                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
+                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # 2. Inicia a conversa no privado e a sequência de conversão
+            try:
+                # Envia a primeira mensagem no privado
+                await context.bot.send_message(
+                    chat_id=member.id,
+                    text=MARKETING_MESSAGES["boas_vindas_start"],
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=False
+                )
+                
+                # Agenda a sequência de follow-up para começar em 1 hora
+                context.job_queue.run_once(
+                    boas_vindas_sequencia,
+                    when=timedelta(hours=1),
+                    chat_id=member.id,
+                    data={'nome_usuario': member.first_name},
+                    name=f"funil_boas_vindas_{member.id}"
+                )
+                logger.info(f"Sequência de boas-vindas iniciada para {member.full_name} ({member.id}).")
+            except Exception as e:
+                logger.error(f"Falha ao enviar DM para o novo membro {member.full_name}: {e}. O usuário pode ter bloqueado o bot.")
+
+async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message.left_chat_member.id == context.bot.id:
+        logger.info(f"Bot removido do chat {update.effective_chat.id} ({update.effective_chat.title})")
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.type == 'private' and update.message.document:
+        await update.message.reply_text("Comprovante recebido! Estou verificando seus dados...")
+        # Simulação de verificação e liberação de acesso VIP
+        await asyncio.sleep(5) # Simula um tempo de processamento
+        await update.message.reply_text(MARKETING_MESSAGES["acesso_liberado_vip"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+        logger.info(f"Comprovante recebido de {update.effective_user.full_name} e acesso VIP liberado.")
+
+async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer() # Always answer the callback query
+    data = query.data
+
+    if data == "depoimento_sim":
+        if DEPOIMENTOS_CANAL_ID == 0:
+            await query.edit_message_text("Desculpe, o canal de depoimentos não está configurado.")
+            logger.warning("Tentativa de enviar depoimento, mas DEPOIMENTOS_CANAL_ID não configurado.")
+            return
+
+        try:
+            original_message = query.message.reply_to_message
+            if original_message:
+                await context.bot.forward_message(
+                    chat_id=DEPOIMENTOS_CANAL_ID,
+                    from_chat_id=original_message.chat.id,
+                    message_id=original_message.message_id
+                )
+                await query.edit_message_text("✅ Seu depoimento foi enviado com sucesso para o canal! Muito obrigado! 🙏")
+                logger.info(f"Depoimento de {query.from_user.full_name} encaminhado para o canal de depoimentos.")
+            else:
+                await query.edit_message_text("Não consegui encontrar a mensagem original para encaminhar como depoimento.")
+                logger.warning("Mensagem original não encontrada para encaminhar depoimento.")
+        except Exception as e:
+            await query.edit_message_text(f"Ocorreu um erro ao enviar seu depoimento: {e}")
+            logger.error(f"Erro ao encaminhar depoimento: {e}")
+
+    elif data == "depoimento_nao":
+        await query.edit_message_text("Ok, sem problemas! Se mudar de ideia, é só me avisar.")
+        logger.info(f"Usuário {query.from_user.full_name} recusou enviar depoimento.")
+
+async def post_depoimento_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    if not update.message.reply_to_message:
+        await update.message.reply_text("Por favor, responda a uma mensagem para transformá-la em um depoimento.")
+        return
+
+    original_message = update.message.reply_to_message
+    keyboard = [
+        [InlineKeyboardButton("Sim, enviar!", callback_data="depoimento_sim")],
+        [InlineKeyboardButton("Não, obrigado.", callback_data="depoimento_nao")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await original_message.reply_text(
+        "Gostaria de compartilhar esta mensagem como um depoimento no canal oficial?",
+        reply_markup=reply_markup
+    )
+    logger.info(f"Admin {update.effective_user.full_name} solicitou postagem de depoimento.")
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Loga os erros causados por updates."""
+    logger.error(f"Update {update} causou erro {context.error}")
+
+# --- 7. INICIALIZAÇÃO DO BOT ---
+def main() -> None:
+    """Inicia o bot e configura todos os handlers e jobs."""
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    # --- Handlers de Comandos ---
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("sinal", manual_signal_command))
+    application.add_handler(CommandHandler("depoimento", post_depoimento_admin))
+
+    # --- Handlers de Mensagem, Status e Callback ---
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member))
+    application.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, handle_document))
+    application.add_handler(CallbackQueryHandler(button_callback_handler))
+
+    # --- Handler de Erros ---
+    application.add_handler(error_handler)
+
+    # --- Inicialização de dados e agendamento de tarefas ---
+    application.job_queue.run_once(lambda ctx: inicializar_estatisticas(ctx.bot_data), 0)
+    
+    jq = application.job_queue
+    jq.run_daily(reset_daily_stats, time(hour=0, minute=0, second=0))
+    jq.run_repeating(send_marketing_message, interval=timedelta(hours=4), first=timedelta(minutes=10), data={"type": "oferta_relampago"})
+    jq.run_repeating(enviar_prova_social, interval=timedelta(hours=2, minutes=30), first=timedelta(minutes=45))
+    jq.run_repeating(send_marketing_message, interval=timedelta(hours=6), first=timedelta(hours=3), data={"type": "divulgacao"})
+
+    # --- Inicia o bot ---
+    logger.info("Bot 'Máquina de Conversão' iniciado e pronto para operar.")
+    application.run_polling()
+
+if __name__ == "__main__":
+    main()
