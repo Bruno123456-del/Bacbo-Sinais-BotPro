@@ -428,19 +428,49 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
     await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
 
+# --- CÓDIGO CORRIGIDO PARA O BLOCO 2 ---
+
 async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID:
         return
     try:
-        _, jogo_curto, canal = context.args
+        # Espera 3 argumentos: /sinal <jogo> <canal>
+        if len(context.args) != 2:
+            await update.message.reply_text(
+                "⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nEx.: `/sinal mines vip`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+
+        jogo_curto, canal = context.args
         jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
+
         if not jogo_completo:
             await update.message.reply_text(
                 f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}"
             )
             return
-        target_id = VIP_CANAL_ID if
-        # --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
+            
+        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
+
+        aposta = random.choice(JOGOS[jogo_completo])
+
+        context.job_queue.run_once(
+            callback=lambda ctx: asyncio.create_task(
+                enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)
+            ),
+            when=0
+        )
+
+        log_message = f"Comando /sinal {jogo_curto} enviado para o canal {canal.upper()}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text(f"✅ Sinal manual para `{jogo_completo}` agendado para o canal **{canal.upper()}**.", parse_mode=ParseMode.MARKDOWN)
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Erro ao processar comando /sinal: {e}")
+        logger.error(f"Erro no comando /sinal manual: {e}")
+
+     # --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
 
 def inicializar_estatisticas(bot_data: dict):
     if 'start_time' not in bot_data:
