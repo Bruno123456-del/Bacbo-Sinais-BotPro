@@ -428,13 +428,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
     await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
 
-# --- CÓDIGO CORRIGIDO PARA O BLOCO 2 ---
-
 async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID:
         return
     try:
-        # Espera 3 argumentos: /sinal <jogo> <canal>
+        # Verifica se o número de argumentos é exatamente 2 (<jogo> e <canal>)
         if len(context.args) != 2:
             await update.message.reply_text(
                 "⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nEx.: `/sinal mines vip`",
@@ -450,11 +448,13 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
                 f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}"
             )
             return
-            
+
+        # AQUI ESTÁ A LINHA CORRIGIDA E COMPLETA
         target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
 
         aposta = random.choice(JOGOS[jogo_completo])
 
+        # Agenda a execução da corrotina de forma segura
         context.job_queue.run_once(
             callback=lambda ctx: asyncio.create_task(
                 enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)
@@ -469,6 +469,8 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         await update.message.reply_text(f"❌ Erro ao processar comando /sinal: {e}")
         logger.error(f"Erro no comando /sinal manual: {e}")
+
+            
 
      # --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
 
