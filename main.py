@@ -450,6 +450,10 @@ def main() -> None:
     persistence = PicklePersistence(filepath="bot_data.pkl")
     application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
+   # ==================================================================
+# SUBSTITUA A SEÇÃO DE HANDLERS DENTRO DA FUNÇÃO main() POR ISTO:
+# ==================================================================
+
     # --- Handlers de Comandos ---
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("stats", stats_command))
@@ -464,6 +468,7 @@ def main() -> None:
 
     # --- Handler de Erros ---
     application.add_handler(error_handler)
+
 
     # --- Inicialização de dados e agendamento de tarefas ---
     application.job_queue.run_once(lambda ctx: inicializar_estatisticas(ctx.bot_data), 0)
