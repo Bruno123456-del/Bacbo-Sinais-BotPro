@@ -225,7 +225,105 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
     )
 
 # --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
-async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
+async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
+    """Envia uma sequência de DMs para pressionar a conversão."""
+    user_id = context.job.chat_id
+    nome_usuario = context.job.data['nome_usuario']
+
+    # Mensagem 1 (após 1 hora)
+    await context.bot.send_message(
+        chat_id=user_id,
+        text=f"Ei {nome_usuario}, vi que você entrou no nosso grupo gratuito. 👀\n\n"
+             f"Só pra você saber, as vagas para o acesso VIP de 90 dias GRÁTIS estão acabando. Restam apenas **{random.randint(5, 9)}** vagas.\n\n"
+             f"Não perca a chance de lucrar de verdade. [**Clique aqui para garantir a sua vaga antes que acabe!**]({URL_CADASTRO_DEPOSITO})",
+        parse_mode=ParseMode.MARKDOWN
+    )
+    
+    # Mensagem 2 (após 24 horas)
+    await asyncio.sleep(3600 * 23) # Espera mais 23 horas
+    placar_vip_greens = random.randint(18, 25)
+    placar_vip_reds = random.randint(1, 3)
+    await context.bot.send_message(
+        chat_id=user_id,
+        text=f"💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
+             f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de **{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
+             f"As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
+             f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. [**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+# Modifique a função handle_new_chat_members para iniciar essa sequência.
+# ==================================================================
+#  SUBSTITUA A FUNÇÃO ANTIGA handle_new_chat_members POR ESTA
+# ==================================================================
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    for member in update.message.new_chat_members:
+        if member.id == context.bot.id: # O próprio bot foi adicionado
+            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
+            return
+        
+        # Ação para novos membros no canal gratuito
+        if update.effective_chat.id == FREE_CANAL_ID:
+            # 1. Envia uma mensagem pública de boas-vindas no canal
+            await update.message.reply_text(
+                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
+                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
+                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # 2. Inicia a conversa no privado e a sequência de conversão
+            try:
+                # Envia a primeira mensagem no privado
+                await context.bot.send_message(
+                    chat_id=member.id,
+                    text=MARKETING_MESSAGES["boas_vindas_start"],
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=False
+                )
+                
+                # Agenda a sequência de follow-up para começar em 1 hora
+                context.job_queue.run_once(
+                    boas_vindas_sequencia,
+                    when=timedelta(hours=1),
+                    chat_id=member.id,
+                    data={'nome_usuario': member.first_name},
+                    name=f"funil_boas_vindas_{member.id}"
+                )
+                logger.info(f"Sequência de boas-vindas iniciada para {member.full_name} ({member.id}).")
+            except Exception as e:
+                logger.error(f"Falha ao enviar DM para o novo membro {member.full_name}: {e}. O usuário pode ter bloqueado o bot.")
+
+        
+        # Ação para novos membros no canal gratuito
+        if update.effective_chat.id == FREE_CANAL_ID:
+            # Envia a mensagem de boas-vindas pública no canal
+            await update.message.reply_text(
+                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
+                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
+                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Inicia a conversa no privado e a sequência de conversão
+            try:
+                await context.bot.send_message(
+                    chat_id=member.id,
+                    text=MARKETING_MESSAGES["boas_vindas_start"],
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=False
+                )
+                # Agenda a sequência de follow-up
+                context.job_queue.run_once(
+                    boas_vindas_sequencia,
+                    when=timedelta(hours=1),
+                    chat_id=member.id,
+                    data={'nome_usuario': member.first_name}
+                )
+                logger.info(f"Sequência de boas-vindas iniciada para {member.full_name} ({member.id}).")
+            except Exception as e:
+                logger.error(f"Falha ao enviar DM para o novo membro {member.full_name}: {e}. O usuário pode ter bloqueado o bot.")
+ log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     try:
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
     except Exception as e:
