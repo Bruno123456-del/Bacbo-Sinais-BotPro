@@ -1,22 +1,48 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 24.2 "MÁQUINA DE CONVERSÃO"
+# BOT DE SINAIS - VERSÃO 24.2 "MÁQUINA DE CONVERSÃO" (CORRIGIDO E ROBUSTO)
 # CRIADO E APRIMORADO POR MANUS
 # - Funil de boas-vindas automático e pessoal para cada novo membro.
 # - Estratégias de conversão e gatilhos mentais implementados.
+# - Correção do erro: string não terminada na sequência de DMs (nome_usuario).
+# - Tratamento de exceções, logs e inicialização de estatísticas.
+# - Healthcheck Flask opcional para Render.
 # ===================================================================================
 
-import logging
 import os
+import logging
 import random
 import asyncio
-from datetime import time, timedelta, datetime
+import threading
+from datetime import time as dt_time, timedelta, datetime
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, PicklePersistence,
     MessageHandler, filters, CallbackQueryHandler
 )
-from telegram.constants import ParseMode
+
+# --- 0. HEALTHCHECK FLASK (opcional, ajuda no Render) ---
+try:
+    from flask import Flask
+    from flask_cors import CORS
+    _FLASK_AVAILABLE = True
+except Exception:
+    _FLASK_AVAILABLE = False
+
+def start_flask():
+    if not _FLASK_AVAILABLE:
+        return
+    app = Flask(__name__)
+    CORS(app)
+
+    @app.get("/")
+    def root():
+        return {"status": "ok", "name": "Bacbo-Sinais-BotPro", "time": datetime.utcnow().isoformat()}
+
+    port = int(os.getenv("PORT", "10000"))
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
 
 # --- 1. CONFIGURAÇÕES E CREDENCIAIS ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
@@ -25,24 +51,31 @@ FREE_CANAL_ID_STR = os.getenv("CHAT_ID", "0").strip()
 VIP_CANAL_ID_STR = os.getenv("VIP_CANAL_ID", "0").strip()
 DEPOIMENTOS_ID_STR = os.getenv("DEPOIMENTOS_CANAL_ID", "0").strip()
 
-# Conversão segura para inteiros
-ADMIN_ID = int(ADMIN_ID_STR) if ADMIN_ID_STR.isdigit() else 0
-FREE_CANAL_ID = int(FREE_CANAL_ID_STR) if FREE_CANAL_ID_STR.replace("-", "").isdigit() else 0
-VIP_CANAL_ID = int(VIP_CANAL_ID_STR) if VIP_CANAL_ID_STR.replace("-", "").isdigit() else 0
-DEPOIMENTOS_CANAL_ID = int(DEPOIMENTOS_ID_STR) if DEPOIMENTOS_ID_STR.replace("-", "").isdigit() else 0
+# Conversões seguras
+def _to_int(v: str) -> int:
+    s = v.strip()
+    if s.startswith("-"):
+        s2 = s[1:]
+        return -int(s2) if s2.isdigit() else 0
+    return int(s) if s.isdigit() else 0
+
+ADMIN_ID = _to_int(ADMIN_ID_STR)
+FREE_CANAL_ID = _to_int(FREE_CANAL_ID_STR)
+VIP_CANAL_ID = _to_int(VIP_CANAL_ID_STR)
+DEPOIMENTOS_CANAL_ID = _to_int(DEPOIMENTOS_ID_STR)
 
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
 URL_INSTAGRAM = "https://www.instagram.com/apostasmilionariasvip/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# Configuração do Logging
+# Logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bot")
 
-# Validação de variáveis de ambiente
+# Validação de variáveis
 erros_config = []
 if not BOT_TOKEN: erros_config.append("BOT_TOKEN")
 if ADMIN_ID == 0: erros_config.append("ADMIN_ID")
@@ -50,11 +83,11 @@ if FREE_CANAL_ID == 0: erros_config.append("CHAT_ID")
 if VIP_CANAL_ID == 0: erros_config.append("VIP_CANAL_ID")
 
 if erros_config:
-    logger.critical(f"ERRO CRÍTICO: As seguintes variáveis de ambiente não estão configuradas ou são inválidas: {', '.join(erros_config)}")
-    exit()
+    logger.critical("ERRO CRÍTICO: Variáveis ausentes/invalidas: %s", ", ".join(erros_config))
+    raise SystemExit(1)
 
 if DEPOIMENTOS_CANAL_ID == 0:
-    logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. A função de depoimentos estará desativada.")
+    logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. Depoimentos desativados.")
 
 # --- 2. MÍDIAS E CONTEÚDO VISUAL ---
 GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
@@ -62,68 +95,71 @@ GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52Z
 GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
-PROVAS_SOCIAIS_URLS = [f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png" for i in range(1, 14 )]
+PROVAS_SOCIAIS_URLS = [
+    f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png"
+    for i in range(1, 14)
+]
 
 # --- 3. MENSAGENS DE MARKETING E FUNIL ---
 MARKETING_MESSAGES = {
     "oferta_relampago": (
-        f"🚨 **OFERTA RELÂMPAGO LIBERADA!** 🚨\n\n"
-        f"Atenção! Eu recebi autorização para fazer algo que **NUNCA FIZEMOS ANTES**.\n\n"
-        f"Estou abrindo **AGORA** uma oportunidade única para os **{{vagas_restantes}} primeiros** que agirem rápido.\n\n"
-        f"O nosso acesso à **Sala VIP**, que tem uma mensalidade de R$ 549,90, sairá por **R$ 0,00 por 90 DIAS!**\n\n"
-        f"Isso mesmo, você leu certo. De ~~R$ 549,90~~ por **ZERO REAIS**.\n\n"
-        f"**COMO FUNCIONA?**\n"
-        f"Basta fazer o seu **PRIMEIRO DEPÓSITO** na nossa plataforma parceira através do link abaixo. Não importa o valor!\n\n"
-        f"👇 **QUERO MEU ACESSO AGORA** 👇\n"
+        "🚨 **OFERTA RELÂMPAGO LIBERADA!** 🚨\n\n"
+        "Atenção! Eu recebi autorização para fazer algo que **NUNCA FIZEMOS ANTES**.\n\n"
+        "Estou abrindo **AGORA** uma oportunidade única para os **{vagas_restantes} primeiros** que agirem rápido.\n\n"
+        "O nosso acesso à **Sala VIP**, que tem uma mensalidade de R$ 549,90, sairá por **R$ 0,00 por 90 DIAS!**\n\n"
+        "Isso mesmo, você leu certo. De ~~R$ 549,90~~ por **ZERO REAIS**.\n\n"
+        "**COMO FUNCIONA?**\n"
+        "Basta fazer o seu **PRIMEIRO DEPÓSITO** na nossa plataforma parceira através do link abaixo. Não importa o valor!\n\n"
+        "👇 **QUERO MEU ACESSO AGORA** 👇\n"
         f"[**CLIQUE AQUI PARA FAZER SEU DEPÓSITO E GARANTIR 90 DIAS GRÁTIS**]({URL_CADASTRO_DEPOSITO})\n\n"
-        f"Ao garantir sua vaga, você leva TUDO isso:\n"
-        f"🔑 **Grupo VIP Pago Gratuito (por 90 dias)**\n"
-        f"🤖 Sinais com análise de IA em tempo real\n"
-        f"🗓️ Sinais organizados por horários\n"
-        f"💡 Ebook: Mentalidade e gestão de banca\n"
-        f"🎁 Sorteios exclusivos para membros\n"
-        f"📈 Material trader avançado\n"
-        f"💰 **Bônus de até R$600 no depósito**\n"
-        f"⚡ Sinais ilimitados em TODOS os jogos\n\n"
-        f"**ATENÇÃO:** Esta oferta é válida apenas pelas **próximas 12 HORAS** ou para os **{{vagas_restantes}} primeiros**, o que acontecer primeiro. Depois disso, o acesso VIP volta ao preço normal.\n\n"
-        f"Não perca a chance da sua vida de lucrar com os melhores. Toque no link, faça seu depósito e me envie o print no privado para liberar seu acesso IMEDIATAMENTE!\n\n"
+        "Ao garantir sua vaga, você leva TUDO isso:\n"
+        "🔑 **Grupo VIP Pago Gratuito (por 90 dias)**\n"
+        "🤖 Sinais com análise de IA em tempo real\n"
+        "🗓️ Sinais organizados por horários\n"
+        "💡 Ebook: Mentalidade e gestão de banca\n"
+        "🎁 Sorteios exclusivos para membros\n"
+        "📈 Material trader avançado\n"
+        "💰 **Bônus de até R$600 no depósito**\n"
+        "⚡ Sinais ilimitados em TODOS os jogos\n\n"
+        "**ATENÇÃO:** Esta oferta é válida apenas pelas **próximas 12 HORAS** ou para os **{vagas_restantes} primeiros**, o que acontecer primeiro. Depois disso, o acesso VIP volta ao preço normal.\n\n"
+        "Não perca a chance da sua vida de lucrar com os melhores. Toque no link, faça seu depósito e me envie o print no privado para liberar seu acesso IMEDIATAMENTE!\n\n"
         f"➡️ [**GARANTIR MINHA VAGA AGORA!**]({URL_CADASTRO_DEPOSITO})"
     ),
     "ultima_chance": (
-        f"⏳ **ÚLTIMA CHAMADA! RESTA APENAS 1 HORA!** ⏳\n\n"
-        f"A nossa oferta relâmpago de **90 DIAS DE ACESSO VIP GRÁTIS** está se encerrando.\n\n"
-        f"Restam pouquíssimas vagas e o tempo está acabando. Esta é sua última oportunidade de entrar para a elite e lucrar com nossos sinais VIP sem pagar NADA pela mensalidade.\n\n"
-        f"De ~~R$ 549,90~~ por **R$ 0,00**.\n\n"
-        f"Clique no link, faça seu primeiro depósito e garanta sua vaga antes que seja tarde demais!\n\n"
+        "⏳ **ÚLTIMA CHAMADA! RESTA APENAS 1 HORA!** ⏳\n\n"
+        "A nossa oferta relâmpago de **90 DIAS DE ACESSO VIP GRÁTIS** está se encerrando.\n\n"
+        "Restam pouquíssimas vagas e o tempo está acabando. Esta é sua última oportunidade de entrar para a elite e lucrar com nossos sinais VIP sem pagar NADA pela mensalidade.\n\n"
+        "De ~~R$ 549,90~~ por **R$ 0,00**.\n\n"
+        "Clique no link, faça seu primeiro depósito e garanta sua vaga antes que seja tarde demais!\n\n"
         f"➡️ [**PEGAR MINHA VAGA ANTES QUE ACABE!**]({URL_CADASTRO_DEPOSITO})"
     ),
     "divulgacao": (
-        f"🤖 **Cansado de perder dinheiro? Conheça nosso Robô de Sinais 100% GRATUITO!** 🤖\n\n"
-        f"Nossa inteligência artificial analisa o mercado 24/7 e envia sinais de alta assertividade para jogos como Roleta, Aviator, Mines, Slots e muito mais!\n\n"
-        f"✅ **Sinais Gratuitos Todos os Dias**\n✅ **Análises Precisas e em Tempo Real**\n✅ **Comunidade com Milhares de Membros Lucrando**\n\n"
-        f"Chega de contar com a sorte. Comece a lucrar com estratégia!\n\n"
-        f"👇 **ENTRE AGORA NO NOSSO CANAL GRATUITO E COMECE A LUCRAR HOJE MESMO!** 👇\n"
+        "🤖 **Cansado de perder dinheiro? Conheça nosso Robô de Sinais 100% GRATUITO!** 🤖\n\n"
+        "Nossa inteligência artificial analisa o mercado 24/7 e envia sinais de alta assertividade para jogos como Roleta, Aviator, Mines, Slots e muito mais!\n\n"
+        "✅ **Sinais Gratuitos Todos os Dias**\n✅ **Análises Precisas e em Tempo Real**\n✅ **Comunidade com Milhares de Membros Lucrando**\n\n"
+        "Chega de contar com a sorte. Comece a lucrar com estratégia!\n\n"
+        "👇 **ENTRE AGORA NO NOSSO CANAL GRATUITO E COMECE A LUCRAR HOJE MESMO!** 👇\n"
         f"🔗 {URL_TELEGRAM_FREE}\n🔗 {URL_TELEGRAM_FREE}\n"
     ),
     "boas_vindas_start": (
-        f"💎 **QUER LUCRAR COM SINAIS DE ALTA ASSERTIVIDADE?** 💎\n\n"
-        f"Você está no lugar certo! Meu nome é Super Finds, e meu trabalho é te ajudar a lucrar.\n\n"
-        f"No nosso canal gratuito você recebe algumas amostras, mas o verdadeiro potencial está na **Sala VIP Exclusiva**, com dezenas de sinais todos os dias!\n\n"
-        f"**COMO FUNCIONA O ACESSO VIP?**\n\n"
-        f"O acesso é **LIBERADO MEDIANTE DEPÓSITO** na plataforma parceira.\n\n"
-        f"1️⃣ **CADASTRE-SE E DEPOSITE:**\n"
-        f"Acesse o link, crie sua conta e faça um depósito.\n"
+        "💎 **QUER LUCRAR COM SINAIS DE ALTA ASSERTIVIDADE?** 💎\n\n"
+        "Você está no lugar certo! Meu nome é Super Finds, e meu trabalho é te ajudar a lucrar.\n\n"
+        "No nosso canal gratuito você recebe algumas amostras, mas o verdadeiro potencial está na **Sala VIP Exclusiva**, com dezenas de sinais todos os dias!\n\n"
+        "**COMO FUNCIONA O ACESSO VIP?**\n\n"
+        "O acesso é **LIBERADO MEDIANTE DEPÓSITO** na plataforma parceira.\n\n"
+        "1️⃣ **CADASTRE-SE E DEPOSITE:**\n"
+        "Acesse o link, crie sua conta e faça um depósito.\n"
         f"➡️ [**CLIQUE AQUI PARA CADASTRAR E DEPOSITAR**]({URL_CADASTRO_DEPOSITO})\n\n"
-        f"2️⃣ **ENVIE O COMPROVANTE:**\n"
-        f"Mande o print do seu depósito **aqui mesmo, nesta conversa,** e receba seu link de acesso VIP na hora!\n"
-        f"➡️ **É só anexar a imagem e enviar para mim!**\n\n"
+        "2️⃣ **ENVIE O COMPROVANTE:**\n"
+        "Mande o print do seu depósito **aqui mesmo, nesta conversa,** e receba seu link de acesso VIP na hora!\n"
+        "➡️ **É só anexar a imagem e enviar para mim!**\n\n"
     ),
     "acesso_liberado_vip": (
         "Olá! Comprovante recebido e verificado. Seja muito bem-vindo(a) à nossa Sala VIP! 🚀\n\n"
         "Aqui está o seu link de acesso exclusivo. Não compartilhe com ninguém!\n\n"
         "🔗 **Link VIP:** https://t.me/+q2CCKi1CKmljMTFh\n\n"
         "Prepare-se para uma chuva de sinais. Boas apostas!"
-        ),
+    ),
     "legendas_prova_social": [
         "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥\n\nMais um de nossos membros VIP lucrando. E você, vai ficar de fora?",
         "🚀 **RESULTADO DE MEMBRO VIP!** 🚀\n\nAnálises precisas, resultados reais. Parabéns pelo green!",
@@ -132,11 +168,12 @@ MARKETING_MESSAGES = {
     ]
 }
 
-# --- 4. CONFIGURAÇÃO DOS JOGOS E PROBABILIDADES ---
+# --- 4. JOGOS, PROBABILIDADES E MAPAS ---
 ASSERTIVIDADE_JOGOS = {
     "Bac Bo 🎲": [70, 20, 10], "Roleta 룰렛": [68, 22, 10], "Slots 🎰": [60, 25, 15],
     "Aviator ✈️": [75, 15, 10], "Spaceman 👨‍🚀": [75, 15, 10], "Mines 💣": [65, 20, 15],
-    "Penalty Shoot-Out ⚽️": [72, 18, 10], "Fortune Dragon 🐲": [62, 23, 15], "Dragon Tiger 🐉🐅": [70, 20, 10],
+    "Penalty Shoot-Out ⚽️": [72, 18, 10], "Fortune Dragon 🐲": [62, 23, 15],
+    "Dragon Tiger 🐉🐅": [70, 20, 10],
     "default": [70, 20, 10]
 }
 JOGOS = {
@@ -151,48 +188,86 @@ JOGOS = {
     "Dragon Tiger 🐉🐅": ["Dragon", "Tiger", "Tie (Empate)"]
 }
 JOGOS_MAP = {key.split(" ")[0].lower(): key for key in JOGOS.keys()}
+# --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
 
-# --- 5. LÓGICA PRINCIPAL DO BOT ---
-async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
-    if tipo == "inicio":
-        mensagem = f"🚨 **ATENÇÃO, JOGADORES VIP!** 🚨\n\nPreparem-se! Em 10 minutos iniciaremos nossa maratona de sinais para o jogo **{jogo}**. Fiquem atentos e com a plataforma aberta!"
-    elif tipo == "ultimo":
-        mensagem = f"⏳ **ÚLTIMO SINAL DO BLOCO!** ⏳\n\nVamos para a última entrada da nossa maratona de **{jogo}**. Foco total para fechar com chave de ouro!"
-    else: # encerramento
-        mensagem = f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\nFinalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! Fiquem atentos para os próximos blocos de sinais ao longo do dia."
-    await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
-
-def inicializar_estatisticas(bot_data):
+def inicializar_estatisticas(bot_data: dict):
     if 'start_time' not in bot_data:
         bot_data['start_time'] = datetime.now()
     for ch in ['free', 'vip']:
         for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
-            if f'{stat}_{ch}' not in bot_data: bot_data[f'{stat}_{ch}'] = 0
-            if f'daily_{stat}_{ch}' not in bot_data: bot_data[f'daily_{stat}_{ch}'] = 0
+            bot_data.setdefault(f'{stat}_{ch}', 0)
+            bot_data.setdefault(f'daily_{stat}_{ch}', 0)
+
+async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
+    try:
+        await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
+    except Exception as e:
+        logger.error(f"Falha ao enviar log para o admin: {e}")
+
+# --- 6. ENVIO DE SINAIS & PROVA SOCIAL ---
+
+async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
+    if tipo == "inicio":
+        mensagem = (
+            f"🚨 **ATENÇÃO, JOGADORES VIP!** 🚨\n\n"
+            f"Preparem-se! Em 10 minutos iniciaremos nossa maratona de sinais para o jogo **{jogo}**. "
+            f"Fiquem atentos e com a plataforma aberta!"
+        )
+    elif tipo == "ultimo":
+        mensagem = (
+            f"⏳ **ÚLTIMO SINAL DO BLOCO!** ⏳\n\n"
+            f"Vamos para a última entrada da nossa maratona de **{jogo}**. Foco total para fechar com chave de ouro!"
+        )
+    else:
+        mensagem = (
+            f"🏁 **BLOCO DE SINAIS ENCERRADO** 🏁\n\n"
+            f"Finalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! "
+            f"Fiquem atentos para os próximos blocos de sinais ao longo do dia."
+        )
+    await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
+    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
 
 async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str, aposta: str, target_id: int):
     bd = context.bot_data
+    inicializar_estatisticas(bd)
     channel_type = 'vip' if target_id == VIP_CANAL_ID else 'free'
-    if bd.get(f"sinal_em_andamento_{target_id}", False):
-        logger.warning(f"Pulei o sinal de {jogo} para o canal {target_id} pois outro já estava em andamento.")
+    guard_key = f"sinal_em_andamento_{target_id}"
+
+    if bd.get(guard_key, False):
+        logger.warning(f"Pulei o sinal de {jogo} para {target_id} pois outro já estava em andamento.")
         return
-    bd[f"sinal_em_andamento_{target_id}"] = True
+
+    bd[guard_key] = True
     try:
-        await context.bot.send_animation(chat_id=target_id, animation=GIF_ANALISANDO, caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**...")
+        await context.bot.send_animation(
+            chat_id=target_id,
+            animation=GIF_ANALISANDO,
+            caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**..."
+        )
         await asyncio.sleep(random.randint(5, 10))
-        mensagem_sinal = (f"🔥 **ENTRADA CONFIRMADA | {jogo}** 🔥\n\n"
-                          f"🎯 **Apostar em:** {aposta}\n"
-                          f"🔗 **JOGAR NA PLATAFORMA CERTA:** [**CLIQUE AQUI**]({URL_CADASTRO_DEPOSITO})")
+
+        mensagem_sinal = (
+            f"🔥 **ENTRADA CONFIRMADA | {jogo}** 🔥\n\n"
+            f"🎯 **Apostar em:** {aposta}\n"
+            f"🔗 **JOGAR NA PLATAFORMA CERTA:** [**CLIQUE AQUI**]({URL_CADASTRO_DEPOSITO})"
+        )
         if target_id == VIP_CANAL_ID:
             mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP!_"
-        await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
-        logger.info(f"Sinal de {jogo} enviado para o canal {target_id}.")
+
+        await context.bot.send_message(
+            chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN
+        )
+        logger.info(f"Sinal de {jogo} enviado para {target_id}.")
+
         bd[f'sinais_{channel_type}'] += 1
         bd[f'daily_sinais_{channel_type}'] += 1
+
         await asyncio.sleep(random.randint(45, 75))
         probabilidades = ASSERTIVIDADE_JOGOS.get(jogo, ASSERTIVIDADE_JOGOS["default"])
-        resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1)[0]
+        resultado = random.choices(
+            ["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1
+        )[0]
+
         bd[f'{resultado}_{channel_type}'] += 1
         bd[f'daily_{resultado}_{channel_type}'] += 1
 
@@ -201,7 +276,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         placar_do_dia = f"📊 **Placar do Dia ({channel_type.upper()}):** {greens_dia}W - {reds_dia}L"
 
         if resultado == "win_primeira":
-            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos que confiaram! 🤑\n\n{placar_do_dia}"
+            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos! 🤑\n\n{placar_do_dia}"
             await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
         elif resultado == "win_gale":
             caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
@@ -213,7 +288,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
     except Exception as e:
         logger.error(f"Erro no ciclo de sinal para {jogo} no canal {target_id}: {e}")
     finally:
-        bd[f"sinal_em_andamento_{target_id}"] = False
+        bd[guard_key] = False
 
 async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
     url_prova = random.choice(PROVAS_SOCIAIS_URLS)
@@ -225,107 +300,84 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-# --- 6. COMANDOS, MODERAÇÃO, EVENTOS E LOGS ---
+# --- 7. SEQUÊNCIA DE DMs PÓS-ENTRADA (FUNIL) ---
 
 async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
-    """Envia uma sequência de DMs para pressionar a conversão."""
+    """
+    Envia uma sequência de DMs para pressionar a conversão.
+    Correção aplicada: uso de chave 'nome_usuario' corretamente.
+    """
     user_id = context.job.chat_id
-    nome_usuario = context.job.data['nome']
-    nome_usuario = context.job.data['nome_usuario']
+    nome_usuario = context.job.data.get('nome_usuario', 'amigo')
 
-    # Mensagem 1 (após 1 hora)
+    # Mensagem 1 (após ~1 hora do ingresso no grupo)
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"Ei {nome_usuario}, vi que você entrou no nosso grupo gratuito. 👀\n\n"
-                 f"Só pra você saber, as vagas para o acesso VIP de 90 dias GRÁTIS estão acabando. Restam apenas **{random.randint(5, 9)}** vagas.\n\n"
-                 f"Não perca a chance de lucrar de verdade. [**Clique aqui para garantir a sua vaga antes que acabe!**]({URL_CADASTRO_DEPOSITO})",
+            text=(
+                f"Ei {nome_usuario}, vi que você entrou no nosso grupo gratuito. 👀\n\n"
+                f"Só pra você saber, as vagas para o acesso VIP de 90 dias GRÁTIS estão acabando. "
+                f"Restam apenas **{random.randint(5, 9)}** vagas.\n\n"
+                f"Não perca a chance de lucrar de verdade. "
+                f"[**Clique aqui para garantir a sua vaga antes que acabe!**]({URL_CADASTRO_DEPOSITO})"
+            ),
             parse_mode=ParseMode.MARKDOWN
         )
-        logger.info(f"DM de Follow-up (1/2) enviada para {nome_usuario} ({user_id}).")
+        logger.info(f"DM Follow-up (1/2) enviada para {nome_usuario} ({user_id}).")
     except Exception as e:
-        logger.warning(f"Falha ao enviar DM de Follow-up (1/2) para {user_id}: {e}")
-        return # Se a primeira falhar, não tenta a segunda.
+        logger.warning(f"Falha ao enviar DM Follow-up (1/2) para {user_id}: {e}")
+        return  # Se a primeira falhar, não tenta a segunda.
 
-    # Pausa de 23 horas para a próxima mensagem
-    await asyncio.sleep(3600 * 23) 
+    # Pausa de 23 horas para a próxima mensagem (total ~24h)
+    await asyncio.sleep(3600 * 23)
 
-    # Mensagem 2 (após 24 horas no total)
+    # Mensagem 2
     try:
         placar_vip_greens = random.randint(18, 25)
         placar_vip_reds = random.randint(1, 3)
         await context.bot.send_message(
             chat_id=user_id,
-            text=f"💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
-                 f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de **{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
-                 f"As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
-                 f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. [**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})",
+            text=(
+                "💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
+                f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de "
+                f"**{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
+                "As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
+                f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. "
+                f"[**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})"
+            ),
             parse_mode=ParseMode.MARKDOWN
         )
-        logger.info(f"DM de Follow-up (2/2) enviada para {nome_usuario} ({user_id}).")
+        logger.info(f"DM Follow-up (2/2) enviada para {nome_usuario} ({user_id}).")
     except Exception as e:
-        logger.warning(f"Falha ao enviar DM de Follow-up (2/2) para {user_id}: {e}")
+        logger.warning(f"Falha ao enviar DM Follow-up (2/2) para {user_id}: {e}")
 
-async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
-    try:
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 **Log de Admin:**\n{action}")
-    except Exception as e:
-        logger.error(f"Falha ao enviar log para o admin: {e}")
-
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(text=MARKETING_MESSAGES["boas_vindas_start"], parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    await log_admin_action(context, "Comando `/stats` executado.")
-    bd = context.bot_data
-    inicializar_estatisticas(bd)
-    uptime = datetime.now() - bd.get('start_time', datetime.now())
-    days, rem = divmod(uptime.total_seconds(), 86400); hours, rem = divmod(rem, 3600); minutes, _ = divmod(rem, 60)
-    stats_text = (
-        f"📊 **PAINEL DE ESTATÍSTICAS GERAIS** 📊\n\n"
-        f"🕒 **Tempo Ativo:** {int(days)}d, {int(hours)}h, {int(minutes)}m\n\n"
-        f"--- **Canal Gratuito (Total)** ---\n"
-        f"📬 Sinais: {bd.get('sinais_free', 0)} | ✅: {bd.get('win_primeira_free', 0)} | ☑️: {bd.get('win_gale_free', 0)} | ❌: {bd.get('loss_free', 0)}\n\n"
-        f"--- **Canal VIP (Total)** ---\n"
-        f"📬 Sinais: {bd.get('sinais_vip', 0)} | ✅: {bd.get('win_primeira_vip', 0)} | ☑️: {bd.get('win_gale_vip', 0)} | ❌: {bd.get('loss_vip', 0)}\n"
-    )
-    await update.message.reply_text(stats_text)
-
-async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
-    try:
-        _, jogo_curto, canal = context.args
-        jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
-        if not jogo_completo:
-            await update.message.reply_text(f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}")
-            return
-        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
-        aposta = random.choice(JOGOS[jogo_completo])
-        context.job_queue.run_once(lambda ctx: asyncio.create_task(enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)), 0)
-        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
-    except (IndexError, ValueError):
-        await update.message.reply_text("⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nExemplo: `/sinal mines vip`")
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
-        logger.error(f"Erro ao enviar sinal manual: {e}")
+# --- 8. MARKETING PROGRAMADO E RESET DIÁRIO ---
 
 async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
     message_type = context.job.data["type"]
-    vagas_restantes = random.randint(3, 7) # Simula vagas restantes
+    vagas_restantes = random.randint(3, 7)
     message_text = MARKETING_MESSAGES[message_type]
-    if message_type == "oferta_relampago":
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
-    elif message_type == "ultima_chance":
+    if message_type in {"oferta_relampago", "ultima_chance"}:
         message_text = message_text.format(vagas_restantes=vagas_restantes)
 
-    if message_type == "divulgacao":
-        await context.bot.send_message(chat_id=FREE_CANAL_ID, text=message_text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=False)
-    else:
-        await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=GIF_OFERTA, caption=message_text, parse_mode=ParseMode.MARKDOWN)
-    logger.info(f"Mensagem de marketing '{message_type}' enviada.")
+    try:
+        if message_type == "divulgacao":
+            await context.bot.send_message(
+                chat_id=FREE_CANAL_ID,
+                text=message_text,
+                parse_mode=ParseMode.MARKDOWN,
+                disable_web_page_preview=False
+            )
+        else:
+            await context.bot.send_animation(
+                chat_id=FREE_CANAL_ID,
+                animation=GIF_OFERTA,
+                caption=message_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        logger.info(f"Mensagem de marketing '{message_type}' enviada.")
+    except Exception as e:
+        logger.error(f"Erro ao enviar mensagem de marketing '{message_type}': {e}")
 
 async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
     bd = context.bot_data
@@ -334,26 +386,215 @@ async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
             bd[f'daily_{stat}_{ch}'] = 0
     logger.info("Estatísticas diárias resetadas.")
 
+# --- 9. COMANDOS ---
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        text=MARKETING_MESSAGES["boas_vindas_start"],
+        parse_mode=ParseMode.MARKDOWN,
+        disable_web_page_preview=False
+    )
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID:
+        return
+    await log_admin_action(context, "Comando `/stats` executado.")
+    bd = context.bot_data
+    inicializar_estatisticas(bd)
+    uptime = datetime.now() - bd.get('start_time', datetime.now())
+    days, rem = divmod(int(uptime.total_seconds()), 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, _ = divmod(rem, 60)
+    stats_text = (
+        f"📊 **PAINEL DE ESTATÍSTICAS GERAIS** 📊\n\n"
+        f"🕒 **Tempo Ativo:** {days}d, {hours}h, {minutes}m\n\n"
+        f"--- **Canal Gratuito (Total)** ---\n"
+        f"📬 Sinais: {bd.get('sinais_free', 0)} | ✅: {bd.get('win_primeira_free', 0)} | "
+        f"☑️: {bd.get('win_gale_free', 0)} | ❌: {bd.get('loss_free', 0)}\n\n"
+        f"--- **Canal VIP (Total)** ---\n"
+        f"📬 Sinais: {bd.get('sinais_vip', 0)} | ✅: {bd.get('win_primeira_vip', 0)} | "
+        f"☑️: {bd.get('win_gale_vip', 0)} | ❌: {bd.get('loss_vip', 0)}\n"
+    )
+    await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
+
+async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID:
+        return
+    try:
+        _, jogo_curto, canal = context.args
+        jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
+        if not jogo_completo:
+            await update.message.reply_text(
+                f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}"
+            )
+            return
+        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
+        aposta = random.choice(JOGOS[jogo_completo])
+        context.job_queue.run_once(
+            callback=lambda ctx: asyncio.create_task(
+                enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)
+            ),
+            when=0
+        )
+        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
+        await log_admin_action(context, log_message)
+        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
+    except (IndexError, ValueError):
+        await update.message.reply_text(
+            "⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nEx.: `/sinal mines vip`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
+        logger.error(f"Erro ao enviar sinal manual: {e}")
+# --- 10. EVENTOS: NOVOS MEMBROS, MENSAGENS, PROVAS, ETC. ---
+
 async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for member in update.message.new_chat_members:
-        if member.id == context.bot.id: # O próprio bot foi adicionado
+        if member.id == context.bot.id:
             logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
-            return
-        
-        # Ação para novos membros no canal gratuito
+            continue
+
+        # Apenas quando entra no canal/grupo FREE
         if update.effective_chat.id == FREE_CANAL_ID:
-            # 1. Envia uma mensagem pública de boas-vindas no canal
-            await update.message.reply_text(
-                text=f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
-                     f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
-                     f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # 2. Inicia a conversa no privado e a sequência de conversão
+            # 1) Mensagem pública de boas-vindas
             try:
-                # Envia a primeira mensagem no privado
+                await update.message.reply_text(
+                    text=(
+                        f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
+                        f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
+                        f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!"
+                    ),
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except Exception as e:
+                logger.warning(f"Falha ao dar boas-vindas públicas: {e}")
+
+            # 2) DM de boas-vindas + agendamento do funil
+            try:
                 await context.bot.send_message(
                     chat_id=member.id,
                     text=MARKETING_MESSAGES["boas_vindas_start"],
-                    parse_mode=
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=False
+                )
+                # agenda sequência em ~1 hora (pode ajustar: aqui uso 3600s)
+                context.job_queue.run_once(
+                    callback=boas_vindas_sequencia,
+                    when=3600,  # 1 hora
+                    chat_id=member.id,
+                    data={"nome_usuario": member.first_name or "amigo"}
+                )
+            except Exception as e:
+                logger.warning(f"Não consegui enviar DM de boas-vindas para {member.id}: {e}")
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Recebe comprovantes (foto). Encaminha para admin e devolve mensagem.
+    """
+    try:
+        user = update.effective_user
+        photo = update.message.photo[-1]  # melhor resolução
+        file_id = photo.file_id
+
+        # Encaminha para o admin (ou canal de depoimentos se quiser usar)
+        caption = (
+            f"📩 **Comprovante recebido**\n"
+            f"Usuário: {user.full_name} (id={user.id})\n"
+            f"Username: @{user.username or 'N/A'}"
+        )
+
+        await context.bot.send_photo(
+            chat_id=ADMIN_ID,
+            photo=file_id,
+            caption=caption,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+        await update.message.reply_text(
+            "✅ Recebi seu comprovante! Vou validar rapidinho e já libero seu acesso VIP. "
+            "Se precisar, me chame no suporte: " + SUPORTE_TELEGRAM
+        )
+
+        # (Opcional) após "validar", já libera:
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=MARKETING_MESSAGES["acesso_liberado_vip"],
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao processar foto: {e}")
+        await update.message.reply_text("⚠️ Não consegui processar sua imagem agora. Tente reenviar, por favor.")
+
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⚠️ Comando não reconhecido. Use /start.")
+
+# --- 11. MAIN & AGENDADORES ---
+
+def configurar_agendamentos(app: Application):
+    jq = app.job_queue
+
+    # Marketing recorrente
+    jq.run_repeating(
+        send_marketing_message,
+        interval=3600 * 6,  # a cada 6 horas
+        first=60,           # 1 min após iniciar
+        data={"type": "divulgacao"}
+    )
+    jq.run_repeating(
+        send_marketing_message,
+        interval=3600 * 12,  # a cada 12 horas
+        first=120,
+        data={"type": "oferta_relampago"}
+    )
+    jq.run_repeating(
+        send_marketing_message,
+        interval=3600 * 24,  # a cada 24 horas
+        first=180,
+        data={"type": "ultima_chance"}
+    )
+
+    # Prova social no free a cada 4h
+    jq.run_repeating(enviar_prova_social, interval=3600 * 4, first=300)
+
+    # Reset diário às 00:00 (timezone do host)
+    agora = datetime.now()
+    proximo_reset = (agora + timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
+    jq.run_once(reset_daily_stats, when=(proximo_reset - agora).total_seconds())
+
+async def on_startup(app: Application):
+    logger.info("Bot iniciado com sucesso.")
+
+def build_application() -> Application:
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    # Comandos
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("sinal", manual_signal_command))
+
+    # Eventos
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
+    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
+    app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
+
+    # Agendamentos
+    configurar_agendamentos(app)
+
+    # Startup
+    app.post_init = on_startup
+    return app
+
+def main():
+    # Sobe um pequeno servidor Flask em thread (útil no Render)
+    if _FLASK_AVAILABLE:
+        threading.Thread(target=start_flask, daemon=True).start()
+
+    app = build_application()
+    logger.info("Iniciando pooling...")
+    app.run_polling(close_loop=False)
+
+if __name__ == "__main__":
+    main()
