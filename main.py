@@ -331,7 +331,7 @@ async def dm_funnel_sequence(context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"DM Funil (2/2) enviado para {user_name} ({user_id}).")
     except Exception as e:
         logger.warning(f"Falha ao enviar DM Funil (2/2) para {user_id}: {e}")
-        # --- 5. HANDLERS: COMANDOS E EVENTOS ---
+# --- 5. HANDLERS: COMANDOS E EVENTOS ---
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para o comando /start (geralmente em DM)."""
@@ -532,7 +532,6 @@ async def signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         target_id = CONFIG.VIP_CHANNEL_ID if channel_type.lower() == 'vip' else CONFIG.FREE_CHANNEL_ID
         
-        # Agendamento imediato para não bloquear o bot
         context.job_queue.run_once(lambda ctx: send_signal(ctx, game, target_id), 0)
         
         await update.message.reply_text(f"✅ Sinal de `{game.name}` agendado para envio imediato no canal `{channel_type.upper()}`.")
@@ -561,127 +560,86 @@ async def new_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logger.info(f"Bot adicionado com sucesso ao chat '{update.effective_chat.title}' ({chat_id}).")
             continue
 
-        # 1. Mensagem pública de boas-vindas
         try:
+            # 1. Mensagem pública de boas-vindas
             await update.message.reply_text(
                 text=TEXT.BOAS_VINDAS_PUBLICO.format(user_name=member.full_name),
                 parse_mode=ParseMode.MARKDOWN
             )
-        except Exception as e:
-            logger.warning(f"Falha ao enviar boas-vindas públicas para {member.id}: {e}")
 
-        # 2. Início do funil de DMs
-        try:
+            # 2. Início do funil de DMs
             bot_name = (await context.bot.get_me()).first_name
             await context.bot.send_message(
-                chat_
-    # --- 6. [NOVO] FUNIL DE REMARKETING ---
+                chat_id=member.id,
+                text=TEXT.BOAS_VINDAS_DM.format(bot_name=bot_name, url_cadastro=CONFIG.URL_CADASTRO),
+                parse_mode=ParseMode.MARKDOWN,
+                disable_web_page_preview=True
+            )
+            
+            # 3. Agendamento do funil principal (1h e 24h)
+            context.job_queue.run_once(
+                dm_funnel_sequence,
+                when=3600, # 1 hora
+                chat_id=member.id,
+                name=f"funil_1_{member.id}",
+                data={'user_name': member.first_name or 'amigo(a)'}
+            )
+            
+            # 4. [NOVO] Agendamento do funil de remarketing (3 dias)
+            context.job_queue.run_once(
+                remarketing_funnel,
+                when=timedelta(days=3),
+                chat_id=member.id,
+                name=f"funil_remarketing_{member.id}",
+                data={'user_name': member.first_name or 'amigo(a)'}
+            )
+            
+            logger.info(f"Funil completo (1h, 24h, 3d) agendado para o novo membro {member.full_name} ({member.id}).")
 
-async def remarketing_funnel(context: ContextTypes.DEFAULT_TYPE):
-    """Envia uma oferta especial para usuários que não converteram em 3 dias."""
-    user_id = context.job.chat_id
-    user_name = context.job.data.get('user_name', 'amigo(a)')
+        except Exception as e:
+            logger.warning(f"Falha ao iniciar funil para o novo membro {member.id}: {e}")
 
+async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe comprovantes de depósito, encaminha para o admin e responde ao usuário."""
+    # Ignora fotos em canais, foca em chats privados
+    if update.message.chat.type != 'private':
+        return
+
+    user = update.effective_user
     try:
-        # Mensagem de última chance com um bônus extra
-        remarketing_message = (
-            f"👋 Olá {user_name}, tudo bem?\n\n"
-            "Vi que você ainda não aproveitou a chance de entrar para a nossa Sala VIP. Centenas de pessoas estão lucrando lá **todos os dias** e eu não quero que você fique de fora.\n\n"
-            "Sei que a decisão pode ser difícil, então consegui uma condição **AINDA MELHOR** para você, como um presente de boas-vindas.\n\n"
-            "🎁 **OFERTA EXCLUSIVA PARA VOCÊ:**\n"
-            "Além dos **90 dias de acesso VIP GRÁTIS** ao fazer seu primeiro depósito, vou te dar acesso também ao nosso **E-book Secreto 'Gestão de Banca para Iniciantes'** (vendido por R$97).\n\n"
-            "Esta é literalmente a sua última chance de entrar com todas essas vantagens. A oferta expira em 24 horas.\n\n"
-            f"🚀 [**QUERO MEU ACESSO VIP + E-BOOK BÔNUS AGORA!**]({CONFIG.URL_CADASTRO})\n\n"
-            "Não deixe essa oportunidade passar. Te espero no time dos vencedores!"
+        # 1. Encaminha para o Admin
+        await context.bot.forward_message(chat_id=CONFIG.ADMIN_ID, from_chat_id=user.id, message_id=update.message.message_id)
+        await context.bot.send_message(
+            chat_id=CONFIG.ADMIN_ID,
+            text=TEXT.COMPROVANTE_PARA_ADMIN.format(
+                user_full_name=user.full_name,
+                user_id=user.id,
+                username=user.username or "N/A"
+            ),
+            parse_mode=ParseMode.MARKDOWN
         )
-        await context.bot.send_message(chat_id=user_id, text=remarketing_message, parse_mode=ParseMode.MARKDOWN)
-        logger.info(f"Funil de Remarketing (3 dias) enviado com sucesso para {user_name} ({user_id}).")
+
+        # 2. Responde ao usuário
+        await update.message.reply_text(
+            text=TEXT.COMPROVANTE_RECEBIDO.format(suporte_user=CONFIG.SUPORTE_USERNAME)
+        )
+        
+        # 3. Libera o acesso (simulação) e cancela os funis
+        await asyncio.sleep(random.randint(15, 30)) # Simula validação
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=TEXT.ACESSO_VIP_LIBERADO.format(link_vip=CONFIG.VIP_ACCESS_LINK),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Cancela os funis agendados para este usuário, pois ele converteu
+        jobs = context.job_queue.get_jobs_by_name(f"funil_1_{user.id}")
+        for job in jobs: job.schedule_removal()
+        jobs_remarketing = context.job_queue.get_jobs_by_name(f"funil_remarketing_{user.id}")
+        for job in jobs_remarketing: job.schedule_removal()
+        
+        logger.info(f"Usuário {user.id} converteu. Acesso VIP liberado e funis cancelados.")
+
     except Exception as e:
-        logger.warning(f"Falha ao enviar DM de Remarketing para {user_id}: {e}")
-
-# --- 7. AGENDAMENTOS E INICIALIZAÇÃO ---
-
-def setup_schedulers(app: Application):
-    """Configura todos os trabalhos agendados do bot."""
-    jq = app.job_queue
-    
-    # 1. Reset diário das estatísticas à meia-noite (horário do servidor)
-    jq.run_daily(
-        callback=lambda ctx: StatsManager(ctx.bot_data).reset_daily(),
-        time=timedelta(hours=3), # 00:00 UTC-3 (Horário de Brasília)
-        name="reset_diario"
-    )
-
-    # 2. Envio de Prova Social no canal gratuito a cada 3 horas
-    jq.run_repeating(
-        callback=send_social_proof,
-        interval=timedelta(hours=3),
-        first=timedelta(minutes=5), # Envia a primeira 5 min após o bot iniciar
-        name="prova_social"
-    )
-
-    # 3. Envio de um sinal gratuito estratégico (ex: 2x ao dia)
-    jq.run_daily(
-        callback=lambda ctx: asyncio.create_task(send_signal(ctx, GAME_MANAGER.get_game_by_short_name("mines"), CONFIG.FREE_CHANNEL_ID)),
-        time=timedelta(hours=13, minutes=30), # 10:30 BRT
-        name="sinal_free_1"
-    )
-    jq.run_daily(
-        callback=lambda ctx: asyncio.create_task(send_signal(ctx, GAME_MANAGER.get_game_by_short_name("aviator"), CONFIG.FREE_CHANNEL_ID)),
-        time=timedelta(hours=23, minutes=0), # 20:00 BRT
-        name="sinal_free_2"
-    )
-    
-    logger.info("✅ Agendadores (Reset Diário, Prova Social, Sinais Gratuitos) configurados.")
-
-def start_flask_server():
-    """Inicia um servidor Flask simples para health checks (útil no Render)."""
-    if not _LIBRARIES_AVAILABLE:
-        logger.warning("Flask não disponível, servidor de healthcheck desativado.")
-        return
-    
-    flask_app = Flask(__name__)
-    @flask_app.get("/")
-    def root():
-        return {"status": "ok", "bot_name": "ManusBot Premium 2.0", "timestamp": datetime.utcnow().isoformat()}
-    
-    port = int(os.getenv("PORT", "10000"))
-    threading.Thread(
-        target=lambda: flask_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False),
-        daemon=True
-    ).start()
-    logger.info(f"🚀 Servidor Flask de Healthcheck iniciado na porta {port}.")
-
-def main():
-    """Função principal que constrói e executa o bot."""
-    if not _LIBRARIES_AVAILABLE:
-        return
-
-    # Inicia o servidor Flask em uma thread separada
-    start_flask_server()
-
-    # Configura a persistência para salvar dados do bot (estatísticas, etc.)
-    persistence = PicklePersistence(filepath="bot_data.pkl")
-
-    # Constrói a aplicação do bot
-    app = Application.builder().token(CONFIG.BOT_TOKEN).persistence(persistence).build()
-
-    # Registra os handlers de comando
-    app.add_handler(CommandHandler("start", start_command, filters=filters.ChatType.PRIVATE))
-    app.add_handler(CommandHandler("stats", stats_command, filters=filters.User(user_id=CONFIG.ADMIN_ID)))
-    app.add_handler(CommandHandler("placar", score_command, filters=filters.Chat(chat_id=CONFIG.FREE_CHANNEL_ID)))
-    app.add_handler(CommandHandler("sinal", signal_command, filters=filters.User(user_id=CONFIG.ADMIN_ID)))
-
-    # Registra os handlers de eventos
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_member_handler))
-    app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, photo_handler))
-
-    # Configura os agendamentos
-    setup_schedulers(app)
-
-    logger.info("🤖 Bot 'Manus Premium 2.0' iniciando...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == "__main__":
-    main()
-
+        logger.error(f"Erro ao processar comprovante do usuário {user.id}: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ops! Ocorreu um erro ao processar sua imagem. Por favor, tente enviar novamente ou contate o suporte.")
