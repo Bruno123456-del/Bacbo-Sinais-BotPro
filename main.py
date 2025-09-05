@@ -1,177 +1,222 @@
+# -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO PREMIUM 2.1 "CONVERSOR AUTOMÁTICO"
-# OTIMIZADO POR MANUS
-#
-# - [NOVO] Sinais 100% automáticos com intervalo e horário de operação configurável.
-# - [NOVO] Comando /autosinal para admin ligar/desligar a automação em tempo real.
-# - [NOVO] Agendador de tarefas mestre para gerenciar múltiplos eventos.
-# - [MANTIDO] Comando /placar público para prova social em tempo real.
-# - [MANTIDO] Mensagem pós-GREEN automática para criar desejo pelo VIP.
-# - [MANTIDO] Lógica "anti-red" para uma experiência de sinal mais positiva.
-# - [MANTIDO] Variações de texto e emojis para uma comunicação mais humana.
-# - [MANTIDO] Estrutura de código profissional com classes e melhor organização.
-# - [MANTIDO] Funil de DMs com gatilhos de urgência e prova social.
-# - [MANTIDO] Healthcheck Flask para compatibilidade com Render.
+# BOT DE SINAIS - VERSÃO 19.0 "ROBUSTO"
 # ===================================================================================
 
-import os
 import logging
+import os
 import random
-import asyncio
 import threading
-from datetime import timedelta, datetime
-from dataclasses import dataclass, field
+from datetime import datetime, timedelta, time as dtime
+from flask import Flask
 
-try:
-    from telegram import Update
-    from telegram.constants import ParseMode
-    from telegram.ext import (
-        Application, CommandHandler, ContextTypes, PicklePersistence,
-        MessageHandler, filters
-    )
-    from flask import Flask
-    _LIBRARIES_AVAILABLE = True
-except ImportError:
-    _LIBRARIES_AVAILABLE = False
-    class Update: pass
-    class ContextTypes:
-        class DEFAULT_TYPE: pass
-    class Application: pass
-
-# --- 0. LOGGING E VALIDAÇÃO DE AMBIENTE ---
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+from telegram import Update
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, filters,
+    ContextTypes, PicklePersistence
 )
-logger = logging.getLogger("ManusBot")
 
-if not _LIBRARIES_AVAILABLE:
-    logger.critical("ERRO CRÍTICO: Bibliotecas essenciais (telegram, flask) não encontradas.")
+# -----------------------------------------------------------------------------------
+# CONFIGURAÇÃO DE LOG
+# -----------------------------------------------------------------------------------
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# --- 1. CONFIGURAÇÕES GLOBAIS E CREDENCIAIS ---
-def _to_int(v: str, default: int = 0) -> int:
-    s = str(v).strip()
-    if not s: return default
-    if s.startswith("-"):
-        s2 = s[1:]
-        return -int(s2) if s2.isdigit() else default
-    return int(s) if s.isdigit() else default
-
-@dataclass(frozen=True)
+# -----------------------------------------------------------------------------------
+# CLASSE DE CONFIGURAÇÃO
+# -----------------------------------------------------------------------------------
 class Config:
-    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
-    ADMIN_ID: int = _to_int(os.getenv("ADMIN_ID", "0"))
-    FREE_CHANNEL_ID: int = _to_int(os.getenv("CHAT_ID", "0"))
-    VIP_CHANNEL_ID: int = _to_int(os.getenv("VIP_CANAL_ID", "0"))
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    CHAT_ID = os.getenv("CHAT_ID")  # Canal Free
+    VIP_CANAL_ID = os.getenv("VIP_CANAL_ID")
+    ADMIN_ID = os.getenv("ADMIN_ID")
+    VIP_ACCESS_LINK = os.getenv("VIP_ACCESS_LINK", "https://t.me/seulinkvip")
 
-    URL_CADASTRO: str = "https://win-agegate-promo-68.lovable.app/"
-    URL_TELEGRAM_FREE: str = "https://t.me/ApostasMilionariaVIP"
-    SUPORTE_USERNAME: str = "@Superfinds_bot"
-    VIP_ACCESS_LINK: str = "https://t.me/+q2CCKi1CKmljMTFh"
-
-    def validate(self ):
-        errors = []
-        if not self.BOT_TOKEN: errors.append("BOT_TOKEN")
-        if self.ADMIN_ID == 0: errors.append("ADMIN_ID")
-        if self.FREE_CHANNEL_ID == 0: errors.append("CHAT_ID (FREE_CHANNEL_ID)")
-        if self.VIP_CHANNEL_ID == 0: errors.append("VIP_CANAL_ID")
-        if not self.VIP_ACCESS_LINK: errors.append("VIP_ACCESS_LINK")
-        if errors:
-            logger.critical("ERRO CRÍTICO DE CONFIGURAÇÃO! Variáveis ausentes: %s", ", ".join(errors))
-            raise SystemExit(1)
+    @staticmethod
+    def validate():
+        required = ["BOT_TOKEN", "CHAT_ID", "VIP_CANAL_ID", "ADMIN_ID"]
+        for var in required:
+            if not getattr(Config, var):
+                raise ValueError(f"⚠️ Variável obrigatória faltando: {var}")
 
 CONFIG = Config()
 CONFIG.validate()
 
-# --- 2. CONTEÚDO: MÍDIAS E TEXTOS ---
-@dataclass(frozen=True)
-class Media:
-    ANALISANDO: str = "https://media.giphy.com/media/.../giphy.gif"
-    GREEN: str = "https://media.giphy.com/media/.../giphy.gif"
-    GALE1: str = "https://raw.githubusercontent.com/.../win_gale1.png"
-    RED: str = "https://media.giphy.com/media/.../giphy.gif"
-    OFERTA: str = "https://media.giphy.com/media/.../giphy.gif"
-    PROVAS_SOCIAIS: list[str] = field(default_factory=lambda: [
-        f"https://raw.githubusercontent.com/.../prova{i}.png"
-        for i in range(1, 14 )
-    ])
-
-@dataclass(frozen=True)
-class Text:
-    BOAS_VINDAS_PUBLICO: str = "👋 Seja bem-vindo(a), {user_name}! ..."
-    BOAS_VINDAS_DM: str = "💎 **QUER LUCRAR COM SINAIS...**"
-    COMPROVANTE_RECEBIDO: str = "✅ Recebi seu comprovante! ..."
-    ACESSO_VIP_LIBERADO: str = "Parabéns! 🎉 ..."
-    COMPROVANTE_PARA_ADMIN: str = "📩 **Novo Comprovante...**"
-    PLACA_DIA_TEMPLATE: str = "📊 **Placar do Dia...**"
-    MENSAGEM_POS_GREEN_FREE: str = "🤑 **GREEN NO GRUPO FREE!** ..."
-    LEGENDAS_PROVA_SOCIAL: list[str] = field(default_factory=lambda: [
-        "🔥 **O GRUPO VIP ESTÁ PEGANDO FOGO!** 🔥...",
-        "🚀 **RESULTADO DE MEMBRO VIP!** 🚀...",
-        "🤔 **AINDA NA DÚVIDA?** 🤔...",
-        "✅ **RESULTADOS FALAM MAIS QUE PALAVRAS!** ✅..."
-    ])
-
-MEDIA = Media()
-TEXT = Text()
-
-# --- 3. JOGOS E ESTATÍSTICAS ---
-@dataclass
-class Game:
-    name: str
-    bets: list[str]
-    assertiveness: list[int] = field(default_factory=lambda: [70, 20, 10])
-
+# -----------------------------------------------------------------------------------
+# GESTOR DE JOGOS
+# -----------------------------------------------------------------------------------
 class GameManager:
     def __init__(self):
         self.games = {
-            "Bac Bo 🎲": Game("Bac Bo 🎲", ["Player", "Banker", "Tie (Empate)"], [70, 20, 10]),
-            "Roleta 룰렛": Game("Roleta 룰렛", ["Vermelho ⚫", "Preto 🔴", "Par", "Ímpar", "1ª Dúzia"], [68, 22, 10]),
-            "Aviator ✈️": Game("Aviator ✈️", ["Buscar vela de 1.80x", "Buscar vela de 2.10x"], [75, 15, 10]),
-            "Mines 💣": Game("Mines 💣", ["3 minas - Tentar 4 rodadas", "5 minas - Tentar 2 rodadas"], [65, 20, 15]),
-            "Fortune Dragon 🐲": Game("Fortune Dragon 🐲", ["8 Rodadas Turbo", "10 Rodadas Normal"], [62, 23, 15]),
+            "bacbo": {"emoji": "🎲", "nome": "Bac Bo"},
+            "roleta": {"emoji": "🎡", "nome": "Roleta"},
+            "blackjack": {"emoji": "🃏", "nome": "Blackjack"},
         }
-        self.game_map = {key.split(" ")[0].lower(): key for key in self.games.keys()}
 
-    def get_game(self, name: str) -> Game | None:
-        return self.games.get(name)
-
-    def get_game_by_short_name(self, short_name: str) -> Game | None:
-        full_name = self.game_map.get(short_name.lower())
-        return self.get_game(full_name) if full_name else None
-
-    def get_random_bet(self, game_name: str) -> str | None:
-        game = self.get_game(game_name)
-        return random.choice(game.bets) if game else None
+    def get_game(self, game_name: str):
+        return self.games.get(game_name.lower())
 
 GAME_MANAGER = GameManager()
 
-# --- 3. JOGOS E ESTATÍSTICAS ---
-@dataclass
-class Game:
-    name: str
-    bets: list[str]
-    assertiveness: list[int] = field(default_factory=lambda: [70, 20, 10])
+# -----------------------------------------------------------------------------------
+# GESTOR DE ESTATÍSTICAS
+# -----------------------------------------------------------------------------------
+class StatsManager:
+    def __init__(self, bot_data):
+        self.bot_data = bot_data
+        if "stats" not in self.bot_data:
+            self.bot_data["stats"] = {"wins": 0, "losses": 0, "date": datetime.now().date()}
 
-class GameManager:
-    def __init__(self):
-        self.games = {
-            "Bac Bo 🎲": Game("Bac Bo 🎲", ["Player", "Banker", "Tie (Empate)"], [70, 20, 10]),
-            "Roleta 룰렛": Game("Roleta 룰렛", ["Vermelho ⚫", "Preto 🔴", "Par", "Ímpar", "1ª Dúzia"], [68, 22, 10]),
-            "Aviator ✈️": Game("Aviator ✈️", ["Buscar vela de 1.80x", "Buscar vela de 2.10x"], [75, 15, 10]),
-            "Mines 💣": Game("Mines 💣", ["3 minas - Tentar 4 rodadas", "5 minas - Tentar 2 rodadas"], [65, 20, 15]),
-            "Fortune Dragon 🐲": Game("Fortune Dragon 🐲", ["8 Rodadas Turbo", "10 Rodadas Normal"], [62, 23, 15]),
-        }
-        self.game_map = {key.split(" ")[0].lower(): key for key in self.games.keys()}
+    def add_win(self):
+        self.bot_data["stats"]["wins"] += 1
 
-    def get_game(self, name: str) -> Game | None:
-        return self.games.get(name)
+    def add_loss(self):
+        self.bot_data["stats"]["losses"] += 1
 
-    def get_game_by_short_name(self, short_name: str) -> Game | None:
-        full_name = self.game_map.get(short_name.lower())
-        return self.get_game(full_name) if full_name else None
+    def reset_daily(self):
+        today = datetime.now().date()
+        if self.bot_data["stats"]["date"] != today:
+            self.bot_data["stats"] = {"wins": 0, "losses": 0, "date": today}
+# -----------------------------------------------------------------------------------
+# HANDLERS DE COMANDOS
+# -----------------------------------------------------------------------------------
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🤖 Bem-vindo ao BOT DE SINAIS!\n"
+        "Comandos:\n"
+        "/sinal [jogo] free|vip\n"
+        "/placar\n"
+        "/stats\n"
+        "/autosinal"
+    )
 
-    def get_random_bet(self, game_name: str) -> str | None:
-        game = self.get_game(game_name)
-        return random.choice(game.bets) if game else None
+async def signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != str(CONFIG.ADMIN_ID):
+        await update.message.reply_text("🚫 Apenas admin pode enviar sinais manuais.")
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Uso: /sinal [jogo] free|vip")
+        return
 
-GAME_MANAGER = GameManager()
+    game_name, channel_type = context.args[0], context.args[1]
+    game = GAME_MANAGER.get_game(game_name)
+    if not game:
+        await update.message.reply_text("Jogo inválido.")
+        return
+
+    await send_signal(context, game_name, channel_type)
+    await update.message.reply_text(f"Sinal enviado para {channel_type.upper()}.")
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    stats = StatsManager(context.bot_data)
+    s = context.bot_data["stats"]
+    await update.message.reply_text(f"📊 Wins: {s['wins']} | Losses: {s['losses']}")
+
+async def placar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    s = context.bot_data["stats"]
+    total = s["wins"] + s["losses"]
+    pct = (s["wins"] / total * 100) if total > 0 else 0
+    await update.message.reply_text(
+        f"🏆 Placar do dia:\n"
+        f"Wins: {s['wins']}\nLosses: {s['losses']}\nAssertividade: {pct:.2f}%"
+    )
+
+async def autosinal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != str(CONFIG.ADMIN_ID):
+        return
+    current = context.bot_data.get("autosinal_enabled", True)
+    context.bot_data["autosinal_enabled"] = not current
+    status = "✅ LIGADO" if context.bot_data["autosinal_enabled"] else "❌ DESLIGADO"
+    await update.message.reply_text(f"🔄 Autosinal agora está {status}.")
+
+# -----------------------------------------------------------------------------------
+# ENVIO DE SINAL
+# -----------------------------------------------------------------------------------
+async def send_signal(context: ContextTypes.DEFAULT_TYPE, game_name: str, channel_type="free"):
+    game = GAME_MANAGER.get_game(game_name)
+    if not game:
+        return
+
+    # Decide canal
+    chat_id = CONFIG.CHAT_ID if channel_type == "free" else CONFIG.VIP_CANAL_ID
+
+    # Simulação resultado
+    result = random.choice(["green", "red"])
+    if result == "green":
+        StatsManager(context.bot_data).add_win()
+        text = f"{game['emoji']} Sinal {game['nome']} → ✅ GREEN"
+    else:
+        StatsManager(context.bot_data).add_loss()
+        text = f"{game['emoji']} Sinal {game['nome']} → ❌ RED"
+
+    await context.bot.send_message(chat_id=chat_id, text=text)
+# -----------------------------------------------------------------------------------
+# JOBS AUTOMÁTICOS
+# -----------------------------------------------------------------------------------
+OPERATING_START = 8
+OPERATING_END = 23
+SIGNAL_INTERVAL_MINUTES = 35
+
+async def send_auto_signal_job(context: ContextTypes.DEFAULT_TYPE):
+    now = datetime.now()
+    if not (OPERATING_START <= now.hour < OPERATING_END):
+        return
+    if not context.bot_data.get("autosinal_enabled", True):
+        return
+
+    game_name = random.choice(list(GAME_MANAGER.games.keys()))
+    await send_signal(context, game_name, "free")
+
+async def reset_daily_stats_job(context: ContextTypes.DEFAULT_TYPE):
+    StatsManager(context.bot_data).reset_daily()
+
+# -----------------------------------------------------------------------------------
+# FLASK PARA RENDER
+# -----------------------------------------------------------------------------------
+def start_flask():
+    app = Flask(__name__)
+
+    @app.route("/")
+    def home():
+        return "Bot ativo no Render ✅"
+
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+# -----------------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------------
+def main():
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    app = Application.builder().token(CONFIG.BOT_TOKEN).persistence(persistence).build()
+
+    # Handlers
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("sinal", signal_command))
+    app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("placar", placar_command))
+    app.add_handler(CommandHandler("autosinal", autosinal_command))
+
+    # Jobs
+    app.job_queue.run_repeating(
+        send_auto_signal_job,
+        interval=timedelta(minutes=SIGNAL_INTERVAL_MINUTES),
+        first=15,
+        name="autosinal"
+    )
+    app.job_queue.run_daily(
+        reset_daily_stats_job,
+        time=dtime(hour=0, minute=0, second=5),
+        name="reset"
+    )
+
+    # Flask paralelo
+    threading.Thread(target=start_flask, daemon=True).start()
+
+    logger.info("🚀 Bot iniciado com sucesso!")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
