@@ -1,222 +1,149 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS - VERSÃO 19.0 "ROBUSTO"
+# BOT DE SINAIS VIP/FREE - VERSÃO 20.0 "CONVERSÃO MÁXIMA"
 # ===================================================================================
 
 import logging
 import os
 import random
-import threading
-from datetime import datetime, timedelta, time as dtime
-from flask import Flask
+import asyncio
+from datetime import datetime, timedelta
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, JobQueue
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from dotenv import load_dotenv
 
-from telegram import Update
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler, filters,
-    ContextTypes, PicklePersistence
-)
+# ==========================================
+# CARREGANDO VARIÁVEIS DE AMBIENTE
+# ==========================================
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CANAL_ID = int(os.getenv("CANAL_ID"))         # Canal Free
+VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID")) # Canal VIP
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# -----------------------------------------------------------------------------------
-# CONFIGURAÇÃO DE LOG
-# -----------------------------------------------------------------------------------
+# ==========================================
+# LOGS
+# ==========================================
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# -----------------------------------------------------------------------------------
-# CLASSE DE CONFIGURAÇÃO
-# -----------------------------------------------------------------------------------
-class Config:
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
-    CHAT_ID = os.getenv("CHAT_ID")  # Canal Free
-    VIP_CANAL_ID = os.getenv("VIP_CANAL_ID")
-    ADMIN_ID = os.getenv("ADMIN_ID")
-    VIP_ACCESS_LINK = os.getenv("VIP_ACCESS_LINK", "https://t.me/seulinkvip")
+# ==========================================
+# LISTAS E VARIÁVEIS GLOBAIS
+# ==========================================
+usuarios_vip = set()        # Guarda IDs VIP
+usuarios_free = set()       # Guarda IDs Free
+mensagens_free = [
+    "💥 Sinal Free: Ganhe com segurança! Para desbloquear VIP e bônus exclusivos clique abaixo.",
+    "🚀 Últimos resultados Free: Quem entra no VIP garante acesso completo e bônus."
+]
+mensagens_vip = [
+    "🏝️ Bem-vindo ao VIP! Aqui você desbloqueia bônus exclusivos: 600 viagens, ebook profissional, 3 jogos e esportes.",
+    "💰 Gestão de banca avançada: juros compostos + mala de dinheiro + viagem para Dubai!"
+]
+mensagem_urgencia = (
+    "⚠️ Vagas restantes! Acabei de receber autorização para liberar apenas os cupos restantes.\n"
+    "⏳ Gestão vai ter acesso por 90 dias grátis + bônus de 600 viages + 2 eBooks Profissionais + 3 jogos e esportes!\n"
+    "📌 Entre agora e garanta seu lugar VIP!"
+)
 
-    @staticmethod
-    def validate():
-        required = ["BOT_TOKEN", "CHAT_ID", "VIP_CANAL_ID", "ADMIN_ID"]
-        for var in required:
-            if not getattr(Config, var):
-                raise ValueError(f"⚠️ Variável obrigatória faltando: {var}")
+# ==========================================
+# FUNÇÕES AUXILIARES
+# ==========================================
+async def enviar_mensagem_free(update: Update, contexto: ContextTypes.DEFAULT_TYPE):
+    """Envia sinais Free e persuasivos para conversão."""
+    msg = random.choice(mensagens_free)
+    bot = contexto.bot
+    await bot.send_message(chat_id=CANAL_ID, text=msg)
+    logger.info("Mensagem Free enviada")
 
-CONFIG = Config()
-CONFIG.validate()
+async def enviar_mensagem_vip(update: Update, contexto: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Envia sinais VIP apenas para usuários VIP."""
+    if user_id not in usuarios_vip:
+        logger.info(f"Usuário {user_id} não é VIP, bloqueando mensagem")
+        return
+    msg = random.choice(mensagens_vip)
+    bot = contexto.bot
+    await bot.send_message(chat_id=VIP_CANAL_ID, text=msg)
+    logger.info(f"Mensagem VIP enviada para {user_id}")
 
-# -----------------------------------------------------------------------------------
-# GESTOR DE JOGOS
-# -----------------------------------------------------------------------------------
-class GameManager:
-    def __init__(self):
-        self.games = {
-            "bacbo": {"emoji": "🎲", "nome": "Bac Bo"},
-            "roleta": {"emoji": "🎡", "nome": "Roleta"},
-            "blackjack": {"emoji": "🃏", "nome": "Blackjack"},
-        }
+async def mensagem_urgente_vip(bot, user_id: int):
+    """Mensagem de urgência com bônus agressivos."""
+    await bot.send_message(chat_id=user_id, text=mensagem_urgencia)
+    logger.info(f"Mensagem de urgência VIP enviada para {user_id}")
 
-    def get_game(self, game_name: str):
-        return self.games.get(game_name.lower())
-
-GAME_MANAGER = GameManager()
-
-# -----------------------------------------------------------------------------------
-# GESTOR DE ESTATÍSTICAS
-# -----------------------------------------------------------------------------------
-class StatsManager:
-    def __init__(self, bot_data):
-        self.bot_data = bot_data
-        if "stats" not in self.bot_data:
-            self.bot_data["stats"] = {"wins": 0, "losses": 0, "date": datetime.now().date()}
-
-    def add_win(self):
-        self.bot_data["stats"]["wins"] += 1
-
-    def add_loss(self):
-        self.bot_data["stats"]["losses"] += 1
-
-    def reset_daily(self):
-        today = datetime.now().date()
-        if self.bot_data["stats"]["date"] != today:
-            self.bot_data["stats"] = {"wins": 0, "losses": 0, "date": today}
-# -----------------------------------------------------------------------------------
+# ==========================================
+# FUNÇÃO DE AUTOSINAL
+# ==========================================
+async def autosinal(context: ContextTypes.DEFAULT_TYPE):
+    """Sinal periódico Free para conversão."""
+    bot = context.bot
+    await enviar_mensagem_free(None, context)
+    # Envia urgência para alguns usuários Free aleatórios
+    for user_id in list(usuarios_free)[:5]:  # só 5 aleatórios por vez
+        await mensagem_urgente_vip(bot, user_id)
+# ==========================================
 # HANDLERS DE COMANDOS
-# -----------------------------------------------------------------------------------
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ==========================================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    usuarios_free.add(user_id)
     await update.message.reply_text(
-        "🤖 Bem-vindo ao BOT DE SINAIS!\n"
-        "Comandos:\n"
-        "/sinal [jogo] free|vip\n"
-        "/placar\n"
-        "/stats\n"
-        "/autosinal"
+        "👋 Bem-vindo! Você está no Free Signals.\n"
+        "💡 Para desbloquear VIP e bônus incríveis clique no botão abaixo.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔓 Entrar VIP", url="https://win-agegate-promo-68.lovable.app/")]
+        ])
     )
 
-async def signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != str(CONFIG.ADMIN_ID):
-        await update.message.reply_text("🚫 Apenas admin pode enviar sinais manuais.")
-        return
-    if len(context.args) < 2:
-        await update.message.reply_text("Uso: /sinal [jogo] free|vip")
-        return
+async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Adiciona usuário ao VIP manualmente (Admin)"""
+    user_id = int(context.args[0])
+    usuarios_vip.add(user_id)
+    usuarios_free.discard(user_id)
+    await update.message.reply_text(f"✅ Usuário {user_id} promovido a VIP!")
+    logger.info(f"Usuário {user_id} adicionado ao VIP")
 
-    game_name, channel_type = context.args[0], context.args[1]
-    game = GAME_MANAGER.get_game(game_name)
-    if not game:
-        await update.message.reply_text("Jogo inválido.")
-        return
-
-    await send_signal(context, game_name, channel_type)
-    await update.message.reply_text(f"Sinal enviado para {channel_type.upper()}.")
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    stats = StatsManager(context.bot_data)
-    s = context.bot_data["stats"]
-    await update.message.reply_text(f"📊 Wins: {s['wins']} | Losses: {s['losses']}")
-
-async def placar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    s = context.bot_data["stats"]
-    total = s["wins"] + s["losses"]
-    pct = (s["wins"] / total * 100) if total > 0 else 0
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra status atual dos usuários"""
     await update.message.reply_text(
-        f"🏆 Placar do dia:\n"
-        f"Wins: {s['wins']}\nLosses: {s['losses']}\nAssertividade: {pct:.2f}%"
+        f"Usuarios Free: {len(usuarios_free)}\nUsuarios VIP: {len(usuarios_vip)}"
     )
 
-async def autosinal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != str(CONFIG.ADMIN_ID):
-        return
-    current = context.bot_data.get("autosinal_enabled", True)
-    context.bot_data["autosinal_enabled"] = not current
-    status = "✅ LIGADO" if context.bot_data["autosinal_enabled"] else "❌ DESLIGADO"
-    await update.message.reply_text(f"🔄 Autosinal agora está {status}.")
+# ==========================================
+# CONFIGURAÇÃO DO AGENDADOR
+# ==========================================
+scheduler = AsyncIOScheduler()
 
-# -----------------------------------------------------------------------------------
-# ENVIO DE SINAL
-# -----------------------------------------------------------------------------------
-async def send_signal(context: ContextTypes.DEFAULT_TYPE, game_name: str, channel_type="free"):
-    game = GAME_MANAGER.get_game(game_name)
-    if not game:
-        return
+scheduler.add_job(
+    autosinal,
+    trigger=IntervalTrigger(minutes=35),
+    kwargs={},
+    id="autosinal",
+    replace_existing=True
+)
 
-    # Decide canal
-    chat_id = CONFIG.CHAT_ID if channel_type == "free" else CONFIG.VIP_CANAL_ID
-
-    # Simulação resultado
-    result = random.choice(["green", "red"])
-    if result == "green":
-        StatsManager(context.bot_data).add_win()
-        text = f"{game['emoji']} Sinal {game['nome']} → ✅ GREEN"
-    else:
-        StatsManager(context.bot_data).add_loss()
-        text = f"{game['emoji']} Sinal {game['nome']} → ❌ RED"
-
-    await context.bot.send_message(chat_id=chat_id, text=text)
-# -----------------------------------------------------------------------------------
-# JOBS AUTOMÁTICOS
-# -----------------------------------------------------------------------------------
-OPERATING_START = 8
-OPERATING_END = 23
-SIGNAL_INTERVAL_MINUTES = 35
-
-async def send_auto_signal_job(context: ContextTypes.DEFAULT_TYPE):
-    now = datetime.now()
-    if not (OPERATING_START <= now.hour < OPERATING_END):
-        return
-    if not context.bot_data.get("autosinal_enabled", True):
-        return
-
-    game_name = random.choice(list(GAME_MANAGER.games.keys()))
-    await send_signal(context, game_name, "free")
-
-async def reset_daily_stats_job(context: ContextTypes.DEFAULT_TYPE):
-    StatsManager(context.bot_data).reset_daily()
-
-# -----------------------------------------------------------------------------------
-# FLASK PARA RENDER
-# -----------------------------------------------------------------------------------
-def start_flask():
-    app = Flask(__name__)
-
-    @app.route("/")
-    def home():
-        return "Bot ativo no Render ✅"
-
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-# -----------------------------------------------------------------------------------
-# MAIN
-# -----------------------------------------------------------------------------------
-def main():
-    persistence = PicklePersistence(filepath="bot_data.pkl")
-    app = Application.builder().token(CONFIG.BOT_TOKEN).persistence(persistence).build()
-
-    # Handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("sinal", signal_command))
-    app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CommandHandler("placar", placar_command))
-    app.add_handler(CommandHandler("autosinal", autosinal_command))
-
-    # Jobs
-    app.job_queue.run_repeating(
-        send_auto_signal_job,
-        interval=timedelta(minutes=SIGNAL_INTERVAL_MINUTES),
-        first=15,
-        name="autosinal"
-    )
-    app.job_queue.run_daily(
-        reset_daily_stats_job,
-        time=dtime(hour=0, minute=0, second=5),
-        name="reset"
-    )
-
-    # Flask paralelo
-    threading.Thread(target=start_flask, daemon=True).start()
-
+# ==========================================
+# INICIALIZAÇÃO DO BOT
+# ==========================================
+async def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Comandos
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("vip", vip))
+    app.add_handler(CommandHandler("status", status))
+    # Iniciar agendador
+    scheduler.start()
+    # Rodar bot
+    await app.start()
     logger.info("🚀 Bot iniciado com sucesso!")
-    app.run_polling()
+    await app.updater.start_polling()
+    await app.updater.idle()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
