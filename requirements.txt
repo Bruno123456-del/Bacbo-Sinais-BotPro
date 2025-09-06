@@ -3,3 +3,7 @@ python-telegram-bot[job-queue]
 Flask
 Flask-Cors
 Pillow
+python-telegram-bot==20.7
+python-dotenv==1.0.0
+APScheduler==3.10.4
+asyncio
