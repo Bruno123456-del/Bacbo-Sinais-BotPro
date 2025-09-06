@@ -194,6 +194,7 @@ def verificar_vip_expirado(user_id):
             usuarios_free.add(user_id)
             return True
     return False
+
 # -*- coding: utf-8 -*-
 # ===================================================================================
 # BOT DE SINAIS VIP/FREE - VERSÃO ESTRATÉGICA PROFISSIONAL  
@@ -468,6 +469,7 @@ scheduler = AsyncIOScheduler()
 scheduler.add_job(
     autosinal_estrategico,
     trigger=IntervalTrigger(minutes=25),
+    kwargs={'context': app.bot},
     id="autosinal_free",
     replace_existing=True
 )
@@ -476,6 +478,7 @@ scheduler.add_job(
 scheduler.add_job(
     autosinal_vip,
     trigger=IntervalTrigger(minutes=15),
+    kwargs={"context": app.bot},
     id="autosinal_vip", 
     replace_existing=True
 )
@@ -484,6 +487,7 @@ scheduler.add_job(
 scheduler.add_job(
     verificar_vips_expirados,
     trigger=IntervalTrigger(hours=1),
+    kwargs={'context': app.bot},
     id="verificar_vips",
     replace_existing=True
 )
@@ -528,5 +532,3 @@ if __name__ == "__main__":
         logger.error(f"❌ Erro crítico: {e}")
     finally:
         logger.info("🔚 Bot finalizado")
-
-
