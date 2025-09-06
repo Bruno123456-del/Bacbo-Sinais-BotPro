@@ -1,113 +1,108 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# BOT DE SINAIS VIP/FREE - VERSÃO ESTRATÉGICA PROFISSIONAL  
-# PARTE 2: HANDLERS, AUTOMAÇÃO E EXECUÇÃO PRINCIPAL
+# BOT DE SINAIS VIP/FREE - VERSÃO ESTRATÉGICA PROFISSIONAL
+# PARTE 1: IMPORTS, CONFIGURAÇÃO E FUNÇÕES DE MENSAGENS
 # ===================================================================================
 
-# ==========================================
+import asyncio
+import logging
+import os
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes
+)
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+# ===================================================================================
+# CONFIGURAÇÕES INICIAIS
+# ===================================================================================
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Defina no Render → Environment
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# ===================================================================================
 # FUNÇÕES DE ENVIO DE MENSAGENS ESTRATÉGICAS
-# ==========================================
+# ===================================================================================
 async def enviar_sinal_free_limitado(context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+    logger.info("📢 Enviando sinal FREE limitado...")
+    # TODO: implementar lógica de envio real
+    await context.bot.send_message(
+        chat_id="-1001234567890",  # Troque pelo seu canal/grupo
+        text="🎯 SINAL FREE ➝ Entrada estratégica liberada!\n👉 Aproveite AGORA!"
+    )
 
 async def enviar_sinal_vip_exclusivo(context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+    logger.info("💎 Enviando sinal VIP exclusivo...")
+    await context.bot.send_message(
+        chat_id="-1001234567890",
+        text="🔥 SINAL VIP EXCLUSIVO 🔥\n✅ Alta probabilidade\n🚀 Gestão de banca aplicada"
+    )
 
 async def enviar_oferta_urgente(bot, user_id: int):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+    logger.info(f"⚡ Enviando oferta urgente para {user_id}")
+    await bot.send_message(
+        chat_id=user_id,
+        text="⚡ OFERTA URGENTE ⚡\n💎 Torne-se VIP e receba:\n- Sinais avançados\n- Gestão de banca\n- Estratégia exclusiva 🚀"
+    )
+# -*- coding: utf-8 -*-
+# ===================================================================================
+# BOT DE SINAIS VIP/FREE - VERSÃO ESTRATÉGICA PROFISSIONAL
+# PARTE 1: IMPORTS, CONFIGURAÇÃO E FUNÇÕES DE MENSAGENS
+# ===================================================================================
 
-# ==========================================
-# HANDLERS DE COMANDOS
-# ==========================================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+import asyncio
+import logging
+import os
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes
+)
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
-async def promover_vip_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+# ===================================================================================
+# CONFIGURAÇÕES INICIAIS
+# ===================================================================================
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Defina no Render → Environment
 
-async def status_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# ==========================================
-# HANDLERS DE CALLBACK (BOTÕES)
-# ==========================================
-async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
-# ==========================================
-# SISTEMA DE AUTOMAÇÃO E AGENDAMENTO
-# ==========================================
-async def autosinal_estrategico(context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+# ===================================================================================
+# FUNÇÕES DE ENVIO DE MENSAGENS ESTRATÉGICAS
+# ===================================================================================
+async def enviar_sinal_free_limitado(context: ContextTypes.DEFAULT_TYPE):
+    logger.info("📢 Enviando sinal FREE limitado...")
+    # TODO: implementar lógica de envio real
+    await context.bot.send_message(
+        chat_id="-1001234567890",  # Troque pelo seu canal/grupo
+        text="🎯 SINAL FREE ➝ Entrada estratégica liberada!\n👉 Aproveite AGORA!"
+    )
 
-async def autosinal_vip(context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
+async def enviar_sinal_vip_exclusivo(context: ContextTypes.DEFAULT_TYPE):
+    logger.info("💎 Enviando sinal VIP exclusivo...")
+    await context.bot.send_message(
+        chat_id="-1001234567890",
+        text="🔥 SINAL VIP EXCLUSIVO 🔥\n✅ Alta probabilidade\n🚀 Gestão de banca aplicada"
+    )
 
-async def verificar_vips_expirados(context: ContextTypes.DEFAULT_TYPE):
-    ...
-    # (seu código continua igual aqui, sem mudanças)
-    ...
-
-
-# ==========================================
-# INICIALIZAÇÃO E EXECUÇÃO PRINCIPAL
-# ==========================================
-async def main():
-    """Função principal do bot"""
-    logger.info("🚀 Iniciando Bot de Sinais Estratégico...")
-
-    # Criar aplicação do bot
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # Registrar handlers de comandos
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("vip", promover_vip_comando))
-    app.add_handler(CommandHandler("status", status_bot))
-
-    # Registrar handler de callbacks
-    app.add_handler(CallbackQueryHandler(callback_handler))
-
-    # Iniciar agendador (AGORA DENTRO DO MAIN ✅)
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(autosinal_estrategico, IntervalTrigger(minutes=25), kwargs={'context': app})
-    scheduler.add_job(autosinal_vip, IntervalTrigger(minutes=15), kwargs={'context': app})
-    scheduler.add_job(verificar_vips_expirados, IntervalTrigger(hours=1), kwargs={'context': app})
-    scheduler.start()
-    logger.info("📅 Agendador de tarefas iniciado")
-
-    # Iniciar bot
-    await app.initialize()
-    await app.start()
-    logger.info("🤖 Bot iniciado com sucesso!")
-
-    # Iniciar polling
-    await app.updater.start_polling()
-    await app.updater.idle()
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("🛑 Bot interrompido pelo usuário")
-    except Exception as e:
-        logger.error(f"❌ Erro crítico: {e}")
-    finally:
-        logger.info("🔚 Bot finalizado")
+async def enviar_oferta_urgente(bot, user_id: int):
+    logger.info(f"⚡ Enviando oferta urgente para {user_id}")
+    await bot.send_message(
+        chat_id=user_id,
+        text="⚡ OFERTA URGENTE ⚡\n💎 Torne-se VIP e receba:\n- Sinais avançados\n- Gestão de banca\n- Estratégia exclusiva 🚀"
+    )
