@@ -1,4 +1,4 @@
-[2/9 17:40] ...: # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # ===================================================================================
 # BOT DE SINAIS - VERSÃO 24.2 "MÁQUINA DE CONVERSÃO" (CORRIGIDO E ROBUSTO)
 # CRIADO E APRIMORADO POR MANUS
@@ -326,24 +326,18 @@ async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"DM Follow-up (1/2) enviada para {nome_usuario} ({user_id}).")
     except Exception as e:
         logger.warning(f"Falha ao enviar DM Follow-up (1/2) para {user_id}: {e}")
-        return  # Se a primeira falhar, não tenta a segunda.
 
-    # Pausa de 23 horas para a próxima mensagem (total ~24h)
-    await asyncio.sleep(3600 * 23)
+    await asyncio.sleep(3600 * 4)  # Espera 4 horas
 
     # Mensagem 2
     try:
-        placar_vip_greens = random.randint(18, 25)
-        placar_vip_reds = random.randint(1, 3)
         await context.bot.send_message(
             chat_id=user_id,
             text=(
-                "💰 **SÓ PARA VOCÊ NÃO DIZER QUE EU NÃO AVISEI...** 💰\n\n"
-                f"Enquanto você esteve no grupo gratuito, o placar na Sala VIP nas últimas 24h foi de "
-                f"**{placar_vip_greens} GREENS ✅** e apenas **{placar_vip_reds} REDS ❌**.\n\n"
-                "As pessoas lá dentro estão fazendo dinheiro. E você?\n\n"
-                f"Essa é a **ÚLTIMA CHANCE** de conseguir 90 dias de acesso VIP de graça. "
-                f"[**QUERO LUCRAR AGORA!**]({URL_CADASTRO_DEPOSITO})"
+                f"E aí, {nome_usuario}! Passando pra avisar que a oferta está quase no fim. 🔥\n\n"
+                f"Muita gente já garantiu a vaga e está lucrando no VIP. Você vai mesmo ficar de fora?\n\n"
+                f"Lembre-se: depósito de qualquer valor = 90 dias de VIP GRÁTIS. Simples assim.\n\n"
+                f"[**ÚLTIMA CHANCE DE GARANTIR SUA VAGA**]({URL_CADASTRO_DEPOSITO})"
             ),
             parse_mode=ParseMode.MARKDOWN
         )
@@ -351,33 +345,92 @@ async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning(f"Falha ao enviar DM Follow-up (2/2) para {user_id}: {e}")
 
-# --- 8. MARKETING PROGRAMADO E RESET DIÁRIO ---
+# --- 8. COMANDOS DE ADMIN ---
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    await update.message.reply_text(
+        MARKETING_MESSAGES["boas_vindas_start"],
+        parse_mode=ParseMode.MARKDOWN,
+        disable_web_page_preview=True
+    )
+    await log_admin_action(context, f"Usuário {user.full_name} (id={user.id}) iniciou o bot.")
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    bd = context.bot_data
+    inicializar_estatisticas(bd)
+    uptime = datetime.now() - bd.get('start_time', datetime.now())
+
+    stats_msg = "📊 **Estatísticas do Bot** 📊\n\n"
+    stats_msg += f"Uptime: {str(uptime).split('.')[0]}\n\n"
+
+    for ch in ["free", "vip"]:
+        sinais = bd.get(f'sinais_{ch}', 0)
+        w_p = bd.get(f'win_primeira_{ch}', 0)
+        w_g = bd.get(f'win_gale_{ch}', 0)
+        loss = bd.get(f'loss_{ch}', 0)
+        assertividade = ((w_p + w_g) / sinais * 100) if sinais > 0 else 0
+
+        stats_msg += f"**--- Canal {ch.upper()} ---**\n"
+        stats_msg += f"Sinais: {sinais}\n"
+        stats_msg += f"Wins (1ª): {w_p}\n"
+        stats_msg += f"Wins (Gale): {w_g}\n"
+        stats_msg += f"Losses: {loss}\n"
+        stats_msg += f"Assertividade: {assertividade:.2f}%\n\n"
+
+    await update.message.reply_text(stats_msg)
+
+async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        return
+
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text("Uso: /sinal <free|vip> <jogo> <aposta...>")
+        return
+
+    target_channel, jogo_key, *aposta_parts = args
+    aposta = " ".join(aposta_parts)
+    jogo_nome = JOGOS_MAP.get(jogo_key.lower())
+
+    if not jogo_nome:
+        await update.message.reply_text(f"Jogo '{jogo_key}' não encontrado. Opções: {', '.join(JOGOS_MAP.keys())}")
+        return
+
+    target_id = VIP_CANAL_ID if target_channel.lower() == 'vip' else FREE_CANAL_ID
+
+    context.job_queue.run_once(lambda ctx: enviar_sinal_especifico(ctx, jogo_nome, aposta, target_id), 1)
+    await update.message.reply_text(f"✅ Sinal para '{jogo_nome}' agendado para o canal {target_channel.upper()}.")
+
+# --- 9. AGENDAMENTO DE MENSAGENS DE MARKETING ---
 
 async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
-    message_type = context.job.data["type"]
-    vagas_restantes = random.randint(3, 7)
-    message_text = MARKETING_MESSAGES[message_type]
-    if message_type in {"oferta_relampago", "ultima_chance"}:
-        message_text = message_text.format(vagas_restantes=vagas_restantes)
+    job_data = context.job.data
+    msg_type = job_data.get("type", "divulgacao")
+    vagas = random.randint(3, 7)
+
+    if msg_type == "oferta_relampago":
+        msg = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas)
+        gif = GIF_OFERTA
+    elif msg_type == "ultima_chance":
+        msg = MARKETING_MESSAGES["ultima_chance"]
+        gif = None
+    else:
+        msg = MARKETING_MESSAGES["divulgacao"]
+        gif = None
 
     try:
-        if message_type == "divulgacao":
-            await context.bot.send_message(
-                chat_id=FREE_CANAL_ID,
-                text=message_text,
-                parse_mode=ParseMode.MARKDOWN,
-                disable_web_page_preview=False
-            )
+        if gif:
+            await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=gif, caption=msg, parse_mode=ParseMode.MARKDOWN)
         else:
-            await context.bot.send_animation(
-                chat_id=FREE_CANAL_ID,
-                animation=GIF_OFERTA,
-                caption=message_text,
-                parse_mode=ParseMode.MARKDOWN
-            )
-        logger.info(f"Mensagem de marketing '{message_type}' enviada.")
+            await context.bot.send_message(chat_id=FREE_CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
+        logger.info(f"Mensagem de marketing '{msg_type}' enviada.")
     except Exception as e:
-        logger.error(f"Erro ao enviar mensagem de marketing '{message_type}': {e}")
+        logger.error(f"Falha ao enviar marketing '{msg_type}': {e}")
 
 async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
     bd = context.bot_data
@@ -386,118 +439,31 @@ async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
             bd[f'daily_{stat}_{ch}'] = 0
     logger.info("Estatísticas diárias resetadas.")
 
-# --- 9. COMANDOS ---
+    # Reagendar para o próximo dia
+    agora = datetime.now()
+    proximo_reset = (agora + timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
+    context.job_queue.run_once(reset_daily_stats, when=(proximo_reset - agora).total_seconds())
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        text=MARKETING_MESSAGES["boas_vindas_start"],
-        parse_mode=ParseMode.MARKDOWN,
-        disable_web_page_preview=False
-    )
+# --- 10. MANIPULADORES DE EVENTOS ---
 
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID:
-        return
-    await log_admin_action(context, "Comando `/stats` executado.")
-    bd = context.bot_data
-    inicializar_estatisticas(bd)
-    uptime = datetime.now() - bd.get('start_time', datetime.now())
-    days, rem = divmod(int(uptime.total_seconds()), 86400)
-    hours, rem = divmod(rem, 3600)
-    minutes, _ = divmod(rem, 60)
-    stats_text = (
-        f"📊 **PAINEL DE ESTATÍSTICAS GERAIS** 📊\n\n"
-        f"🕒 **Tempo Ativo:** {days}d, {hours}h, {minutes}m\n\n"
-        f"--- **Canal Gratuito (Total)** ---\n"
-        f"📬 Sinais: {bd.get('sinais_free', 0)} | ✅: {bd.get('win_primeira_free', 0)} | "
-        f"☑️: {bd.get('win_gale_free', 0)} | ❌: {bd.get('loss_free', 0)}\n\n"
-        f"--- **Canal VIP (Total)** ---\n"
-        f"📬 Sinais: {bd.get('sinais_vip', 0)} | ✅: {bd.get('win_primeira_vip', 0)} | "
-        f"☑️: {bd.get('win_gale_vip', 0)} | ❌: {bd.get('loss_vip', 0)}\n"
-    )
-    await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
-
-async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID:
-        return
-    try:
-        _, jogo_curto, canal = context.args
-        jogo_completo = JOGOS_MAP.get(jogo_curto.lower())
-        if not jogo_completo:
-            await update.message.reply_text(
-                f"❌ Jogo '{jogo_curto}' não encontrado. Use um dos: {', '.join(JOGOS_MAP.keys())}"
-            )
-            return
-        target_id = VIP_CANAL_ID if canal.lower() == 'vip' else FREE_CANAL_ID
-        aposta = random.choice(JOGOS[jogo_completo])
-        context.job_queue.run_once(
-            callback=lambda ctx: asyncio.create_task(
-                enviar_sinal_especifico(ctx, jogo_completo, aposta, target_id)
-            ),
-            when=0
-        )
-        log_message = f"Comando `/sinal {jogo_curto}` enviado para {canal}."
-        await log_admin_action(context, log_message)
-        await update.message.reply_text("✅ Sinal manual enviado com sucesso.")
-    except (IndexError, ValueError):
-        await update.message.reply_text(
-            "⚠️ **Uso incorreto!**\nUse: `/sinal <jogo> <canal>`\nEx.: `/sinal mines vip`",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao enviar sinal manual: {e}")
-        logger.error(f"Erro ao enviar sinal manual: {e}")
-        # --- 10. EVENTOS: NOVOS MEMBROS, MENSAGENS, PROVAS, ETC. ---
-
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for member in update.message.new_chat_members:
-        if member.id == context.bot.id:
-            logger.info(f"Bot adicionado ao chat {update.effective_chat.id} ({update.effective_chat.title})")
-            continue
+        if not member.is_bot:
+            context.job_queue.run_once(
+                boas_vindas_sequencia,
+                3600,  # 1 hora
+                chat_id=member.id,
+                data={'nome_usuario': member.first_name}
+            )
+            logger.info(f"Sequência de DMs agendada para {member.full_name} ({member.id}).")
 
-        # Apenas quando entra no canal/grupo FREE
-        if update.effective_chat.id == FREE_CANAL_ID:
-            # 1) Mensagem pública de boas-vindas
-            try:
-                await update.message.reply_text(
-                    text=(
-                        f"👋 Seja bem-vindo(a), {member.full_name}!\n\n"
-                        f"Fico feliz em te ver por aqui. Prepare-se para receber alguns dos nossos sinais gratuitos.\n\n"
-                        f"🔥 **DICA:** Te chamei no privado com uma oportunidade única para você começar a lucrar de verdade. Corre lá!"
-                    ),
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            except Exception as e:
-                logger.warning(f"Falha ao dar boas-vindas públicas: {e}")
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not update.message.photo:
+        return
 
-            # 2) DM de boas-vindas + agendamento do funil
-            try:
-                await context.bot.send_message(
-                    chat_id=member.id,
-                    text=MARKETING_MESSAGES["boas_vindas_start"],
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=False
-                )
-                # agenda sequência em ~1 hora (pode ajustar: aqui uso 3600s)
-                context.job_queue.run_once(
-                    callback=boas_vindas_sequencia,
-                    when=3600,  # 1 hora
-                    chat_id=member.id,
-                    data={"nome_usuario": member.first_name or "amigo"}
-                )
-            except Exception as e:
-                logger.warning(f"Não consegui enviar DM de boas-vindas para {member.id}: {e}")
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Recebe comprovantes (foto). Encaminha para admin e devolve mensagem.
-    """
     try:
-        user = update.effective_user
-        photo = update.message.photo[-1]  # melhor resolução
-        file_id = photo.file_id
-
-        # Encaminha para o admin (ou canal de depoimentos se quiser usar)
+        file_id = update.message.photo[-1].file_id
         caption = (
             f"📩 **Comprovante recebido**\n"
             f"Usuário: {user.full_name} (id={user.id})\n"
@@ -598,100 +564,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-[6/9 16:24] ...: Menu
 
-==> Cloning from https://github.com/Bruno123456-del/Bacbo-Sinais-BotPro
-==> Checking out commit 2da10cd2b45c5335ba4f42621aaba6fdfe4e90ad in branch main
-==> Downloading cache...
-==> Transferred 77MB in 7s. Extraction took 2s.
-==> Using Python version 3.13.4 (default)
-==> Docs on specifying a Python version: https://render.com/docs/python-version
-==> Using Poetry version 2.1.3 (default)
-==> Docs on specifying a Poetry version: https://render.com/docs/poetry-version
-==> Running build command 'pip install -r requirements.txt'...
-Collecting python-dotenv (from -r requirements.txt (line 1))
-  Using cached python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
-Collecting Flask (from -r requirements.txt (line 3))
-  Using cached flask-3.1.2-py3-none-any.whl.metadata (3.2 kB)
-Collecting Flask-Cors (from -r requirements.txt (line 4))
-  Using cached flask_cors-6.0.1-py3-none-any.whl.metadata (5.3 kB)
-Collecting Pillow (from -r requirements.txt (line 5))
-  Using cached pillow-11.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.0 kB)
-Collecting python-telegram-bot[job-queue] (from -r requirements.txt (line 2))
-  Using cached python_telegram_bot-22.3-py3-none-any.whl.metadata (17 kB)
-Collecting httpx<0.29,>=0.27 (from python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
-Collecting apscheduler<3.12.0,>=3.10.4 (from python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached APScheduler-3.11.0-py3-none-any.whl.metadata (6.4 kB)
-Collecting tzlocal>=3.0 (from apscheduler<3.12.0,>=3.10.4->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached tzlocal-5.3.1-py3-none-any.whl.metadata (7.6 kB)
-Collecting anyio (from httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached anyio-4.10.0-py3-none-any.whl.metadata (4.0 kB)
-Collecting certifi (from httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached certifi-2025.8.3-py3-none-any.whl.metadata (2.4 kB)
-Collecting httpcore==1.* (from httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
-Collecting idna (from httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached idna-3.10-py3-none-any.whl.metadata (10 kB)
-Collecting h11>=0.16 (from httpcore==1.*->httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
-Collecting blinker>=1.9.0 (from Flask->-r requirements.txt (line 3))
-  Using cached blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
-Collecting click>=8.1.3 (from Flask->-r requirements.txt (line 3))
-  Using cached click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
-Collecting itsdangerous>=2.2.0 (from Flask->-r requirements.txt (line 3))
-  Using cached itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
-Collecting jinja2>=3.1.2 (from Flask->-r requirements.txt (line 3))
-  Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
-Collecting markupsafe>=2.1.1 (from Flask->-r requirements.txt (line 3))
-  Using cached MarkupSafe-3.0.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.0 kB)
-Collecting werkzeug>=3.1.0 (from Flask->-r requirements.txt (line 3))
-  Using cached werkzeug-3.1.3-py3-none-any.whl.metadata (3.7 kB)
-Collecting sniffio>=1.1 (from anyio->httpx<0.29,>=0.27->python-telegram-bot[job-queue]->-r requirements.txt (line 2))
-  Using cached sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
-Using cached python_dotenv-1.1.1-py3-none-any.whl (20 kB)
-Using cached python_telegram_bot-22.3-py3-none-any.whl (717 kB)
-Using cached APScheduler-3.11.0-py3-none-any.whl (64 kB)
-Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
-Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
-Using cached flask-3.1.2-py3-none-any.whl (103 kB)
-Using cached flask_cors-6.0.1-py3-none-any.whl (13 kB)
-Using cached pillow-11.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.6 MB)
-Using cached blinker-1.9.0-py3-none-any.whl (8.5 kB)
-Using cached click-8.2.1-py3-none-any.whl (102 kB)
-Using cached h11-0.16.0-py3-none-any.whl (37 kB)
-Using cached itsdangerous-2.2.0-py3-none-any.whl (16 kB)
-Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
-Using cached MarkupSafe-3.0.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (23 kB)
-Using cached tzlocal-5.3.1-py3-none-any.whl (18 kB)
-Using cached werkzeug-3.1.3-py3-none-any.whl (224 kB)
-Using cached anyio-4.10.0-py3-none-any.whl (107 kB)
-Using cached idna-3.10-py3-none-any.whl (70 kB)
-Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
-Using cached certifi-2025.8.3-py3-none-any.whl (161 kB)
-Installing collected packages: tzlocal, sniffio, python-dotenv, Pillow, markupsafe, itsdangerous, idna, h11, click, certifi, blinker, werkzeug, jinja2, httpcore, apscheduler, anyio, httpx, Flask, python-telegram-bot, Flask-Cors
-Successfully installed Flask-3.1.2 Flask-Cors-6.0.1 Pillow-11.3.0 anyio-4.10.0 apscheduler-3.11.0 blinker-1.9.0 certifi-2025.8.3 click-8.2.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.10 itsdangerous-2.2.0 jinja2-3.1.6 markupsafe-3.0.2 python-dotenv-1.1.1 python-telegram-bot-22.3 sniffio-1.3.1 tzlocal-5.3.1 werkzeug-3.1.3
-[notice] A new release of pip is available: 25.1.1 -> 25.2
-[notice] To update, run: pip install --upgrade pip
-==> Uploading build...
-==> Uploaded in 4.2s. Compression took 1.2s
-==> Build successful 🎉
-==> Deploying...
-==> Your service is live 🎉
-==> Running 'python main.py'
-2025-09-06 19:22:15,964 - bot - CRITICAL - ERRO CRÍTICO: Variáveis ausentes/invalidas: CHAT_ID
-==> Running 'python main.py'
-2025-09-06 19:22:20,248 - bot - CRITICAL - ERRO CRÍTICO: Variáveis ausentes/invalidas: CHAT_ID
-==> Running 'python main.py'
-2025-09-06 19:22:35,321 - bot - CRITICAL - ERRO CRÍTICO: Variáveis ausentes/invalidas: CHAT_ID
-[6/9 16:25] ...: # Token do seu Bot
-BOT_TOKEN=7975008855:AAHgx_tFvsuQpnDopPS1HgbYlST1gAgTkM0
 
-# ID do Canal Gratuito
-CANAL_ID=-1002808626127   
-
-# ID do Canal VIP
-VIP_CANAL_ID=-1002230899159
-
-# ID do Admin
-ADMIN_ID=5011424031
