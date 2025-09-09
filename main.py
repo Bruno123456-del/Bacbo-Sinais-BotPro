@@ -188,8 +188,8 @@ JOGOS = {
     "Dragon Tiger 🐉🐅": ["Dragon", "Tiger", "Tie (Empate)"]
 }
 JOGOS_MAP = {key.split(" ")[0].lower(): key for key in JOGOS.keys()}
-# --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
 
+# --- 5. ESTATÍSTICAS E UTILITÁRIOS ---
 def inicializar_estatisticas(bot_data: dict):
     if 'start_time' not in bot_data:
         bot_data['start_time'] = datetime.now()
@@ -204,8 +204,42 @@ async def log_admin_action(context: ContextTypes.DEFAULT_TYPE, action: str):
     except Exception as e:
         logger.error(f"Falha ao enviar log para o admin: {e}")
 
-# --- 6. ENVIO DE SINAIS & PROVA SOCIAL ---
+# --- 6. GESTÃO DE BANCA E GALES ---
+class GestorBanca:
+    def __init__(self, banca_inicial=100.0):
+        self.banca_inicial = banca_inicial
+        self.banca_atual = banca_inicial
+        self.historico_operacoes = []
+        self.sequencia_gales = [4, 8, 16]  # Percentuais para gales
+        
+    def calcular_entrada(self, percentual=2.0):
+        """Calcula valor da entrada baseado no percentual da banca"""
+        return self.banca_atual * (percentual / 100)
+    
+    def executar_gale(self, nivel_gale=0):
+        """Executa estratégia de gale com percentuais crescentes"""
+        if nivel_gale >= len(self.sequencia_gales):
+            return None
+        percentual = self.sequencia_gales[nivel_gale]
+        return self.calcular_entrada(percentual)
+    
+    def aplicar_juros_compostos(self, dias=30, taxa_diaria=0.02):
+        """Simula crescimento com juros compostos"""
+        valor_final = self.banca_inicial * ((1 + taxa_diaria) ** dias)
+        return valor_final
+    
+    def registrar_operacao(self, tipo, valor, resultado):
+        """Registra operação no histórico"""
+        operacao = {
+            "timestamp": datetime.now(),
+            "tipo": tipo,
+            "valor": valor,
+            "resultado": resultado,
+            "banca_pos": self.banca_atual
+        }
+        self.historico_operacoes.append(operacao)
 
+# --- 7. ENVIO DE SINAIS & PROVA SOCIAL ---
 async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo: str):
     if tipo == "inicio":
         mensagem = (
@@ -239,6 +273,10 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
 
     bd[guard_key] = True
     try:
+        # Gestão de banca integrada
+        gestor = GestorBanca(1000.0)  # Banca exemplo
+        valor_entrada = gestor.calcular_entrada(2.5)
+        
         await context.bot.send_animation(
             chat_id=target_id,
             animation=GIF_ANALISANDO,
@@ -249,10 +287,12 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         mensagem_sinal = (
             f"🔥 **ENTRADA CONFIRMADA | {jogo}** 🔥\n\n"
             f"🎯 **Apostar em:** {aposta}\n"
+            f"💰 **Entrada sugerida:** R$ {valor_entrada:.2f} (2.5% da banca)\n"
+            f"⚡ **Gales:** 4% → 8% → 16% (automático)\n"
             f"🔗 **JOGAR NA PLATAFORMA CERTA:** [**CLIQUE AQUI**]({URL_CADASTRO_DEPOSITO})"
         )
         if target_id == VIP_CANAL_ID:
-            mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP!_"
+            mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP com Gestão de Banca Otimizada!_"
 
         await context.bot.send_message(
             chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN
@@ -300,8 +340,7 @@ async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-# --- 7. SEQUÊNCIA DE DMs PÓS-ENTRADA (FUNIL) ---
-
+# --- 8. SEQUÊNCIA DE DMs PÓS-ENTRADA (FUNIL) ---
 async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     """
     Envia uma sequência de DMs para pressionar a conversão.
@@ -327,17 +366,18 @@ async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning(f"Falha ao enviar DM Follow-up (1/2) para {user_id}: {e}")
 
-    await asyncio.sleep(3600 * 4)  # Espera 4 horas
+    # Aguarda mais 2 horas para a segunda mensagem
+    await asyncio.sleep(2 * 3600)
 
-    # Mensagem 2
+    # Mensagem 2 (após ~3 horas do ingresso no grupo)
     try:
         await context.bot.send_message(
             chat_id=user_id,
             text=(
-                f"E aí, {nome_usuario}! Passando pra avisar que a oferta está quase no fim. 🔥\n\n"
-                f"Muita gente já garantiu a vaga e está lucrando no VIP. Você vai mesmo ficar de fora?\n\n"
-                f"Lembre-se: depósito de qualquer valor = 90 dias de VIP GRÁTIS. Simples assim.\n\n"
-                f"[**ÚLTIMA CHANCE DE GARANTIR SUA VAGA**]({URL_CADASTRO_DEPOSITO})"
+                f"Última chance, {nome_usuario}! ⏰\n\n"
+                f"As vagas VIP estão se esgotando rapidamente. Apenas **{random.randint(2, 4)}** restam.\n\n"
+                f"Não deixe essa oportunidade passar. Faça seu depósito agora e garante 90 dias de acesso VIP GRÁTIS!\n\n"
+                f"[**GARANTIR MINHA VAGA AGORA!**]({URL_CADASTRO_DEPOSITO})"
             ),
             parse_mode=ParseMode.MARKDOWN
         )
@@ -345,159 +385,218 @@ async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning(f"Falha ao enviar DM Follow-up (2/2) para {user_id}: {e}")
 
-# --- 8. COMANDOS DE ADMIN ---
-
+# --- 9. HANDLERS DE COMANDOS ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+    user_id = update.effective_user.id
+    nome = update.effective_user.first_name or "amigo"
+    
+    mensagem = MARKETING_MESSAGES["boas_vindas_start"]
+    
+    keyboard = [
+        [InlineKeyboardButton("🔓 ENTRAR NO VIP", url=URL_CADASTRO_DEPOSITO)],
+        [InlineKeyboardButton("🎁 CUPOM: GESTAO", callback_data="cupom_gestao")],
+        [InlineKeyboardButton("🏆 VER PRÊMIOS VIP", callback_data="premios_vip")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        MARKETING_MESSAGES["boas_vindas_start"],
-        parse_mode=ParseMode.MARKDOWN,
-        disable_web_page_preview=True
+        mensagem,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
     )
-    await log_admin_action(context, f"Usuário {user.full_name} (id={user.id}) iniciou o bot.")
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ Acesso negado!")
         return
 
     bd = context.bot_data
     inicializar_estatisticas(bd)
+    
     uptime = datetime.now() - bd.get('start_time', datetime.now())
-
-    stats_msg = "📊 **Estatísticas do Bot** 📊\n\n"
-    stats_msg += f"Uptime: {str(uptime).split('.')[0]}\n\n"
-
-    for ch in ["free", "vip"]:
-        sinais = bd.get(f'sinais_{ch}', 0)
-        w_p = bd.get(f'win_primeira_{ch}', 0)
-        w_g = bd.get(f'win_gale_{ch}', 0)
-        loss = bd.get(f'loss_{ch}', 0)
-        assertividade = ((w_p + w_g) / sinais * 100) if sinais > 0 else 0
-
-        stats_msg += f"**--- Canal {ch.upper()} ---**\n"
-        stats_msg += f"Sinais: {sinais}\n"
-        stats_msg += f"Wins (1ª): {w_p}\n"
-        stats_msg += f"Wins (Gale): {w_g}\n"
-        stats_msg += f"Losses: {loss}\n"
-        stats_msg += f"Assertividade: {assertividade:.2f}%\n\n"
-
-    await update.message.reply_text(stats_msg)
+    
+    stats_text = (
+        f"📊 **ESTATÍSTICAS DO BOT**\n\n"
+        f"⏰ **Uptime:** {uptime.days}d {uptime.seconds//3600}h {(uptime.seconds//60)%60}m\n\n"
+        f"**CANAL FREE:**\n"
+        f"📡 Sinais enviados: {bd.get('sinais_free', 0)} (hoje: {bd.get('daily_sinais_free', 0)})\n"
+        f"✅ Wins primeira: {bd.get('win_primeira_free', 0)} (hoje: {bd.get('daily_win_primeira_free', 0)})\n"
+        f"🎯 Wins gale: {bd.get('win_gale_free', 0)} (hoje: {bd.get('daily_win_gale_free', 0)})\n"
+        f"❌ Losses: {bd.get('loss_free', 0)} (hoje: {bd.get('daily_loss_free', 0)})\n\n"
+        f"**CANAL VIP:**\n"
+        f"📡 Sinais enviados: {bd.get('sinais_vip', 0)} (hoje: {bd.get('daily_sinais_vip', 0)})\n"
+        f"✅ Wins primeira: {bd.get('win_primeira_vip', 0)} (hoje: {bd.get('daily_win_primeira_vip', 0)})\n"
+        f"🎯 Wins gale: {bd.get('win_gale_vip', 0)} (hoje: {bd.get('daily_win_gale_vip', 0)})\n"
+        f"❌ Losses: {bd.get('loss_vip', 0)} (hoje: {bd.get('daily_loss_vip', 0)})"
+    )
+    
+    await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
 
 async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ Acesso negado!")
+        return
+
+    if not context.args or len(context.args) < 2:
+        await update.message.reply_text(
+            "❌ **Uso correto:**\n"
+            "`/sinal <jogo> <canal>`\n\n"
+            "**Jogos disponíveis:** bac, roleta, slots, aviator, spaceman, mines, penalty, dragon, tiger\n"
+            "**Canais:** free, vip, both"
+        )
+        return
+
+    jogo_key = context.args[0].lower()
+    canal = context.args[1].lower()
+
+    if jogo_key not in JOGOS_MAP:
+        await update.message.reply_text(f"❌ Jogo '{jogo_key}' não encontrado!")
+        return
+
+    jogo_nome = JOGOS_MAP[jogo_key]
+    apostas = JOGOS[jogo_nome]
+    aposta_escolhida = random.choice(apostas)
+
+    if canal in ["free", "both"]:
+        asyncio.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, FREE_CANAL_ID))
+    if canal in ["vip", "both"]:
+        asyncio.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, VIP_CANAL_ID))
+
+    await update.message.reply_text(f"✅ Sinal de {jogo_nome} enviado para {canal}!")
+    await log_admin_action(context, f"Sinal manual: {jogo_nome} → {canal}")
+
+# --- 10. HANDLERS DE EVENTOS ---
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Detecta novos membros no grupo e agenda DMs de follow-up."""
+    for member in update.message.new_chat_members:
+        if member.is_bot:
+            continue
+        
+        user_id = member.id
+        nome = member.first_name or "amigo"
+        
+        # Agenda DMs de follow-up
+        context.job_queue.run_once(
+            boas_vindas_sequencia,
+            when=3600,  # 1 hora após entrar
+            chat_id=user_id,
+            data={'nome_usuario': nome}
+        )
+        
+        logger.info(f"Novo membro detectado: {nome} ({user_id}). DMs agendadas.")
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa prints de depósito enviados pelos usuários."""
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
-        return
+    nome = update.effective_user.first_name or "usuário"
+    
+    # Simula verificação do comprovante (sempre aprova)
+    await asyncio.sleep(random.randint(2, 5))
+    
+    await update.message.reply_text(MARKETING_MESSAGES["acesso_liberado_vip"])
+    
+    # Notifica admin
+    await log_admin_action(context, f"Novo VIP liberado: {nome} ({user_id})")
+    
+    logger.info(f"Acesso VIP liberado para {nome} ({user_id})")
 
-    args = context.args
-    if len(args) < 3:
-        await update.message.reply_text("Uso: /sinal <free|vip> <jogo> <aposta...>")
-        return
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "❓ Comando não reconhecido. Use /start para começar!"
+    )
 
-    target_channel, jogo_key, *aposta_parts = args
-    aposta = " ".join(aposta_parts)
-    jogo_nome = JOGOS_MAP.get(jogo_key.lower())
+# --- 11. CALLBACKS DE BOTÕES ---
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para botões inline"""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    
+    if data == "cupom_gestao":
+        mensagem = (
+            f"🎁 **CUPOM DE DESCONTO EXCLUSIVO**\n\n"
+            f"📋 **Código:** GESTAO\n\n"
+            f"✨ **Benefícios:**\n"
+            f"🎁 Bônus Extra\n"
+            f"⭐ Vantagens VIP\n"
+            f"📱 Fácil de Usar\n\n"
+            f"Cole o código durante o cadastro para ativar os benefícios"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("📋 COPIAR CÓDIGO", callback_data="copiar_codigo")],
+            [InlineKeyboardButton("🎯 USAR CUPOM E CADASTRAR", url=URL_CADASTRO_DEPOSITO)]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(mensagem, reply_markup=reply_markup)
+    
+    elif data == "premios_vip":
+        mensagem = (
+            f"🏆 **TORNEIO VIP EXCLUSIVO**\n\n"
+            f"🎁 **Prêmios Incríveis:**\n"
+            f"✈️ Mala de dinheiro + viagem a Dubai para duas pessoas\n"
+            f"🚗 Lamborghini Urus\n"
+            f"⌚ Rolex Datejust 41\n"
+            f"🎫 Ingressos para o BKFC Dubai\n"
+            f"💻 MacBook Pro 16\"\n"
+            f"📱 iPhone 16 Pro Max\n\n"
+            f"🔥 Gostaria de ganhar o mesmo?\n"
+            f"Toque no botão abaixo e entre para o clube privado\n"
+            f"O jogo pelos prêmios mais desejados começa aqui 🏆"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("💎 ENTRAR NO CLUBE PRIVADO VIP", url=URL_CADASTRO_DEPOSITO)]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(mensagem, reply_markup=reply_markup)
 
-    if not jogo_nome:
-        await update.message.reply_text(f"Jogo '{jogo_key}' não encontrado. Opções: {', '.join(JOGOS_MAP.keys())}")
-        return
-
-    target_id = VIP_CANAL_ID if target_channel.lower() == 'vip' else FREE_CANAL_ID
-
-    context.job_queue.run_once(lambda ctx: enviar_sinal_especifico(ctx, jogo_nome, aposta, target_id), 1)
-    await update.message.reply_text(f"✅ Sinal para '{jogo_nome}' agendado para o canal {target_channel.upper()}.")
-
-# --- 9. AGENDAMENTO DE MENSAGENS DE MARKETING ---
-
+# --- 12. MARKETING AUTOMÁTICO ---
 async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
-    job_data = context.job.data
-    msg_type = job_data.get("type", "divulgacao")
-    vagas = random.randint(3, 7)
-
+    msg_type = context.job.data.get("type", "divulgacao")
+    
     if msg_type == "oferta_relampago":
-        msg = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas)
-        gif = GIF_OFERTA
+        vagas = random.randint(3, 8)
+        mensagem = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas)
+        await context.bot.send_animation(
+            chat_id=FREE_CANAL_ID,
+            animation=GIF_OFERTA,
+            caption=mensagem,
+            parse_mode=ParseMode.MARKDOWN
+        )
     elif msg_type == "ultima_chance":
-        msg = MARKETING_MESSAGES["ultima_chance"]
-        gif = None
-    else:
-        msg = MARKETING_MESSAGES["divulgacao"]
-        gif = None
-
-    try:
-        if gif:
-            await context.bot.send_animation(chat_id=FREE_CANAL_ID, animation=gif, caption=msg, parse_mode=ParseMode.MARKDOWN)
-        else:
-            await context.bot.send_message(chat_id=FREE_CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
-        logger.info(f"Mensagem de marketing '{msg_type}' enviada.")
-    except Exception as e:
-        logger.error(f"Falha ao enviar marketing '{msg_type}': {e}")
+        mensagem = MARKETING_MESSAGES["ultima_chance"]
+        await context.bot.send_message(
+            chat_id=FREE_CANAL_ID,
+            text=mensagem,
+            parse_mode=ParseMode.MARKDOWN
+        )
+    else:  # divulgacao
+        mensagem = MARKETING_MESSAGES["divulgacao"]
+        await context.bot.send_message(
+            chat_id=FREE_CANAL_ID,
+            text=mensagem,
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
+    """Reset das estatísticas diárias às 00:00"""
     bd = context.bot_data
     for ch in ['free', 'vip']:
         for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
             bd[f'daily_{stat}_{ch}'] = 0
+    
     logger.info("Estatísticas diárias resetadas.")
-
-    # Reagendar para o próximo dia
+    
+    # Reagenda para o próximo dia
     agora = datetime.now()
     proximo_reset = (agora + timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
     context.job_queue.run_once(reset_daily_stats, when=(proximo_reset - agora).total_seconds())
 
-# --- 10. MANIPULADORES DE EVENTOS ---
-
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    for member in update.message.new_chat_members:
-        if not member.is_bot:
-            context.job_queue.run_once(
-                boas_vindas_sequencia,
-                3600,  # 1 hora
-                chat_id=member.id,
-                data={'nome_usuario': member.first_name}
-            )
-            logger.info(f"Sequência de DMs agendada para {member.full_name} ({member.id}).")
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if not update.message.photo:
-        return
-
-    try:
-        file_id = update.message.photo[-1].file_id
-        caption = (
-            f"📩 **Comprovante recebido**\n"
-            f"Usuário: {user.full_name} (id={user.id})\n"
-            f"Username: @{user.username or 'N/A'}"
-        )
-
-        await context.bot.send_photo(
-            chat_id=ADMIN_ID,
-            photo=file_id,
-            caption=caption,
-            parse_mode=ParseMode.MARKDOWN
-        )
-
-        await update.message.reply_text(
-            "✅ Recebi seu comprovante! Vou validar rapidinho e já libero seu acesso VIP. "
-            "Se precisar, me chame no suporte: " + SUPORTE_TELEGRAM
-        )
-
-        # (Opcional) após "validar", já libera:
-        await context.bot.send_message(
-            chat_id=user.id,
-            text=MARKETING_MESSAGES["acesso_liberado_vip"],
-            parse_mode=ParseMode.MARKDOWN
-        )
-
-    except Exception as e:
-        logger.error(f"Erro ao processar foto: {e}")
-        await update.message.reply_text("⚠️ Não consegui processar sua imagem agora. Tente reenviar, por favor.")
-
-async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⚠️ Comando não reconhecido. Use /start.")
-
-# --- 11. MAIN & AGENDADORES ---
-
+# --- 13. CONFIGURAÇÃO DE AGENDAMENTOS ---
 def configurar_agendamentos(app: Application):
     jq = app.job_queue
 
@@ -541,6 +640,9 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("sinal", manual_signal_command))
 
+    # Callbacks
+    app.add_handler(CallbackQueryHandler(callback_handler))
+
     # Eventos
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
@@ -564,3 +666,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
