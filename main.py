@@ -253,10 +253,11 @@ import asyncio
 
 async def main():
     application = (
-        ApplicationBuilder()
-        .token(BOT_TOKEN)
-        .build()
-    )
+    ApplicationBuilder()
+    .token(BOT_TOKEN)
+    .build()
+)
+
 
     # Handlers principais
     application.add_handler(CommandHandler("start", start))
