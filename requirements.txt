@@ -3,6 +3,7 @@ python-telegram-bot==20.8
 
 # Servidor Flask (ping no Render/Heroku)
 Flask==3.0.3
+gunicorn==22.0.0
 
 # Manipulação de imagens e GIFs
 Pillow==10.3.0
