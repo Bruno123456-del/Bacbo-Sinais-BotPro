@@ -10,6 +10,8 @@
 # - Pequenas correções para garantir que sinais sejam disparados tanto no FREE quanto no VIP.
 # ===================================================================================
 
+from db import criar_tabelas, adicionar_usuario, atualizar_vip, adicionar_pontos
+from ranking import gerar_texto_ranking
 import os
 import logging
 import random
@@ -715,4 +717,33 @@ def main():
     app.run_polling(close_loop=False)
 
 if __name__ == "__main__":
-    main()
+    criar_tabelas()
+        asyncio.create_task(urgencia_task())
+
+# import asyncio
+import datetime
+from controllerbot import enviar_sinal
+
+async def urgencia_task():
+    while True:
+        agora = datetime.datetime.now()
+        limite = agora + datetime.timedelta(hours=3)  # expira em 3 horas
+        while True:
+            restante = limite - datetime.datetime.now()
+            if restante.total_seconds() <= 0:
+                break
+
+            horas, resto = divmod(int(restante.total_seconds()), 3600)
+            minutos, _ = divmod(resto, 60)
+            tempo = f"{horas}h:{minutos:02d}m"
+
+            mensagem = (
+                f"⚠️ Última chance!\n\n"
+                f"🎁 Seu bônus de R$600 expira em {tempo}.\n"
+                f"🔥 Apenas 5 vagas VIP hoje!\n\n"
+                f"👉 Deposite agora e ative seu acesso exclusivo."
+            )
+
+            await asyncio.to_thread(enviar_sinal, mensagem)
+            await asyncio.sleep(1800)  # repete a cada 30 min
+
