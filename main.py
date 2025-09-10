@@ -4,6 +4,7 @@ import logging
 import json
 import threading
 import datetime
+import asyncio
 from flask import Flask
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,7 +12,7 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes,
-    CallbackQueryHandler
+    CallbackQueryHandler, PicklePersistence, JobQueue
 )
 from telegram.error import Forbidden
 
@@ -176,20 +177,21 @@ async def enviar_sinal_especifico(bot, jogo="futebol"):
 
     await safe_send(bot, CANAL_ID, text=msg)
     await safe_send(bot, VIP_CANAL_ID, text=msg + "\n🔥 Exclusivo para VIPs!")
+
 # ==============================
 # ROTINA AUTOMÁTICA DE SINAIS
 # ==============================
-async def rotina_diaria(app):
+async def rotina_diaria(context: ContextTypes.DEFAULT_TYPE):
     jogos = ["futebol", "basquete", "mma"]
     while True:
         jogo = random.choice(jogos)
-        await enviar_sinal_especifico(app.bot, jogo=jogo)
+        await enviar_sinal_especifico(context.bot, jogo=jogo)
         await asyncio.sleep(3600)  # envia a cada 1 hora
 
 # ==============================
 # RESET DIÁRIO DE ESTATÍSTICAS
 # ==============================
-async def reset_diario(app):
+async def reset_diario(context: ContextTypes.DEFAULT_TYPE):
     while True:
         agora = datetime.datetime.now()
         proximo_reset = (agora + datetime.timedelta(days=1)).replace(
@@ -197,14 +199,13 @@ async def reset_diario(app):
         )
         segundos = (proximo_reset - agora).total_seconds()
         await asyncio.sleep(segundos)
-
         BANCO["stats"] = {"win": 0, "loss": 0, "gale": 0}
         logger.info("📊 Estatísticas resetadas para o novo dia.")
 
 # ==============================
 # PROVAS SOCIAIS AUTOMÁTICAS
 # ==============================
-async def provas_sociais(app):
+async def provas_sociais(context: ContextTypes.DEFAULT_TYPE):
     mensagens = [
         "🔥 Aluno transformou R$200 em R$2.000 em 1 semana!",
         "🚀 Lucro de 300% só hoje com nossos sinais!",
@@ -212,13 +213,13 @@ async def provas_sociais(app):
     ]
     while True:
         msg = random.choice(mensagens)
-        await safe_send(app.bot, CANAL_ID, text=msg)
+        await safe_send(context.bot, CANAL_ID, text=msg)
         await asyncio.sleep(7200)  # a cada 2 horas
 
 # ==============================
 # URGÊNCIA AUTOMÁTICA
 # ==============================
-async def urgencia(app):
+async def urgencia(context: ContextTypes.DEFAULT_TYPE):
     while True:
         agora = datetime.datetime.now()
         if agora.hour in [10, 15, 20]:  # horários estratégicos
@@ -228,7 +229,7 @@ async def urgencia(app):
                 "⏳ Expira em 15 minutos!\n\n"
                 "👉 Garanta já: https://t.me/seuCanalVIP"
             )
-            await safe_send(app.bot, CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
+            await safe_send(context.bot, CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
         await asyncio.sleep(3600)
 
 # ==============================
@@ -238,42 +239,49 @@ app_flask = Flask(__name__)
 
 @app_flask.route('/')
 def home():
-    return "Bot rodando com sucesso!"
-
-def start_flask():
-    try:
-        app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-    except Exception as e:
-        logger.warning(f"Flask falhou: {e} — mas o bot continua ativo.")
-
+    return "Bot rod
 # ==============================
 # INICIALIZAÇÃO DO BOT
 # ==============================
-import asyncio
-
 async def main():
-    application = (
-    ApplicationBuilder()
-    .token(BOT_TOKEN)
-    .build()
-)
+    # Persistência de dados (opcional)
+    persistence = PicklePersistence(filepath="bot_data.pkl")
 
+    # Criação da aplicação
+    app = ApplicationBuilder()\
+        .token(BOT_TOKEN)\
+        .persistence(persistence)\
+        .concurrent_updates(True)\
+        .build()
 
-    # Handlers principais
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("stats", stats))
-    application.add_handler(CommandHandler("painel", painel_command))
-    application.add_handler(CallbackQueryHandler(callback_handler))
+    # Handlers de comando
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("painel", painel_command))
 
-    # Inicia tarefas em paralelo
-    application.job_queue.run_once(lambda c: rotina_diaria(application), 5)
-    application.job_queue.run_once(lambda c: reset_diario(application), 10)
-    application.job_queue.run_once(lambda c: provas_sociais(application), 15)
-    application.job_queue.run_once(lambda c: urgencia(application), 20)
+    # CallbackQueryHandler
+    app.add_handler(CallbackQueryHandler(callback_handler))
 
+    # JobQueue para rotinas automáticas
+    job_queue = app.job_queue
+    job_queue.run_repeating(rotina_diaria, interval=3600, first=5)
+    job_queue.run_repeating(reset_diario, interval=86400, first=10)
+    job_queue.run_repeating(provas_sociais, interval=7200, first=15)
+    job_queue.run_repeating(urgencia, interval=3600, first=20)
+
+    # Start do bot
     logger.info("🤖 Bot iniciado com sucesso!")
-    await application.run_polling(close_loop=False)
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
+
+# ==============================
+# EXECUÇÃO MULTITHREAD (FLASK + TELEGRAM)
+# ==============================
+def run_flask():
+    app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    threading.Thread(target=start_flask, daemon=True).start()
+    # Thread para o Flask
+    threading.Thread(target=run_flask).start()
+    # Thread principal para o Bot
     asyncio.run(main())
