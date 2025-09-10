@@ -7,6 +7,7 @@
 # - Correção do erro: string não terminada na sequência de DMs (nome_usuario).
 # - Tratamento de exceções, logs e inicialização de estatísticas.
 # - Healthcheck Flask opcional para Render.
+# - Pequenas correções para garantir que sinais sejam disparados tanto no FREE quanto no VIP.
 # ===================================================================================
 
 import os
@@ -30,6 +31,7 @@ try:
     _FLASK_AVAILABLE = True
 except Exception:
     _FLASK_AVAILABLE = False
+
 
 def start_flask():
     if not _FLASK_AVAILABLE:
@@ -90,11 +92,11 @@ if DEPOIMENTOS_CANAL_ID == 0:
     logger.warning("AVISO: DEPOIMENTOS_CANAL_ID não configurado. Depoimentos desativados.")
 
 # --- 2. MÍDIAS E CONTEÚDO VISUAL ---
-GIF_OFERTA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzBqZ3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
-GIF_ANALISANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZGJ6eXNocjVqaXJzZzZkaDR2Y2l2N2dka2ZzZzBqZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jJxaUHe3w2n84/giphy.gif"
-GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"
+GIF_OFERTA = "https://media.giphy.com/media/3oFzsmD5H5a1m0k2Yw/giphy.gif"
+GIF_ANALISANDO = "https://media.giphy.com/media/jJxaUHe3w2n84/giphy.gif"
+GIF_GREEN_PRIMEIRA = "https://media.giphy.com/media/3oFzsmD5H5a1m0k2Yw/giphy.gif"
 IMG_GALE1 = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
-GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
+GIF_RED = "https://media.giphy.com/media/3oriO5iQ1m8g49A2gU/giphy.gif"
 PROVAS_SOCIAIS_URLS = [
     f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png"
     for i in range(1, 14)
@@ -110,7 +112,7 @@ MARKETING_MESSAGES = {
         "Isso mesmo, você leu certo. De ~~R$ 549,90~~ por **ZERO REAIS**.\n\n"
         "**COMO FUNCIONA?**\n"
         "Basta fazer o seu **PRIMEIRO DEPÓSITO** na nossa plataforma parceira através do link abaixo. Não importa o valor!\n\n"
-        "👇 **QUERO MEU ACESSO AGORA** 👇\n"
+        "👇 **QUERO MEU ACESSO AGORA** 👇\n\n"
         f"[**CLIQUE AQUI PARA FAZER SEU DEPÓSITO E GARANTIR 90 DIAS GRÁTIS**]({URL_CADASTRO_DEPOSITO})\n\n"
         "Ao garantir sua vaga, você leva TUDO isso:\n"
         "🔑 **Grupo VIP Pago Gratuito (por 90 dias)**\n"
@@ -138,7 +140,7 @@ MARKETING_MESSAGES = {
         "Nossa inteligência artificial analisa o mercado 24/7 e envia sinais de alta assertividade para jogos como Roleta, Aviator, Mines, Slots e muito mais!\n\n"
         "✅ **Sinais Gratuitos Todos os Dias**\n✅ **Análises Precisas e em Tempo Real**\n✅ **Comunidade com Milhares de Membros Lucrando**\n\n"
         "Chega de contar com a sorte. Comece a lucrar com estratégia!\n\n"
-        "👇 **ENTRE AGORA NO NOSSO CANAL GRATUITO E COMECE A LUCRAR HOJE MESMO!** 👇\n"
+        "👇 **ENTRE AGORA NO NOSSO CANAL GRATUITO E COMECE A LUCRAR HOJE MESMO!** 👇\n\n"
         f"🔗 {URL_TELEGRAM_FREE}\n🔗 {URL_TELEGRAM_FREE}\n"
     ),
     "boas_vindas_start": (
@@ -258,8 +260,11 @@ async def enviar_aviso_bloco(context: ContextTypes.DEFAULT_TYPE, jogo: str, tipo
             f"Finalizamos nossa maratona de **{jogo}**. Esperamos que tenham lucrado! "
             f"Fiquem atentos para os próximos blocos de sinais ao longo do dia."
         )
-    await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
-    logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
+    try:
+        await context.bot.send_message(chat_id=VIP_CANAL_ID, text=mensagem)
+        logger.info(f"Aviso de '{tipo}' para {jogo} enviado ao canal VIP.")
+    except Exception as e:
+        logger.error(f"Falha ao enviar aviso de bloco para VIP ({VIP_CANAL_ID}): {e}")
 
 async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str, aposta: str, target_id: int):
     bd = context.bot_data
@@ -267,6 +272,7 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
     channel_type = 'vip' if target_id == VIP_CANAL_ID else 'free'
     guard_key = f"sinal_em_andamento_{target_id}"
 
+    # Se já existe sinal em andamento para esse target, pula
     if bd.get(guard_key, False):
         logger.warning(f"Pulei o sinal de {jogo} para {target_id} pois outro já estava em andamento.")
         return
@@ -277,11 +283,17 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         gestor = GestorBanca(1000.0)  # Banca exemplo
         valor_entrada = gestor.calcular_entrada(2.5)
         
-        await context.bot.send_animation(
-            chat_id=target_id,
-            animation=GIF_ANALISANDO,
-            caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**..."
-        )
+        # Animação inicial (analisando)
+        try:
+            await context.bot.send_animation(
+                chat_id=target_id,
+                animation=GIF_ANALISANDO,
+                caption=f"🔎 Analisando padrões para uma entrada em **{jogo}**..."
+            )
+        except Exception as e:
+            logger.warning(f"Não foi possível enviar animação para {target_id}: {e}")
+
+        # pequena espera simulada
         await asyncio.sleep(random.randint(5, 10))
 
         mensagem_sinal = (
@@ -294,22 +306,29 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
         if target_id == VIP_CANAL_ID:
             mensagem_sinal += "\n\n✨ _Sinal Exclusivo VIP com Gestão de Banca Otimizada!_"
 
-        await context.bot.send_message(
-            chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN
-        )
-        logger.info(f"Sinal de {jogo} enviado para {target_id}.")
+        # Envia mensagem principal
+        try:
+            await context.bot.send_message(
+                chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Sinal de {jogo} enviado para {target_id}.")
+        except Exception as e:
+            logger.error(f"Falha ao enviar sinal principal para {target_id}: {e}")
+            raise
 
-        bd[f'sinais_{channel_type}'] += 1
-        bd[f'daily_sinais_{channel_type}'] += 1
+        # Atualiza estatísticas
+        bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
+        bd[f'daily_sinais_{channel_type}'] = bd.get(f'daily_sinais_{channel_type}', 0) + 1
 
+        # Aguarda resultado simulado
         await asyncio.sleep(random.randint(45, 75))
         probabilidades = ASSERTIVIDADE_JOGOS.get(jogo, ASSERTIVIDADE_JOGOS["default"])
         resultado = random.choices(
             ["win_primeira", "win_gale", "loss"], weights=probabilidades, k=1
         )[0]
 
-        bd[f'{resultado}_{channel_type}'] += 1
-        bd[f'daily_{resultado}_{channel_type}'] += 1
+        bd[f'{resultado}_{channel_type}'] = bd.get(f'{resultado}_{channel_type}', 0) + 1
+        bd[f'daily_{resultado}_{channel_type}'] = bd.get(f'daily_{resultado}_{channel_type}', 0) + 1
 
         greens_dia = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
         reds_dia = bd.get(f'daily_loss_{channel_type}', 0)
@@ -317,28 +336,47 @@ async def enviar_sinal_especifico(context: ContextTypes.DEFAULT_TYPE, jogo: str,
 
         if resultado == "win_primeira":
             caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro! Parabéns a todos! 🤑\n\n{placar_do_dia}"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
+            try:
+                await context.bot.send_animation(chat_id=target_id, animation=GIF_GREEN_PRIMEIRA, caption=caption)
+            except Exception as e:
+                logger.warning(f"Falha ao enviar GIF de green para {target_id}: {e}")
+                await context.bot.send_message(chat_id=target_id, text=caption)
         elif resultado == "win_gale":
             caption = f"✅ **GREEN NO GALE!** ✅\n\nPaciência e gestão trazem o lucro. Parabéns, time!\n\n{placar_do_dia}"
-            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
+            try:
+                await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE1, caption=caption)
+            except Exception as e:
+                logger.warning(f"Falha ao enviar foto de gale para {target_id}: {e}")
+                await context.bot.send_message(chat_id=target_id, text=caption)
         else:
             caption = f"❌ **RED!** ❌\n\nFaz parte do jogo. Mantenham a gestão de banca e vamos para a próxima!\n\n{placar_do_dia}"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
+            try:
+                await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
+            except Exception as e:
+                logger.warning(f"Falha ao enviar GIF de red para {target_id}: {e}")
+                await context.bot.send_message(chat_id=target_id, text=caption)
 
     except Exception as e:
         logger.error(f"Erro no ciclo de sinal para {jogo} no canal {target_id}: {e}")
+        try:
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"Erro durante envio de sinal: {e}")
+        except Exception:
+            pass
     finally:
         bd[guard_key] = False
 
 async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
     url_prova = random.choice(PROVAS_SOCIAIS_URLS)
     legenda = random.choice(MARKETING_MESSAGES["legendas_prova_social"])
-    await context.bot.send_photo(
-        chat_id=FREE_CANAL_ID,
-        photo=url_prova,
-        caption=f"{legenda}\n\n[**QUERO LUCRAR ASSIM TAMBÉM!**]({URL_CADASTRO_DEPOSITO})",
-        parse_mode=ParseMode.MARKDOWN
-    )
+    try:
+        await context.bot.send_photo(
+            chat_id=FREE_CANAL_ID,
+            photo=url_prova,
+            caption=f"{legenda}\n\n[**QUERO LUCRAR ASSIM TAMBÉM!**]({URL_CADASTRO_DEPOSITO})",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except Exception as e:
+        logger.warning(f"Falha ao enviar prova social para free: {e}")
 
 # --- 8. SEQUÊNCIA DE DMs PÓS-ENTRADA (FUNIL) ---
 async def boas_vindas_sequencia(context: ContextTypes.DEFAULT_TYPE):
@@ -457,10 +495,11 @@ async def manual_signal_command(update: Update, context: ContextTypes.DEFAULT_TY
     apostas = JOGOS[jogo_nome]
     aposta_escolhida = random.choice(apostas)
 
+    # Use application.create_task para garantir que o loop do PTB gerencie as tasks
     if canal in ["free", "both"]:
-        asyncio.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, FREE_CANAL_ID))
+        context.application.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, FREE_CANAL_ID))
     if canal in ["vip", "both"]:
-        asyncio.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, VIP_CANAL_ID))
+        context.application.create_task(enviar_sinal_especifico(context, jogo_nome, aposta_escolhida, VIP_CANAL_ID))
 
     await update.message.reply_text(f"✅ Sinal de {jogo_nome} enviado para {canal}!")
     await log_admin_action(context, f"Sinal manual: {jogo_nome} → {canal}")
@@ -476,14 +515,16 @@ async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_
         nome = member.first_name or "amigo"
         
         # Agenda DMs de follow-up
-        context.job_queue.run_once(
-            boas_vindas_sequencia,
-            when=3600,  # 1 hora após entrar
-            chat_id=user_id,
-            data={'nome_usuario': nome}
-        )
-        
-        logger.info(f"Novo membro detectado: {nome} ({user_id}). DMs agendadas.")
+        try:
+            context.job_queue.run_once(
+                boas_vindas_sequencia,
+                when=3600,  # 1 hora após entrar
+                chat_id=user_id,
+                data={'nome_usuario': nome}
+            )
+            logger.info(f"Novo membro detectado: {nome} ({user_id}). DMs agendadas.")
+        except Exception as e:
+            logger.error(f"Falha ao agendar DMs para {user_id}: {e}")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa prints de depósito enviados pelos usuários."""
@@ -558,29 +599,32 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_marketing_message(context: ContextTypes.DEFAULT_TYPE):
     msg_type = context.job.data.get("type", "divulgacao")
     
-    if msg_type == "oferta_relampago":
-        vagas = random.randint(3, 8)
-        mensagem = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas)
-        await context.bot.send_animation(
-            chat_id=FREE_CANAL_ID,
-            animation=GIF_OFERTA,
-            caption=mensagem,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    elif msg_type == "ultima_chance":
-        mensagem = MARKETING_MESSAGES["ultima_chance"]
-        await context.bot.send_message(
-            chat_id=FREE_CANAL_ID,
-            text=mensagem,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    else:  # divulgacao
-        mensagem = MARKETING_MESSAGES["divulgacao"]
-        await context.bot.send_message(
-            chat_id=FREE_CANAL_ID,
-            text=mensagem,
-            parse_mode=ParseMode.MARKDOWN
-        )
+    try:
+        if msg_type == "oferta_relampago":
+            vagas = random.randint(3, 8)
+            mensagem = MARKETING_MESSAGES["oferta_relampago"].format(vagas_restantes=vagas)
+            await context.bot.send_animation(
+                chat_id=FREE_CANAL_ID,
+                animation=GIF_OFERTA,
+                caption=mensagem,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        elif msg_type == "ultima_chance":
+            mensagem = MARKETING_MESSAGES["ultima_chance"]
+            await context.bot.send_message(
+                chat_id=FREE_CANAL_ID,
+                text=mensagem,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        else:  # divulgacao
+            mensagem = MARKETING_MESSAGES["divulgacao"]
+            await context.bot.send_message(
+                chat_id=FREE_CANAL_ID,
+                text=mensagem,
+                parse_mode=ParseMode.MARKDOWN
+            )
+    except Exception as e:
+        logger.warning(f"Falha ao enviar marketing para free: {e}")
 
 async def reset_daily_stats(context: ContextTypes.DEFAULT_TYPE):
     """Reset das estatísticas diárias às 00:00"""
@@ -629,6 +673,11 @@ def configurar_agendamentos(app: Application):
     jq.run_once(reset_daily_stats, when=(proximo_reset - agora).total_seconds())
 
 async def on_startup(app: Application):
+    # inicializa estatisticas no bot_data para evitar KeyError
+    try:
+        inicializar_estatisticas(app.bot_data)
+    except Exception as e:
+        logger.error(f"Erro ao inicializar estatísticas no startup: {e}")
     logger.info("Bot iniciado com sucesso.")
 
 def build_application() -> Application:
@@ -655,15 +704,15 @@ def build_application() -> Application:
     app.post_init = on_startup
     return app
 
+
 def main():
     # Sobe um pequeno servidor Flask em thread (útil no Render)
     if _FLASK_AVAILABLE:
         threading.Thread(target=start_flask, daemon=True).start()
 
     app = build_application()
-    logger.info("Iniciando pooling...")
+    logger.info("Iniciando polling...")
     app.run_polling(close_loop=False)
 
 if __name__ == "__main__":
     main()
-
