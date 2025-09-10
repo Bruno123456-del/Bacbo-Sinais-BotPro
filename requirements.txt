@@ -1,5 +1,5 @@
 # Framework do Telegram
-python-telegram-bot==20.8
+python-telegram-bot==22.3
 
 # Servidor Flask (ping no Render/Heroku)
 Flask==3.0.3
