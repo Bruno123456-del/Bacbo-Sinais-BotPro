@@ -1,5 +1,23 @@
-python-dotenv
-python-telegram-bot[job-queue]
-Flask
-Flask-Cors
-Pillow
+# Framework do Telegram
+python-telegram-bot==20.8
+
+# Servidor Flask (ping no Render/Heroku)
+Flask==3.0.3
+
+# Manipulação de imagens e GIFs
+Pillow==10.3.0
+
+# Banco de dados local em JSON
+tinydb==4.8.0
+
+# Manipulação de datas/horários
+python-dateutil==2.9.0.post0
+
+# Para rodar tarefas assíncronas
+aiohttp==3.9.5
+
+# Logs estruturados
+structlog==24.1.0
+
+# Utilitários extras
+requests==2.32.3
