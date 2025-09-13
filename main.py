@@ -11,18 +11,22 @@ from telegram import (
 )
 from telegram.constants import ParseMode
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes,
-    CallbackQueryHandler, PicklePersistence, JobQueue
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    CallbackQueryHandler,
+    PicklePersistence,
 )
 from telegram.error import Forbidden
 
 # ==============================
-# CONFIGURAÇÕES DO BOT
+# CONFIGURAÇÕES DO BOT (env vars)
 # ==============================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CANAL_ID = int(os.getenv("CANAL_ID"))
-VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID"))
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
+CANAL_ID = int(os.getenv("CANAL_ID")) if os.getenv("CANAL_ID") else None
+VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID")) if os.getenv("VIP_CANAL_ID") else None
+ADMIN_ID = int(os.getenv("ADMIN_ID")) if os.getenv("ADMIN_ID") else None
+PORT = int(os.getenv("PORT", 5000))
 
 # ==============================
 # LOG PROFISSIONAL EM JSON
@@ -44,7 +48,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 # ==============================
-# BANCO DE DADOS SIMPLES
+# BANCO DE DADOS SIMPLES (memória)
 # ==============================
 BANCO = {
     "ultimos_resultados": [],
@@ -63,13 +67,16 @@ ASSERTIVIDADE_JOGOS = {
 }
 
 # ==============================
-# FUNÇÃO DE ENVIO SEGURO
+# FUNÇÃO DE ENVIO SEGURO (tratamento de exceções)
 # ==============================
 async def safe_send(bot, chat_id, **kwargs):
+    if chat_id is None:
+        logger.warning("chat_id é None, mensagem não enviada.")
+        return None
     try:
         return await bot.send_message(chat_id=chat_id, **kwargs)
     except Forbidden:
-        logger.info(f"Usuário {chat_id} bloqueou o bot.")
+        logger.info(f"Usuário/chat {chat_id} bloqueou o bot ou bot não tem acesso.")
     except Exception as e:
         logger.warning(f"Falha ao enviar mensagem para {chat_id}: {e}")
 
@@ -91,7 +98,7 @@ def escolher_resultado(bd, jogo):
         )[0]
 
     ultimos.append(resultado)
-    bd["ultimos_resultados"] = ultimos[-10:]  # mantém histórico curto
+    bd["ultimos_resultados"] = ultimos[-50:]  # mantém histórico curto (até 50)
     return resultado
 
 # ==============================
@@ -99,11 +106,14 @@ def escolher_resultado(bd, jogo):
 # ==============================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    BANCO["usuarios"][user.id] = {
-        "nome": user.first_name,
-        "id": user.id,
-        "joined": str(datetime.datetime.now()),
-    }
+    try:
+        BANCO["usuarios"][user.id] = {
+            "nome": user.first_name or user.username or "Usuário",
+            "id": user.id,
+            "joined": str(datetime.datetime.now()),
+        }
+    except Exception:
+        logger.exception("Erro ao salvar usuário no BANCO.")
     keyboard = [
         [InlineKeyboardButton("🔥 Entrar no Canal VIP", url="https://t.me/seuCanalVIP")],
         [InlineKeyboardButton("📊 Ver Estatísticas", callback_data="painel_stats")]
@@ -135,6 +145,10 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # PAINEL ADMINISTRATIVO
 # ==============================
 async def painel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if ADMIN_ID is None:
+        await update.message.reply_text("ADMIN_ID não configurado.")
+        return
+
     if update.effective_user.id != ADMIN_ID:
         return await update.message.reply_text("❌ Acesso negado!")
     
@@ -144,15 +158,18 @@ async def painel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💎 Oferta Relâmpago", callback_data="painel_oferta")],
     ]
     await update.message.reply_text(
-        "📌 **PAINEL DO ADMIN**",
+        "📌 *PAINEL DO ADMIN*",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if not query:
+        return
     await query.answer()
     if query.data == "painel_stats":
+        # Reutiliza função stats: cria um falso objeto update com chat para enviar
         await stats(update, context)
     elif query.data == "painel_sinal":
         await safe_send(query.bot, query.message.chat.id, text="🎲 Sinal enviado manualmente!")
@@ -160,7 +177,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send(query.bot, query.message.chat.id, text="💎 Oferta relâmpago ativada!")
 
 # ==============================
-# ENVIO DE SINAIS
+# ENVIO DE SINAIS (single send)
 # ==============================
 async def enviar_sinal_especifico(bot, jogo="futebol"):
     resultado = escolher_resultado(BANCO, jogo)
@@ -175,62 +192,52 @@ async def enviar_sinal_especifico(bot, jogo="futebol"):
         msg = f"🥊 {jogo.upper()} | ❌ RED!"
         BANCO["stats"]["loss"] += 1
 
+    # Envia para canais configurados (ignora se None)
     await safe_send(bot, CANAL_ID, text=msg)
     await safe_send(bot, VIP_CANAL_ID, text=msg + "\n🔥 Exclusivo para VIPs!")
 
 # ==============================
-# ROTINA AUTOMÁTICA DE SINAIS
+# ROTINAS AGENDADAS (cada uma executa UMA vez quando o Job chama)
+# Usamos JobQueue para agendamento - NÃO colocamos while True aqui.
 # ==============================
 async def rotina_diaria(context: ContextTypes.DEFAULT_TYPE):
+    """Envia um sinal aleatório — agendado a cada X minutos/hora via JobQueue."""
     jogos = ["futebol", "basquete", "mma"]
-    while True:
-        jogo = random.choice(jogos)
-        await enviar_sinal_especifico(context.bot, jogo=jogo)
-        await asyncio.sleep(3600)  # envia a cada 1 hora
+    jogo = random.choice(jogos)
+    await enviar_sinal_especifico(context.bot, jogo=jogo)
+    logger.info(f"rotina_diaria: sinal enviado ({jogo})")
 
-# ==============================
-# RESET DIÁRIO DE ESTATÍSTICAS
-# ==============================
 async def reset_diario(context: ContextTypes.DEFAULT_TYPE):
-    while True:
-        agora = datetime.datetime.now()
-        proximo_reset = (agora + datetime.timedelta(days=1)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        segundos = (proximo_reset - agora).total_seconds()
-        await asyncio.sleep(segundos)
-        BANCO["stats"] = {"win": 0, "loss": 0, "gale": 0}
-        logger.info("📊 Estatísticas resetadas para o novo dia.")
+    """Reseta estatísticas diárias — agendado com run_daily."""
+    BANCO["stats"] = {"win": 0, "loss": 0, "gale": 0}
+    logger.info("reset_diario: estatísticas resetadas para o novo dia.")
 
-# ==============================
-# PROVAS SOCIAIS AUTOMÁTICAS
-# ==============================
 async def provas_sociais(context: ContextTypes.DEFAULT_TYPE):
+    """Envia uma prova social curta — agendado a cada X horas."""
     mensagens = [
         "🔥 Aluno transformou R$200 em R$2.000 em 1 semana!",
         "🚀 Lucro de 300% só hoje com nossos sinais!",
         "💎 Grupo VIP explodindo de green!"
     ]
-    while True:
-        msg = random.choice(mensagens)
-        await safe_send(context.bot, CANAL_ID, text=msg)
-        await asyncio.sleep(7200)  # a cada 2 horas
+    msg = random.choice(mensagens)
+    await safe_send(context.bot, CANAL_ID, text=msg)
+    logger.info("provas_sociais: mensagem enviada.")
 
-# ==============================
-# URGÊNCIA AUTOMÁTICA
-# ==============================
 async def urgencia(context: ContextTypes.DEFAULT_TYPE):
-    while True:
-        agora = datetime.datetime.now()
-        if agora.hour in [10, 15, 20]:  # horários estratégicos
-            msg = (
-                "⚡ Oferta Relâmpago! ⚡\n\n"
-                "Somente HOJE o acesso ao **VIP** está com 50% OFF.\n"
-                "⏳ Expira em 15 minutos!\n\n"
-                "👉 Garanta já: https://t.me/seuCanalVIP"
-            )
-            await safe_send(context.bot, CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
-        await asyncio.sleep(3600)
+    """Envia mensagens de urgência em horários estratégicos."""
+    agora = datetime.datetime.now()
+    # Se quiser horários diferentes, altere a lista abaixo
+    if agora.hour in [10, 15, 20]:
+        msg = (
+            "⚡ Oferta Relâmpago! ⚡\n\n"
+            "Somente HOJE o acesso ao **VIP** está com 50% OFF.\n"
+            "⏳ Expira em 15 minutos!\n\n"
+            "👉 Garanta já: https://t.me/seuCanalVIP"
+        )
+        await safe_send(context.bot, CANAL_ID, text=msg, parse_mode=ParseMode.MARKDOWN)
+        logger.info("urgencia: oferta relâmpago enviada.")
+    else:
+        logger.debug("urgencia: hora atual fora do range configurado.")
 
 # ==============================
 # FLASK (PING DO RENDER/HEROKU)
@@ -239,15 +246,16 @@ app_flask = Flask(__name__)
 
 @app_flask.route('/')
 def home():
-    return "Bot rod
+    return "Bot rodando com sucesso!"
+
 # ==============================
-# INICIALIZAÇÃO DO BOT
+# INICIALIZAÇÃO DO BOT (main)
 # ==============================
 async def main():
     # Persistência de dados (opcional)
     persistence = PicklePersistence(filepath="bot_data.pkl")
 
-    # Criação da aplicação
+    # Cria a aplicação do telegram
     app = ApplicationBuilder()\
         .token(BOT_TOKEN)\
         .persistence(persistence)\
@@ -263,25 +271,38 @@ async def main():
 
     # JobQueue para rotinas automáticas
     job_queue = app.job_queue
+
+    # rotina_diaria: envia sinal a cada 1 hora (3600s) - primeiro em 5s
     job_queue.run_repeating(rotina_diaria, interval=3600, first=5)
-    job_queue.run_repeating(reset_diario, interval=86400, first=10)
+
+    # reset_diario: agendado diariamente à meia-noite
+    job_queue.run_daily(reset_diario, time=datetime.time(hour=0, minute=0))
+
+    # provas_sociais: a cada 2 horas (7200s)
     job_queue.run_repeating(provas_sociais, interval=7200, first=15)
+
+    # urgencia: verificação a cada 1 hora
     job_queue.run_repeating(urgencia, interval=3600, first=20)
 
-    # Start do bot
-    logger.info("🤖 Bot iniciado com sucesso!")
-    await app.start()
-    await app.updater.start_polling()
-    await app.updater.idle()
+    # Log e start do bot (modo async)
+    logger.info("🤖 Iniciando bot...")
+    # run_polling cuida de initialize/start/idle internamente
+    await app.run_polling()
 
 # ==============================
 # EXECUÇÃO MULTITHREAD (FLASK + TELEGRAM)
 # ==============================
 def run_flask():
-    app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    # Flask roda em thread separada
+    app_flask.run(host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
-    # Thread para o Flask
-    threading.Thread(target=run_flask).start()
-    # Thread principal para o Bot
-    asyncio.run(main())
+    # Inicia Flask em thread separada (não bloqueante)
+    threading.Thread(target=run_flask, daemon=True).start()
+    # Roda o bot (async)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot finalizado manualmente.")
+    except Exception:
+        logger.exception("Erro não tratado ao iniciar o bot.")
