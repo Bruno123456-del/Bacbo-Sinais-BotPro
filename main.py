@@ -18,21 +18,10 @@ from datetime import datetime
 from random import choice, randint
 from pathlib import Path
 
-from telegram import (
-    Bot,
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputFile,
-    ChatAction
-)
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram.constants import ChatAction
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, filters
 
-from telegram.ext import (
-    ApplicationBuilder,
-    ContextTypes,
-    CommandHandler,
-    filters
-)
 
 # ----------------------------
 # Configuração / Ambiente
