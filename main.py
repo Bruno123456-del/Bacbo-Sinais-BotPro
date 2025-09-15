@@ -1,278 +1,82 @@
-# -*- coding: utf-8 -*-
-"""
-Main bot para BacBo/Sinais - Fluxo:
-- posts automáticos em canais FREE e VIP
-- testes de envio
-- comando /submitdeposit para o usuário enviar print do depósito
-- aprovar/reprovar por ADMIN (gera VIP vitalício)
-- comandos manuais para enviar sinais por jogo
-Configurar variáveis de ambiente no Render:
-BOT_TOKEN, FREE_CHAT_ID, VIP_CHAT_ID, ADMIN_ID, AFFILIATE_LINK
-"""
-
-import os
-import json
-import asyncio
 import logging
-from datetime import datetime
-from random import choice, randint
-from pathlib import Path
-
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 
-
-# ----------------------------
-# Configuração / Ambiente
-# ----------------------------
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-FREE_CHAT_ID = int(os.getenv("FREE_CHAT_ID", "-1002808626127"))
-VIP_CHAT_ID = int(os.getenv("VIP_CHAT_ID", "-1003053055680"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
-AFFILIATE_LINK = os.getenv("AFFILIATE_LINK", "https://lkwn.cc/f1c1c45a")
-
-# 🔥 Novo: link VIP fixo e cupom
-VIP_INVITE_LINK = "https://t.me/+2R3sRz1ZUOwzODRh"
-VIP_COUPON = "GESTAO"
-
-ROOT = Path(__file__).parent
-IMAGES_DIR = ROOT / "imagens"
-VIP_DB = ROOT / "vip_users.json"
-DEPOSITS_DIR = ROOT / "deposits"
-
-# Cria pastas / db caso não existam
-DEPOSITS_DIR.mkdir(parents=True, exist_ok=True)
-if not VIP_DB.exists():
-    VIP_DB.write_text(json.dumps({"vip_users": []}, indent=2, ensure_ascii=False))
-
-# Config logging
-logging.basicConfig(level=logging.INFO)
+# Logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=BOT_TOKEN)
+# Token do bot (inserido diretamente)
+BOT_TOKEN = "7975008855:AAFQfTcSn3r5HiR0eXPaimJo0K3pX7osNfw"
 
-# ----------------------------
-# Utilitários
-# ----------------------------
-def load_vips():
-    try:
-        data = json.loads(VIP_DB.read_text(encoding="utf-8"))
-        return set(data.get("vip_users", []))
-    except Exception as e:
-        logger.error("Erro ao ler vip_users.json: %s", e)
-        return set()
+# IDs
+FREE_CHAT_ID = -1002808626127
+VIP_CHAT_ID = -1003053055680
+ADMIN_ID = 5011424031
 
-def save_vips(vips_set):
-    VIP_DB.write_text(json.dumps({"vip_users": list(vips_set)}, indent=2, ensure_ascii=False), encoding="utf-8")
+# ---------------------
+# Funções do Bot
+# ---------------------
 
-def is_vip(user_id: int) -> bool:
-    return str(user_id) in load_vips()
-
-def add_vip(user_id: int):
-    vips = load_vips()
-    vips.add(str(user_id))
-    save_vips(vips)
-
-def remove_vip(user_id: int):
-    vips = load_vips()
-    vips.discard(str(user_id))
-    save_vips(vips)
-
-def random_proof_image():
-    files = [p for p in IMAGES_DIR.iterdir() if p.is_file() and p.name.lower().startswith("prova")]
-    return choice(files) if files else None
-
-def random_win_image(kind="entrada"):
-    # kind: entrada, gale1, gale2, empate
-    mapping = {
-        "entrada": "win_entrada.png",
-        "gale1": "win_gale1.png",
-        "gale2": "win_gale2.png",
-        "empate": "win_empate.png",
-    }
-    p = IMAGES_DIR / mapping.get(kind, "win_entrada.png")
-    return p if p.exists() else None
-
-def scarcity_message_template():
-    return (
-        "🔥 *ACESSO VIP LIBERADO (vitalício)* 🔥\n\n"
-        "Parabéns! Sua prova foi aprovada — ✅ você acaba de garantir *ACESSO VITALÍCIO* ao clube VIP.\n\n"
-        "🔑 Use o *cupom GESTAO* para ativar seu VIP vitalício.\n\n"
-        f"👉 Entre agora: {VIP_INVITE_LINK}\n\n"
-        "📌 Lembre-se: dentro do VIP você terá sinais exclusivos, sorteios e bônus (verifique o canal VIP)."
-    )
-    # ----------------------------
-# Handlers / Fluxo principal
-# ----------------------------
-
+# Comando /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mensagem inicial do /start"""
-    msg = (
-        "👋 Olá, seja bem-vindo!\n\n"
-        "📌 Aqui você recebe sinais *GRÁTIS* todos os dias.\n\n"
-        f"🚀 Para ter acesso *VITALÍCIO* ao nosso grupo VIP exclusivo, use o cupom *{VIP_COUPON}*.\n\n"
-        f"👉 Link direto para o VIP: {VIP_INVITE_LINK}\n\n"
-        "🔥 Dentro do VIP você terá sinais premium, sorteios e bônus exclusivos."
+    chat_id = update.effective_chat.id
+    if chat_id == VIP_CHAT_ID:
+        text = "Bem-vindo, VIP! ⭐"
+    elif chat_id == FREE_CHAT_ID:
+        text = "Bem-vindo ao grupo FREE! ✅"
+    else:
+        text = "Olá! Você não está nos grupos FREE ou VIP."
+
+    keyboard = [
+        [InlineKeyboardButton("Visite nosso site", url="https://superfinds.com.br")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+# Comando /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "/start - Inicia o bot\n"
+        "/help - Mostra esta mensagem\n"
+        "Mais comandos serão adicionados em breve."
     )
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(text)
 
+# Comando de admin
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("Você não tem permissão para usar este comando.")
+        return
+    await update.message.reply_text("Olá, Admin! Comandos de controle disponíveis.")
 
-async def post_random_proof(context: ContextTypes.DEFAULT_TYPE):
-    """Posta prova social aleatória no canal FREE"""
-    img = random_proof_image()
-    if img:
-        caption = (
-            "📸 *Prova Social:*\n\n"
-            "Mais um membro lucrando com nossos sinais! 🚀\n\n"
-            f"👉 Quer também? Entre no VIP com o cupom *{VIP_COUPON}* e garanta acesso vitalício.\n"
-            f"{VIP_INVITE_LINK}"
-        )
-        await context.bot.send_photo(
-            chat_id=FREE_CHAT_ID,
-            photo=InputFile(img),
-            caption=caption,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔥 Entrar no VIP Vitalício", url=VIP_INVITE_LINK)]]
-            ),
-        )
-
-
-async def auto_signals_job(context: ContextTypes.DEFAULT_TYPE):
-    """Posta sinais automáticos em FREE e VIP"""
-    signal_text = (
-        "🎯 *SINAL AUTOMÁTICO*\n\n"
-        "✅ Entrada confirmada no BacBo!\n\n"
-        f"🚀 Quer mais sinais como esse? Entre no VIP agora com o cupom *{VIP_COUPON}* e tenha acesso vitalício:\n"
-        f"{VIP_INVITE_LINK}"
-    )
-
-    # FREE
-    await context.bot.send_message(
-        chat_id=FREE_CHAT_ID,
-        text=signal_text,
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔥 Acessar VIP Vitalício", url=VIP_INVITE_LINK)]]
-        ),
-    )
-
-    # VIP
-    await context.bot.send_message(
-        chat_id=VIP_CHAT_ID,
-        text="💎 *VIP EXCLUSIVO:*\n\n" + signal_text,
-        parse_mode="Markdown",
-    )
-
-
-async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Usuário envia print de depósito"""
-    if update.message.photo:
-        photo_file = await update.message.photo[-1].get_file()
-        filename = f"{DEPOSITS_DIR}/{update.message.from_user.id}_{datetime.now().timestamp()}.jpg"
-        await photo_file.download_to_drive(filename)
-
-        # Notifica admin para aprovar/reprovar
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("✅ Aprovar", callback_data=f"approve:{update.message.from_user.id}"),
-                    InlineKeyboardButton("❌ Reprovar", callback_data=f"reject:{update.message.from_user.id}"),
-                ]
-            ]
-        )
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=(
-                f"📥 Novo comprovante enviado por @{update.message.from_user.username or update.message.from_user.id}\n\n"
-                f"ID: {update.message.from_user.id}\n\n"
-                "Aprovar para liberar VIP vitalício."
-            ),
-            reply_markup=keyboard,
-        )
-        await update.message.reply_text(
-            "📌 Seu comprovante foi enviado! Aguarde aprovação do admin.\n\n"
-            f"Enquanto isso, já garanta sua vaga no VIP com o cupom *{VIP_COUPON}*:\n{VIP_INVITE_LINK}",
-            parse_mode="Markdown",
-        )
-
-
-async def callback_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin aprova/reprova comprovante"""
+# Callback de botão
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    await query.edit_message_text(text=f"Você clicou: {query.data}")
 
-    action, user_id = query.data.split(":")
-    user_id = int(user_id)
+# ---------------------
+# Função principal
+# ---------------------
 
-    if action == "approve":
-        add_vip(user_id)
-        msg = scarcity_message_template()
-        try:
-            await context.bot.send_message(chat_id=user_id, text=msg, parse_mode="Markdown")
-        except Exception as e:
-            logger.error("Erro ao enviar VIP msg para user %s: %s", user_id, e)
-        await query.edit_message_text(f"✅ Usuário {user_id} aprovado e liberado VIP vitalício.")
+def main():
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    elif action == "reject":
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="❌ Seu comprovante foi rejeitado. Tente novamente ou fale com o suporte."
-            )
-        except Exception as e:
-            logger.error("Erro ao enviar rejeição para user %s: %s", user_id, e)
-        await query.edit_message_text(f"❌ Usuário {user_id} foi rejeitado.")
-        # ----------------------------
-# Jobs, Handlers extras e Main
-# ----------------------------
-
-async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mensagem automática para novos membros no canal/grupo FREE"""
-    for member in update.message.new_chat_members:
-        msg = (
-            f"👋 Bem-vindo(a), {member.first_name}!\n\n"
-            "📌 Você já está no canal FREE, recebendo sinais todos os dias.\n\n"
-            f"🚀 Mas atenção: usando o cupom *{VIP_COUPON}* você garante acesso *VITALÍCIO* ao nosso VIP exclusivo.\n\n"
-            f"👉 Link direto para o VIP: {VIP_INVITE_LINK}\n\n"
-            "💎 Dentro do VIP você terá sinais premium, bônus secretos e suporte prioritário."
-        )
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=msg,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔥 Entrar no VIP Vitalício", url=VIP_INVITE_LINK)]]
-            ),
-        )
-
-
-def main() -> None:
-    """Inicia o bot com todos os handlers e jobs"""
-    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # --- Handlers de comandos ---
+    # Adiciona handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CallbackQueryHandler(button_callback))
 
-    # --- Handlers de mensagens ---
-    application.add_handler(MessageHandler(filters.PHOTO, handle_deposit))
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
-
-    # --- Handlers de callbacks (admin aprova/reprova) ---
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^approve:"), callback_admin_action))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^reject:"), callback_admin_action))
-
-    # --- Jobs automáticos ---
-    job_queue = application.job_queue
-    # Provas sociais no canal FREE a cada 3h
-    job_queue.run_repeating(post_random_proof, interval=10800, first=30)
-    # Sinais automáticos nos canais a cada 45min
-    job_queue.run_repeating(auto_signals_job, interval=2700, first=60)
-
-    # --- Rodando bot ---
+    # Inicia o bot
+    print("Bot iniciado...")
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()
