@@ -114,7 +114,7 @@ def scarcity_message_template():
         f"👉 Entre agora: {VIP_INVITE_LINK}\n\n"
         "📌 Lembre-se: dentro do VIP você terá sinais exclusivos, sorteios e bônus (verifique o canal VIP)."
     )
-# ----------------------------
+    # ----------------------------
 # Handlers / Fluxo principal
 # ----------------------------
 
@@ -236,3 +236,55 @@ async def callback_admin_action(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             logger.error("Erro ao enviar rejeição para user %s: %s", user_id, e)
         await query.edit_message_text(f"❌ Usuário {user_id} foi rejeitado.")
+        # ----------------------------
+# Jobs, Handlers extras e Main
+# ----------------------------
+
+async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mensagem automática para novos membros no canal/grupo FREE"""
+    for member in update.message.new_chat_members:
+        msg = (
+            f"👋 Bem-vindo(a), {member.first_name}!\n\n"
+            "📌 Você já está no canal FREE, recebendo sinais todos os dias.\n\n"
+            f"🚀 Mas atenção: usando o cupom *{VIP_COUPON}* você garante acesso *VITALÍCIO* ao nosso VIP exclusivo.\n\n"
+            f"👉 Link direto para o VIP: {VIP_INVITE_LINK}\n\n"
+            "💎 Dentro do VIP você terá sinais premium, bônus secretos e suporte prioritário."
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=msg,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔥 Entrar no VIP Vitalício", url=VIP_INVITE_LINK)]]
+            ),
+        )
+
+
+def main() -> None:
+    """Inicia o bot com todos os handlers e jobs"""
+    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # --- Handlers de comandos ---
+    application.add_handler(CommandHandler("start", start))
+
+    # --- Handlers de mensagens ---
+    application.add_handler(MessageHandler(filters.PHOTO, handle_deposit))
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+
+    # --- Handlers de callbacks (admin aprova/reprova) ---
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^approve:"), callback_admin_action))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^reject:"), callback_admin_action))
+
+    # --- Jobs automáticos ---
+    job_queue = application.job_queue
+    # Provas sociais no canal FREE a cada 3h
+    job_queue.run_repeating(post_random_proof, interval=10800, first=30)
+    # Sinais automáticos nos canais a cada 45min
+    job_queue.run_repeating(auto_signals_job, interval=2700, first=60)
+
+    # --- Rodando bot ---
+    application.run_polling()
+
+
+if __name__ == "__main__":
+    main()
