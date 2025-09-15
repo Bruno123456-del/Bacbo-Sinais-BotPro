@@ -18,7 +18,7 @@ from datetime import datetime
 from random import choice, randint
 from pathlib import Path
 
-from telegram.constants import ChatAction )
+from telegram.constants import ChatAction 
 
     Bot,
     Update,
