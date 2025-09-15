@@ -30,10 +30,8 @@ from telegram import (
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
-    CommandHandler
-)
-
-    filters,
+    CommandHandler,
+    filters
 )
 
 # ----------------------------
