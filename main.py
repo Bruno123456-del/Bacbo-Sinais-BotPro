@@ -1,90 +1,238 @@
-import os
-import logging
-import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-from messages import get_free_channel_message, get_vip_channel_signal
+# -*- coding: utf-8 -*-
+"""
+Main bot para BacBo/Sinais - Fluxo:
+- posts automáticos em canais FREE e VIP
+- testes de envio
+- comando /submitdeposit para o usuário enviar print do depósito
+- aprovar/reprovar por ADMIN (gera VIP vitalício)
+- comandos manuais para enviar sinais por jogo
+Configurar variáveis de ambiente no Render:
+BOT_TOKEN, FREE_CHAT_ID, VIP_CHAT_ID, ADMIN_ID, AFFILIATE_LINK
+"""
 
-# Configuração de logging
-logging.basicConfig(
-    format=\'%(asctime)s - %(name)s - %(levelname)s - %(message)s\',
-    level=logging.INFO
+import os
+import json
+import asyncio
+import logging
+from datetime import datetime
+from random import choice, randint
+from pathlib import Path
+
+from telegram import (
+    Bot,
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputFile,
+    ChatAction,
+)
+from telegram.ext import (
+    ApplicationBuilder,
+    ContextTypes,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
 )
 
-# Carregar variáveis de ambiente (essas serão configuradas no Render.com)
-TELEGRAM_BOT_TOKEN = os.getenv(\'TELEGRAM_BOT_TOKEN\', \'YOUR_BOT_TOKEN\')
-AFFILIATE_LINK = os.getenv(\'AFFILIATE_LINK\', \'https://win-agegate-promo-68.lovable.app/\')
-FREE_CHANNEL_ID = os.getenv(\'FREE_CHANNEL_ID\')
-VIP_CHANNEL_ID = os.getenv(\'VIP_CHANNEL_ID\')
+# ----------------------------
+# Configuração / Ambiente
+# ----------------------------
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+FREE_CHAT_ID = int(os.getenv("FREE_CHAT_ID", "-1002808626127"))
+VIP_CHAT_ID = int(os.getenv("VIP_CHAT_ID", "-1003053055680"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
+AFFILIATE_LINK = os.getenv("AFFILIATE_LINK", "https://lkwn.cc/f1c1c45a")
 
-# --- Funções do Bot ---
+# 🔥 Novo: link VIP fixo e cupom
+VIP_INVITE_LINK = "https://t.me/+2R3sRz1ZUOwzODRh"
+VIP_COUPON = "GESTAO"
+
+ROOT = Path(__file__).parent
+IMAGES_DIR = ROOT / "imagens"
+VIP_DB = ROOT / "vip_users.json"
+DEPOSITS_DIR = ROOT / "deposits"
+
+# Cria pastas / db caso não existam
+DEPOSITS_DIR.mkdir(parents=True, exist_ok=True)
+if not VIP_DB.exists():
+    VIP_DB.write_text(json.dumps({"vip_users": []}, indent=2, ensure_ascii=False))
+
+# Config logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+bot = Bot(token=BOT_TOKEN)
+
+# ----------------------------
+# Utilitários
+# ----------------------------
+def load_vips():
+    try:
+        data = json.loads(VIP_DB.read_text(encoding="utf-8"))
+        return set(data.get("vip_users", []))
+    except Exception as e:
+        logger.error("Erro ao ler vip_users.json: %s", e)
+        return set()
+
+def save_vips(vips_set):
+    VIP_DB.write_text(json.dumps({"vip_users": list(vips_set)}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+def is_vip(user_id: int) -> bool:
+    return str(user_id) in load_vips()
+
+def add_vip(user_id: int):
+    vips = load_vips()
+    vips.add(str(user_id))
+    save_vips(vips)
+
+def remove_vip(user_id: int):
+    vips = load_vips()
+    vips.discard(str(user_id))
+    save_vips(vips)
+
+def random_proof_image():
+    files = [p for p in IMAGES_DIR.iterdir() if p.is_file() and p.name.lower().startswith("prova")]
+    return choice(files) if files else None
+
+def random_win_image(kind="entrada"):
+    # kind: entrada, gale1, gale2, empate
+    mapping = {
+        "entrada": "win_entrada.png",
+        "gale1": "win_gale1.png",
+        "gale2": "win_gale2.png",
+        "empate": "win_empate.png",
+    }
+    p = IMAGES_DIR / mapping.get(kind, "win_entrada.png")
+    return p if p.exists() else None
+
+def scarcity_message_template():
+    return (
+        "🔥 *ACESSO VIP LIBERADO (vitalício)* 🔥\n\n"
+        "Parabéns! Sua prova foi aprovada — ✅ você acaba de garantir *ACESSO VITALÍCIO* ao clube VIP.\n\n"
+        "🔑 Use o *cupom GESTAO* para ativar seu VIP vitalício.\n\n"
+        f"👉 Entre agora: {VIP_INVITE_LINK}\n\n"
+        "📌 Lembre-se: dentro do VIP você terá sinais exclusivos, sorteios e bônus (verifique o canal VIP)."
+    )
+# ----------------------------
+# Handlers / Fluxo principal
+# ----------------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Envia uma mensagem de boas-vindas quando o comando /start é emitido."""
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Olá! Sou o bot que vai te ajudar a alcançar seus objetivos financeiros. Vamos começar?"
+    """Mensagem inicial do /start"""
+    msg = (
+        "👋 Olá, seja bem-vindo!\n\n"
+        "📌 Aqui você recebe sinais *GRÁTIS* todos os dias.\n\n"
+        f"🚀 Para ter acesso *VITALÍCIO* ao nosso grupo VIP exclusivo, use o cupom *{VIP_COUPON}*.\n\n"
+        f"👉 Link direto para o VIP: {VIP_INVITE_LINK}\n\n"
+        "🔥 Dentro do VIP você terá sinais premium, sorteios e bônus exclusivos."
+    )
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def post_random_proof(context: ContextTypes.DEFAULT_TYPE):
+    """Posta prova social aleatória no canal FREE"""
+    img = random_proof_image()
+    if img:
+        caption = (
+            "📸 *Prova Social:*\n\n"
+            "Mais um membro lucrando com nossos sinais! 🚀\n\n"
+            f"👉 Quer também? Entre no VIP com o cupom *{VIP_COUPON}* e garanta acesso vitalício.\n"
+            f"{VIP_INVITE_LINK}"
+        )
+        await context.bot.send_photo(
+            chat_id=FREE_CHAT_ID,
+            photo=InputFile(img),
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔥 Entrar no VIP Vitalício", url=VIP_INVITE_LINK)]]
+            ),
+        )
+
+
+async def auto_signals_job(context: ContextTypes.DEFAULT_TYPE):
+    """Posta sinais automáticos em FREE e VIP"""
+    signal_text = (
+        "🎯 *SINAL AUTOMÁTICO*\n\n"
+        "✅ Entrada confirmada no BacBo!\n\n"
+        f"🚀 Quer mais sinais como esse? Entre no VIP agora com o cupom *{VIP_COUPON}* e tenha acesso vitalício:\n"
+        f"{VIP_INVITE_LINK}"
     )
 
-async def post_to_free_channel(context: ContextTypes.DEFAULT_TYPE):
-    """Posta conteúdo periodicamente no canal gratuito."""
-    chat_id = FREE_CHANNEL_ID
-    
-    messages_to_send, reply_markup = get_free_channel_message(AFFILIATE_LINK)
-
-    for msg_content in messages_to_send:
-        if isinstance(msg_content, dict) and "image" in msg_content:
-            # Envia a imagem e o texto
-            with open(msg_content["image"], 'rb') as image_file:
-                await context.bot.send_photo(chat_id=chat_id, photo=InputFile(image_file), caption=msg_content["text"])
-        else:
-            # Envia apenas texto
-            await context.bot.send_message(chat_id=chat_id, text=msg_content, parse_mode=\'Markdown\')
-
-    # Botão para o link de afiliado (sempre no final)
+    # FREE
     await context.bot.send_message(
-        chat_id=chat_id,
-        text="👇 **Clique no botão abaixo para fazer seu cadastro, depositar e garantir sua vaga no VIP!**",
-        reply_markup=reply_markup,
-        parse_mode=\'Markdown\'
+        chat_id=FREE_CHAT_ID,
+        text=signal_text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🔥 Acessar VIP Vitalício", url=VIP_INVITE_LINK)]]
+        ),
     )
 
-async def post_to_vip_channel(context: ContextTypes.DEFAULT_TYPE):
-    """Posta sinais periodicamente no canal VIP."""
-    chat_id = VIP_CHANNEL_ID
-    signal_text, cta_text = get_vip_channel_signal()
-    await context.bot.send_message(chat_id=chat_id, text=signal_text, parse_mode=\'Markdown\')
-    await context.bot.send_message(chat_id=chat_id, text=cta_text)
-
-async def handle_deposit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Lida com o recebimento de imagens (provas de depósito)."""
-    user = update.effective_user
+    # VIP
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f"Olá, {user.first_name}! Recebi sua imagem. Nossa equipe irá verificar seu depósito em breve. Se tudo estiver correto, você receberá o link de acesso ao Canal VIP e seus e-books. Obrigado!"
+        chat_id=VIP_CHAT_ID,
+        text="💎 *VIP EXCLUSIVO:*\n\n" + signal_text,
+        parse_mode="Markdown",
     )
-    # Aqui, você poderia notificar um administrador para verificar a imagem manualmente.
 
-def main() -> None:
-    """Inicia o bot e configura os handlers e jobs."""
-    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # Handlers de comando
-    application.add_handler(CommandHandler("start", start))
+async def handle_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Usuário envia print de depósito"""
+    if update.message.photo:
+        photo_file = await update.message.photo[-1].get_file()
+        filename = f"{DEPOSITS_DIR}/{update.message.from_user.id}_{datetime.now().timestamp()}.jpg"
+        await photo_file.download_to_drive(filename)
 
-    # Handler para imagens (comprovantes de depósito)
-    application.add_handler(MessageHandler(filters.PHOTO, handle_deposit_proof))
+        # Notifica admin para aprovar/reprovar
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("✅ Aprovar", callback_data=f"approve:{update.message.from_user.id}"),
+                    InlineKeyboardButton("❌ Reprovar", callback_data=f"reject:{update.message.from_user.id}"),
+                ]
+            ]
+        )
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=(
+                f"📥 Novo comprovante enviado por @{update.message.from_user.username or update.message.from_user.id}\n\n"
+                f"ID: {update.message.from_user.id}\n\n"
+                "Aprovar para liberar VIP vitalício."
+            ),
+            reply_markup=keyboard,
+        )
+        await update.message.reply_text(
+            "📌 Seu comprovante foi enviado! Aguarde aprovação do admin.\n\n"
+            f"Enquanto isso, já garanta sua vaga no VIP com o cupom *{VIP_COUPON}*:\n{VIP_INVITE_LINK}",
+            parse_mode="Markdown",
+        )
 
-    # Jobs agendados para postar nos canais
-    job_queue = application.job_queue
-    # Posta no canal Free a cada 2 horas (7200 segundos)
-    job_queue.run_repeating(post_to_free_channel, interval=7200, first=10)
-    # Posta no canal VIP a cada 30 minutos (1800 segundos)
-    job_queue.run_repeating(post_to_vip_channel, interval=1800, first=20)
 
-    # Inicia o bot
-    application.run_polling()
+async def callback_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin aprova/reprova comprovante"""
+    query = update.callback_query
+    await query.answer()
 
-if __name__ == \'__main__\':
-    main()
+    action, user_id = query.data.split(":")
+    user_id = int(user_id)
 
+    if action == "approve":
+        add_vip(user_id)
+        msg = scarcity_message_template()
+        try:
+            await context.bot.send_message(chat_id=user_id, text=msg, parse_mode="Markdown")
+        except Exception as e:
+            logger.error("Erro ao enviar VIP msg para user %s: %s", user_id, e)
+        await query.edit_message_text(f"✅ Usuário {user_id} aprovado e liberado VIP vitalício.")
+
+    elif action == "reject":
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="❌ Seu comprovante foi rejeitado. Tente novamente ou fale com o suporte."
+            )
+        except Exception as e:
+            logger.error("Erro ao enviar rejeição para user %s: %s", user_id, e)
+        await query.edit_message_text(f"❌ Usuário {user_id} foi rejeitado.")
