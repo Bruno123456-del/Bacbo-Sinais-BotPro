@@ -2,7 +2,8 @@
 flask
 
 # Biblioteca principal do Telegram e suas extensões para tarefas agendadas
-python-telegram-bot[job-queue]
+python-telegram-bot==13.15
+
 
 # Para carregar variáveis de ambiente (boa prática, embora o Render já faça isso)
 python-dotenv
