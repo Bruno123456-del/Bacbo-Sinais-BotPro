@@ -1,10 +1,6 @@
-# Framework web para receber o webhook
-flask
-# Biblioteca principal do Telegram e suas extensões para tarefas agendadas
-python-telegram-bot>=20.0
-# Para carregar variáveis de ambiente (boa prática, embora o Render já faça isso)
-python-dotenv
-# Servidor web assíncrono, compatível com asyncio (substituto do gunicorn)
-hypercorn
-# Melhora a performance do asyncio (opcional, mas recomendado)
-uvloop
+python-telegram-bot==22.4
+requests==2.31.0
+schedule==1.2.2
+flask==3.0.0
+flask-cors==4.0.0
+asyncio
