@@ -59,7 +59,7 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 
 # Logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", 
     level=logging.INFO
 )
 logger = logging.getLogger("bot_main")
@@ -160,7 +160,7 @@ IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPr
 
 PROVAS_SOCIAIS = [
     f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png"
-    for i in range(1, 20)
+    for i in range(1, 20 )
 ]
 
 # Frases humanizadas
@@ -428,76 +428,59 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
 [**🚀 ACESSAR PLATAFORMA**]({URL_CADASTRO_DEPOSITO})
 """
         
-        if target_id == VIP_CANAL_ID:
-            mensagem_sinal += "\n\n💎 **EXCLUSIVO VIP**"
-        else:
-            mensagem_sinal += "\n\n🆓 **Sinal Gratuito**"
+        if target_id == VIP_CANA
+L_ID:
+            mensagem_sinal += f"\n\n**Atenção:** Este é um sinal exclusivo para membros VIP. A assertividade e frequência são maiores no nosso grupo principal."
         
-        await context.bot.send_message(
+        msg_sinal = await context.bot.send_message(
             chat_id=target_id,
             text=mensagem_sinal,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=False
         )
         
-        # Estatísticas
-        bd[f'sinais_{channel_type}'] += 1
-        bd[f'daily_sinais_{channel_type}'] += 1
+        bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
+        bd[f'daily_sinais_{channel_type}'] = bd.get(f'daily_sinais_{channel_type}', 0) + 1
+
+        # Simulação de resultado
+        await asyncio.sleep(random.randint(240, 480)) # 4 a 8 minutos
         
-        # Resultado
-        await asyncio.sleep(random.randint(60, 90))
+        resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=assertividade, k=1)[0]
         
-        if confianca > 0.8:
-            assertividade_ajustada = [assertividade[0] + 5, assertividade[1], max(0, assertividade[2] - 5)]
-        else:
-            assertividade_ajustada = assertividade
-        
-        resultado = random.choices(
-            ["win_primeira", "win_gale", "loss"], 
-            weights=assertividade_ajustada, 
-            k=1
-        )[0]
-        
-        bd[f'{resultado}_{channel_type}'] += 1
-        bd[f'daily_{resultado}_{channel_type}'] += 1
-        
-        # Mensagem resultado
         if resultado == "win_primeira":
-            gif_vitoria = random.choice(GIFS_VITORIA)
-            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro no {jogo}! 🤑"
-            await context.bot.send_animation(chat_id=target_id, animation=gif_vitoria, caption=caption)
-            
+            bd[f'win_primeira_{channel_type}'] = bd.get(f'win_primeira_{channel_type}', 0) + 1
+            bd[f'daily_win_primeira_{channel_type}'] = bd.get(f'daily_win_primeira_{channel_type}', 0) + 1
+            gif_resultado = random.choice(GIFS_VITORIA)
+            texto_resultado = "✅✅✅ GREEN! ✅✅✅"
         elif resultado == "win_gale":
-            caption = f"✅ **GREEN NO GALE!** ✅\n\nRecuperação perfeita no {jogo}! 💪"
-            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE, caption=caption)
-            
-        else:
-            caption = f"❌ **RED!** ❌\n\nFaz parte! Vamos para a próxima no {jogo}! 🔄"
-            await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
-        
-        # Placar
-        greens = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
-        reds = bd.get(f'daily_loss_{channel_type}', 0)
-        assertividade_dia = (greens / max(greens + reds, 1)) * 100
-        
-        placar = f"""
-📊 **PLACAR HOJE ({channel_type.upper()}):**
-✅ Greens: {greens} | ❌ Reds: {reds}  
-📈 Assertividade: {assertividade_dia:.1f}%
-"""
-        
-        await context.bot.send_message(chat_id=target_id, text=placar, parse_mode=ParseMode.MARKDOWN)
-        
+            bd[f'win_gale_{channel_type}'] = bd.get(f'win_gale_{channel_type}', 0) + 1
+            bd[f'daily_win_gale_{channel_type}'] = bd.get(f'daily_win_gale_{channel_type}', 0) + 1
+            gif_resultado = IMG_GALE
+            texto_resultado = "✅✅ GREEN NO GALE 1 ✅✅"
+        else: # loss
+            bd[f'loss_{channel_type}'] = bd.get(f'loss_{channel_type}', 0) + 1
+            bd[f'daily_loss_{channel_type}'] = bd.get(f'daily_loss_{channel_type}', 0) + 1
+            gif_resultado = GIF_RED
+            texto_resultado = "❌❌ RED! ❌❌"
+
+        await context.bot.send_animation(
+            chat_id=target_id,
+            animation=gif_resultado,
+            caption=texto_resultado,
+            reply_to_message_id=msg_sinal.message_id
+        )
+
     except Exception as e:
-        logger.error(f"Erro no sinal {jogo}: {e}")
+        logger.error(f"Erro ao enviar sinal para {jogo} em {target_id}: {e}")
     finally:
         bd[guard_key] = False
+        await asyncio.sleep(120) # Cooldown de 2 minutos
 
-# --- CALLBACKS ---
+# --- CALLBACK HANDLER ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
-    user = update.effective_user
+    user = query.effective_user
     nome = user.first_name or "Amigo"
     data = query.data
     
@@ -554,7 +537,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = [
             [InlineKeyboardButton("🚀 FAZER DEPÓSITO", url=URL_CADASTRO_DEPOSITO)],
-            [InlineKeyboardButton("💬 SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '')}")]
+            [InlineKeyboardButton("💬 SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -718,4 +701,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
