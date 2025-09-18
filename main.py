@@ -12,8 +12,9 @@ import asyncio
 import threading
 from datetime import time as dt_time, timedelta, datetime
 import json
+from sistema_conversao_vip import SistemaConversaoVIP
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, PicklePersistence,
@@ -46,6 +47,8 @@ def start_flask():
     port = int(os.getenv("PORT", "10000"))
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
 
+sistema_conversao = None # Variável global para a instância do SistemaConversaoVIP
+
 # --- CONFIGURAÇÕES ---
 BOT_TOKEN = "7975008855:AAFQfTcSn3r5HiR0eXPaimJo0K3pX7osNfw"
 FREE_CANAL_ID = -1002808626127  # Apostas Milionárias Free 🔥
@@ -59,7 +62,7 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 
 # Logging
 logging.basicConfig(
-    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s", 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     level=logging.INFO
 )
 logger = logging.getLogger("bot_main")
@@ -160,7 +163,7 @@ IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPr
 
 PROVAS_SOCIAIS = [
     f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{i}.png"
-    for i in range(1, 20 )
+    for i in range(1, 20)
 ]
 
 # Frases humanizadas
@@ -403,11 +406,15 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         
         # Análise
         gif_analise = random.choice(GIFS_ANALISE)
-        await context.bot.send_animation(
-            chat_id=target_id,
-            animation=gif_analise,
-            caption=frase_analise
-        )
+        try:
+            await context.bot.send_animation(
+                chat_id=target_id,
+                animation=gif_analise,
+                caption=frase_analise
+            )
+        except error.BadRequest as e:
+            logger.error(f"Erro ao enviar GIF de análise para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+            return
         
         await asyncio.sleep(random.randint(8, 15))
         
@@ -428,59 +435,96 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
 [**🚀 ACESSAR PLATAFORMA**]({URL_CADASTRO_DEPOSITO})
 """
         
-        if target_id == VIP_CANA
-L_ID:
-            mensagem_sinal += f"\n\n**Atenção:** Este é um sinal exclusivo para membros VIP. A assertividade e frequência são maiores no nosso grupo principal."
+        if target_id == VIP_CANAL_ID:
+            mensagem_sinal += "\n\n💎 **EXCLUSIVO VIP**"
+        else:
+            mensagem_sinal += "\n\n🆓 **Sinal Gratuito**"
         
-        msg_sinal = await context.bot.send_message(
-            chat_id=target_id,
-            text=mensagem_sinal,
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=False
-        )
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=mensagem_sinal,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except error.BadRequest as e:
+            logger.error(f"Erro ao enviar sinal para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+            return
         
-        bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
-        bd[f'daily_sinais_{channel_type}'] = bd.get(f'daily_sinais_{channel_type}', 0) + 1
-
-        # Simulação de resultado
-        await asyncio.sleep(random.randint(240, 480)) # 4 a 8 minutos
+        # Estatísticas
+        bd[f'sinais_{channel_type}'] += 1
+        bd[f'daily_sinais_{channel_type}'] += 1
         
-        resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=assertividade, k=1)[0]
+        # Resultado
+        await asyncio.sleep(random.randint(60, 90))
         
+        if confianca > 0.8:
+            assertividade_ajustada = [assertividade[0] + 5, assertividade[1], max(0, assertividade[2] - 5)]
+        else:
+            assertividade_ajustada = assertividade
+        
+        resultado = random.choices(
+            ["win_primeira", "win_gale", "loss"], 
+            weights=assertividade_ajustada, 
+            k=1
+        )[0]
+        
+        bd[f'{resultado}_{channel_type}'] += 1
+        bd[f'daily_{resultado}_{channel_type}'] += 1
+        
+        # Mensagem resultado
         if resultado == "win_primeira":
-            bd[f'win_primeira_{channel_type}'] = bd.get(f'win_primeira_{channel_type}', 0) + 1
-            bd[f'daily_win_primeira_{channel_type}'] = bd.get(f'daily_win_primeira_{channel_type}', 0) + 1
-            gif_resultado = random.choice(GIFS_VITORIA)
-            texto_resultado = "✅✅✅ GREEN! ✅✅✅"
+            gif_vitoria = random.choice(GIFS_VITORIA)
+            caption = f"✅✅✅ **GREEN NA PRIMEIRA!** ✅✅✅\n\nQue tiro certeiro no {jogo}! 🤑"
+            try:
+                await context.bot.send_animation(chat_id=target_id, animation=gif_vitoria, caption=caption)
+            except error.BadRequest as e:
+                logger.error(f"Erro ao enviar GIF de vitória para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+                return
+            
         elif resultado == "win_gale":
-            bd[f'win_gale_{channel_type}'] = bd.get(f'win_gale_{channel_type}', 0) + 1
-            bd[f'daily_win_gale_{channel_type}'] = bd.get(f'daily_win_gale_{channel_type}', 0) + 1
-            gif_resultado = IMG_GALE
-            texto_resultado = "✅✅ GREEN NO GALE 1 ✅✅"
-        else: # loss
-            bd[f'loss_{channel_type}'] = bd.get(f'loss_{channel_type}', 0) + 1
-            bd[f'daily_loss_{channel_type}'] = bd.get(f'daily_loss_{channel_type}', 0) + 1
-            gif_resultado = GIF_RED
-            texto_resultado = "❌❌ RED! ❌❌"
-
-        await context.bot.send_animation(
-            chat_id=target_id,
-            animation=gif_resultado,
-            caption=texto_resultado,
-            reply_to_message_id=msg_sinal.message_id
-        )
-
+            caption = f"✅ **GREEN NO GALE!** ✅\n\nRecuperação perfeita no {jogo}! 💪"
+            try:
+                await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE, caption=caption)
+            except error.BadRequest as e:
+                logger.error(f"Erro ao enviar foto de gale para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+                return
+            
+        else:
+            caption = f"❌ **RED!** ❌\n\nFaz parte! Vamos para a próxima no {jogo}! 🔄"
+            try:
+                await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=caption)
+            except error.BadRequest as e:
+                logger.error(f"Erro ao enviar GIF de RED para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+                return
+        
+        # Placar
+        greens = bd.get(f'daily_win_primeira_{channel_type}', 0) + bd.get(f'daily_win_gale_{channel_type}', 0)
+        reds = bd.get(f'daily_loss_{channel_type}', 0)
+        assertividade_dia = (greens / max(greens + reds, 1)) * 100
+        
+        placar = f"""
+📊 **PLACAR HOJE ({channel_type.upper()}):**
+✅ Greens: {greens} | ❌ Reds: {reds}  
+📈 Assertividade: {assertividade_dia:.1f}%
+"""
+        
+        try:
+            await context.bot.send_message(chat_id=target_id, text=placar, parse_mode=ParseMode.MARKDOWN)
+        except error.BadRequest as e:
+            logger.error(f"Erro ao enviar placar para {target_id}: {e}. Verifique o ID do canal e as permissões do bot.")
+            return
+        
     except Exception as e:
-        logger.error(f"Erro ao enviar sinal para {jogo} em {target_id}: {e}")
+        logger.error(f"Erro no sinal {jogo}: {e}")
     finally:
         bd[guard_key] = False
-        await asyncio.sleep(120) # Cooldown de 2 minutos
 
-# --- CALLBACK HANDLER ---
+# --- CALLBACKS ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user = query.effective_user
+    
+    user = update.effective_user
     nome = user.first_name or "Amigo"
     data = query.data
     
@@ -537,7 +581,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = [
             [InlineKeyboardButton("🚀 FAZER DEPÓSITO", url=URL_CADASTRO_DEPOSITO)],
-            [InlineKeyboardButton("💬 SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
+            [InlineKeyboardButton("💬 SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '')}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -612,62 +656,82 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- AGENDAMENTOS ---
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
+    global sistema_conversao
+    if not sistema_conversao:
+        logger.error("SistemaConversaoVIP não inicializado.")
+        return
+
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
-    confianca = random.uniform(0.7, 0.85)
+    confianca_free = random.uniform(0.65, 0.80) # Confiança um pouco menor para o FREE
+    confianca_vip = min(confianca_free + random.uniform(0.05, 0.15), 0.95) # Confiança maior para o VIP
     
-    # FREE
-    await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca)
-    
-    # VIP (com confiança maior)
-    await asyncio.sleep(1800)  # 30 min depois
-    await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, min(confianca + 0.1, 0.9))
+    # Enviar para o canal FREE
+    try:
+        await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_free)
+        logger.info(f"Sinal automático de {jogo} enviado para FREE com confiança {confianca_free:.2f}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar sinal para FREE_CANAL_ID: {e}")
+
+    # Enviar para o canal VIP
+    try:
+        await asyncio.sleep(random.randint(300, 900)) # Atraso de 5 a 15 minutos para o VIP
+        await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, confianca_vip)
+        logger.info(f"Sinal automático de {jogo} enviado para VIP com confiança {confianca_vip:.2f}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar sinal para VIP_CANAL_ID: {e}")
+
+    # Enviar oferta estratégica para o FREE após um tempo
+    if random.random() < 0.6: # 60% de chance de enviar uma oferta (aumentado de 30%)
+        await asyncio.sleep(random.randint(300, 900)) # Atraso de 5 a 15 minutos (reduzido)
+        try:
+            await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
+            logger.info("Campanha de escassez extrema enviada para FREE.")
+        except Exception as e:
+            logger.error(f"Erro ao enviar campanha de escassez para FREE_CANAL_ID: {e}")
 
 async def enviar_prova_social(context: ContextTypes.DEFAULT_TYPE):
+    global sistema_conversao
+    if not sistema_conversao:
+        logger.error("SistemaConversaoVIP não inicializado.")
+        return
+
     try:
-        imagem = random.choice(PROVAS_SOCIAIS)
-        jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
-        
-        mensagens = [
-            f"🔥 **MAIS UM GREEN!** 🔥\n\nMembro VIP lucrando no {jogo}! 💰\n\nE você? Vai ficar de fora?",
-            f"💎 **RESULTADO VIP!** 💎\n\nMais uma vitória no {jogo}! 📈\n\nIsso é o poder da nossa IA!",
-            f"🎯 **PRECISÃO TOTAL!** 🎯\n\nNossa análise do {jogo} foi perfeita! ✅\n\nResultados diários no VIP!"
-        ]
-        
-        mensagem = random.choice(mensagens)
-        vagas = random.randint(3, 8)
-        
-        mensagem_completa = f"""
-{mensagem}
-
-🚨 **{vagas} VAGAS VIP RESTANTES!**
-
-👇 **GARANTIR AGORA** 👇
-[**💎 ACESSAR VIP**]({URL_CADASTRO_DEPOSITO})
-"""
-        
-        await context.bot.send_photo(
-            chat_id=FREE_CANAL_ID,
-            photo=imagem,
-            caption=mensagem_completa,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        
+        await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
+        logger.info("Prova social enviada para FREE.")
     except Exception as e:
-        logger.error(f"Erro prova social: {e}")
+        logger.error(f"Erro ao enviar prova social para FREE_CANAL_ID: {e}")
+
+async def enviar_campanha_escassez_periodica(context: ContextTypes.DEFAULT_TYPE):
+    global sistema_conversao
+    if not sistema_conversao:
+        logger.error("SistemaConversaoVIP não inicializado.")
+        return
+
+    try:
+        await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
+        logger.info("Campanha de escassez periódica enviada para FREE.")
+    except Exception as e:
+        logger.error(f"Erro ao enviar campanha de escassez periódica para FREE_CANAL_ID: {e}")
 
 def configurar_agendamentos(app: Application):
     jq = app.job_queue
     
-    # Sinais automáticos a cada 2 horas
-    jq.run_repeating(enviar_sinal_automatico, interval=3600 * 2, first=300)
+    # Sinais automáticos a cada 45 minutos (mais frequente para gerar vontade)
+    jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=300)
     
-    # Provas sociais a cada 4 horas
-    jq.run_repeating(enviar_prova_social, interval=3600 * 4, first=600)
+    # Provas sociais a cada 1.5 horas (mais frequente para conversão)
+    jq.run_repeating(enviar_prova_social, interval=90 * 60, first=600)
+    
+    # Campanhas de escassez a cada 3 horas (para manter pressão)
+    jq.run_repeating(enviar_campanha_escassez_periodica, interval=3 * 3600, first=1800)
 
 # --- APLICAÇÃO PRINCIPAL ---
 def build_application() -> Application:
     persistence = PicklePersistence(filepath="bot_data.pkl")
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    global sistema_conversao
+    sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM)
 
     # Comandos
     app.add_handler(CommandHandler("start", start_command))
