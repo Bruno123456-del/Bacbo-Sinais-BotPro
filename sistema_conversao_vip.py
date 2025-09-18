@@ -53,16 +53,16 @@ class SistemaConversaoVIP:
         
         # Verificar se usuário já foi convertido recentemente
         if user_id in self.usuarios_convertidos:
-            ultimo_contato = self.usuarios_convertidos[user_id].get('ultimo_contato')
+            ultimo_contato = self.usuarios_convertidos[user_id].get("ultimo_contato")
             if ultimo_contato and (datetime.now() - ultimo_contato).seconds < 3600:  # 1 hora
                 return
         
         # Registrar tentativa de conversão
         self.usuarios_convertidos[user_id] = {
-            'nome': nome_usuario,
-            'contexto': contexto,
-            'ultimo_contato': datetime.now(),
-            'tentativas': self.usuarios_convertidos.get(user_id, {}).get('tentativas', 0) + 1
+            "nome": nome_usuario,
+            "contexto": contexto,
+            "ultimo_contato": datetime.now(),
+            "tentativas": self.usuarios_convertidos.get(user_id, {}).get("tentativas", 0) + 1
         }
         
         # Executar sequência de conversão baseada no contexto
@@ -176,9 +176,6 @@ No nosso e-book exclusivo "Juros Compostos nas Apostas", você aprende exatament
 
 **Esta mensagem será DELETADA em 2 horas!**
 """,
-                "botao": "⚡ ÚLTIMA CHANCE
-
-
                 "botao": "⚡ ÚLTIMA CHANCE - QUERO VIP!"
             }
         ]
@@ -279,7 +276,7 @@ https://t.me/+q2CCKi1CKmljMTFh
 💻 MacBook Pro 16"
 📱 iPhone 16 Pro Max
 
-📅 **Seu VIP expira em:** {data_expiracao.strftime('%d/%m/%Y')}
+📅 **Seu VIP expira em:** {data_expiracao.strftime("%d/%m/%Y")}
 
 **Bem-vindo à elite que realmente lucra! Prepare-se para uma nova realidade financeira!** 🏆
 
@@ -290,14 +287,14 @@ https://t.me/+q2CCKi1CKmljMTFh
         
         # Registrar conversão
         bd = self.context.bot_data
-        bd['conversoes_vip'] = bd.get('conversoes_vip', 0) + 1
+        bd["conversoes_vip"] = bd.get("conversoes_vip", 0) + 1
         
         # Registrar usuário VIP
-        bd.setdefault('usuarios_vip', {})[user_id] = {
-            'nome': nome_usuario,
-            'data_ativacao': datetime.now(),
-            'data_expiracao': data_expiracao,
-            'ativo': True
+        bd.setdefault("usuarios_vip", {})[user_id] = {
+            "nome": nome_usuario,
+            "data_ativacao": datetime.now(),
+            "data_expiracao": data_expiracao,
+            "ativo": True
         }
         
         logger.info(f"Usuário {nome_usuario} ({user_id}) convertido para VIP por {self.dias_vip_gratuitos} dias")
@@ -333,12 +330,11 @@ Nossos membros VIP estão lucrando consistentemente enquanto você ainda está n
 • Lamborghini Urus (sorteio)
 • E-books de Gestão de Banca e Juros Compostos
 • {self.dias_vip_gratuitos} dias VIP GRATUITOS
+• Giros grátis e loterias exclusivas
 
-**"Somos feitos das oportunidades que tivemos e das escolhas que fizemos!"**
+**Não seja mais um que vai se arrepender de não ter agido quando teve a chance!**
 
-**Esta é SUA chance de lucrar como os grandes fundos fazem!**
-
-**RESTAM APENAS {max(self.vagas_restantes - 5, 12)} VAGAS!**
+**Esta mensagem será DELETADA em 2 horas!**
 """,
                 "botao": "🚀 GARANTIR VAGA AGORA!"
             },
@@ -420,16 +416,16 @@ Aprenda este segredo no nosso e-book exclusivo VIP!
         """Verifica e atualiza status dos usuários VIP"""
         
         bd = self.context.bot_data
-        usuarios_vip = bd.get('usuarios_vip', {})
+        usuarios_vip = bd.get("usuarios_vip", {})
         
         for user_id, dados in usuarios_vip.items():
-            if dados.get('ativo') and dados.get('data_expiracao'):
-                if datetime.now() > dados['data_expiracao']:
+            if dados.get("ativo") and dados.get("data_expiracao"):
+                if datetime.now() > dados["data_expiracao"]:
                     # VIP expirado
-                    dados['ativo'] = False
+                    dados["ativo"] = False
                     
                     # Enviar mensagem de renovação
-                    await self._enviar_mensagem_renovacao_vip(user_id, dados['nome'])
+                    await self._enviar_mensagem_renovacao_vip(user_id, dados["nome"])
 
     async def _enviar_mensagem_renovacao_vip(self, user_id: int, nome_usuario: str):
         """Envia mensagem de renovação VIP"""
@@ -449,82 +445,115 @@ Mas não se preocupe! Você pode renovar agora com condições especiais para ex
 """
         
         keyboard = [
-            [{"text": "🔄 RENOVAR VIP COM DESCONTO!", "url": self.url_afiliado}]
+            [{"text": "🚀 RENOVAR MEU VIP AGORA!", "url": self.url_afiliado}],
+            [{"text": "💬 FALAR COM SUPORTE", "url": f"https://t.me/{self.suporte_telegram.replace('@', '')}"}]
         ]
         
         await self._enviar_mensagem_conversao(user_id, mensagem_renovacao, keyboard)
 
-    async def _enviar_mensagem_conversao(self, chat_id: int, mensagem: str, keyboard: List[List[Dict]]):
-        """Envia mensagem com teclado para conversão"""
-        
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        
-        telegram_keyboard = []
-        for row in keyboard:
-            telegram_row = []
-            for button in row:
-                if "url" in button:
-                    telegram_row.append(InlineKeyboardButton(button["text"], url=button["url"]))
-                else:
-                    telegram_row.append(InlineKeyboardButton(button["text"], callback_data=button["callback_data"]))
-            telegram_keyboard.append(telegram_row)
-        
-        reply_markup = InlineKeyboardMarkup(telegram_keyboard)
-        
+    async def _enviar_mensagem_conversao(self, chat_id: int, texto: str, keyboard: List[Dict]):
+        """Função auxiliar para enviar mensagens com botões"""
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(text=btn["text"], url=btn["url"]) for btn in keyboard[0]]])
         await self.context.bot.send_message(
             chat_id=chat_id,
-            text=mensagem,
+            text=texto,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode=ParseMode.MARKDOWN
         )
 
-    async def _enviar_mensagem_simples(self, chat_id: int, mensagem: str):
-        """Envia mensagem simples sem teclado"""
-        
+    async def _enviar_mensagem_simples(self, chat_id: int, texto: str):
+        """Função auxiliar para enviar mensagens simples"""
         await self.context.bot.send_message(
             chat_id=chat_id,
-            text=mensagem,
-            parse_mode="Markdown"
+            text=texto,
+            parse_mode=ParseMode.MARKDOWN
         )
 
-    async def _enviar_foto_conversao(self, chat_id: int, foto_url: str, mensagem: str, keyboard: List[List[Dict]]):
-        """Envia foto com mensagem e teclado para conversão"""
-        
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        
-        telegram_keyboard = []
-        for row in keyboard:
-            telegram_row = []
-            for button in row:
-                if "url" in button:
-                    telegram_row.append(InlineKeyboardButton(button["text"], url=button["url"]))
-                else:
-                    telegram_row.append(InlineKeyboardButton(button["text"], callback_data=button["callback_data"]))
-            telegram_keyboard.append(telegram_row)
-        
-        reply_markup = InlineKeyboardMarkup(telegram_keyboard)
-        
+    async def _enviar_foto_conversao(self, chat_id: int, foto_url: str, caption: str, keyboard: List[Dict]):
+        """Função auxiliar para enviar fotos com botões"""
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(text=btn["text"], url=btn["url"]) for btn in keyboard[0]]])
         await self.context.bot.send_photo(
             chat_id=chat_id,
             photo=foto_url,
-            caption=mensagem,
+            caption=caption,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode=ParseMode.MARKDOWN
         )
 
-    def get_estatisticas_conversao(self) -> Dict:
-        """Retorna estatísticas de conversão"""
-        
-        bd = self.context.bot_data
-        usuarios_unicos = len(bd.get('usuarios_unicos', set()))
-        conversoes = bd.get('conversoes_vip', 0)
-        usuarios_vip_ativos = len([u for u in bd.get('usuarios_vip', {}).values() if u.get('ativo')])
-        
-        return {
-            'usuarios_unicos': usuarios_unicos,
-            'conversoes_total': conversoes,
-            'usuarios_vip_ativos': usuarios_vip_ativos,
-            'taxa_conversao': (conversoes / max(usuarios_unicos, 1)) * 100,
-            'vagas_restantes': self.vagas_restantes,
-            'codigo_promocional': self.codigo_promocional
+    async def _enviar_gif_conversao(self, chat_id: int, gif_url: str, caption: str, keyboard: List[Dict]):
+        """Função auxiliar para enviar GIFs com botões"""
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(text=btn["text"], url=btn["url"]) for btn in keyboard[0]]])
+        await self.context.bot.send_animation(
+            chat_id=chat_id,
+            animation=gif_url,
+            caption=caption,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+
+# Exemplo de uso (se necessário para testes)
+async def main_test():
+    # Isso é apenas um placeholder para o contexto do bot
+    class MockBotContext:
+        def __init__(self):
+            self.bot_data = {}
+            self.bot = self
+
+        async def send_message(self, chat_id, text, reply_markup=None, parse_mode=None):
+            print(f"[MOCK BOT] Mensagem para {chat_id}:\n{text}")
+            if reply_markup:
+                print(f"[MOCK BOT] Botões: {reply_markup.inline_keyboard}")
+
+        async def send_photo(self, chat_id, photo, caption, reply_markup=None, parse_mode=None):
+            print(f"[MOCK BOT] Foto para {chat_id}: {photo}\nLegenda: {caption}")
+            if reply_markup:
+                print(f"[MOCK BOT] Botões: {reply_markup.inline_keyboard}")
+
+        async def send_animation(self, chat_id, animation, caption, reply_markup=None, parse_mode=None):
+            print(f"[MOCK BOT] GIF para {chat_id}: {animation}\nLegenda: {caption}")
+            if reply_markup:
+                print(f"[MOCK BOT] Botões: {reply_markup.inline_keyboard}")
+
+    mock_context = MockBotContext()
+    url_afiliado_mock = "https://exemplo.com/afiliado"
+    suporte_telegram_mock = "@suporte_mock"
+
+    sistema_conversao = SistemaConversaoVIP(mock_context, url_afiliado_mock, suporte_telegram_mock)
+
+    user_id_test = 123456789
+    nome_usuario_test = "Testador"
+
+    print("\n--- Teste de Conversão Completa (Urgência) ---")
+    await sistema_conversao.processar_conversao_completa(user_id_test, nome_usuario_test, "urgencia")
+
+    print("\n--- Teste de Processamento de Comprovante ---")
+    await sistema_conversao.processar_comprovante_deposito(user_id_test, nome_usuario_test)
+
+    print("\n--- Teste de Campanha de Escassez Extrema ---")
+    await sistema_conversao.executar_campanha_escassez_extrema(-100123456789) # ID de canal mock
+
+    print("\n--- Teste de Prova Social de Conversão ---")
+    await sistema_conversao.enviar_prova_social_conversao(-100123456789) # ID de canal mock
+
+    print("\n--- Teste de Verificação de VIPs Ativos ---")
+    # Para testar a expiração, ajuste a data_expiracao no mock_context.bot_data["usuarios_vip"] manualmente
+    mock_context.bot_data["usuarios_vip"] = {
+        user_id_test: {
+            "nome": nome_usuario_test,
+            "data_ativacao": datetime.now() - timedelta(days=91), # Expirado
+            "data_expiracao": datetime.now() - timedelta(days=1),
+            "ativo": True
         }
+    }
+    await sistema_conversao.verificar_usuarios_vip_ativos()
+
+    print("\n--- Estatísticas Finais (Mock) ---")
+    print(mock_context.bot_data)
+
+if __name__ == "__main__":
+    # Para executar o teste, descomente a linha abaixo e comente a importação em main.py
+    # asyncio.run(main_test())
+    pass
+
+
