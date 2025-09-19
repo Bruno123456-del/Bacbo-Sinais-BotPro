@@ -54,10 +54,10 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 # ===================================================================================
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    style='%' # Esta é a correção
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", # <-- SEM ESPAÇO AQUI
+    style='%'
 )
-# Silencia logs muito "barulhentos" de bibliotecas internas para manter o log limpo
+# Silencia logs muito "barulhento" de bibliotecas internas para manter o log limpo
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
 
