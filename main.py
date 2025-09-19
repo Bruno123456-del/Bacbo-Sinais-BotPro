@@ -1,154 +1,5 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# SISTEMA DE CONVERSÃO VIP - ESTRATÉGIA COMPLETA PARA AFILIADOS
-# DESENVOLVIDO POR MANUS PARA MÁXIMA RETENÇÃO E CONVERSÃO
-# ===================================================================================
-
-import asyncio
-import random
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List
-
-# Importações necessárias do telegram
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
-
-logger = logging.getLogger("conversao_vip")
-
-class SistemaConversaoVIP:
-    """Sistema completo de conversão VIP com estratégias agressivas"""
-
-    def __init__(self, app, url_afiliado: str, suporte_telegram: str):
-        self.app = app
-        self.url_afiliado = url_afiliado
-        self.suporte_telegram = suporte_telegram
-        self.usuarios_convertidos = {}
-        self.campanhas_ativas = {}
-
-        # Configurações de conversão
-        self.vagas_restantes = 47
-        self.codigo_promocional = "GESTAO"
-        self.dias_vip_gratuitos = 90
-
-        # Mensagens de conversão por contexto
-        self.mensagens_contexto = {
-            "pos_green": {
-                "titulo": "🔥 VOCÊ ACABOU DE VER UM GREEN! IMAGINA NO VIP!",
-                "descricao": "Com sinais 15% mais assertivos, você teria ainda mais greens como este!"
-            },
-            "pos_loss": {
-                "titulo": "💎 PROTEJA SEU CAPITAL! NO VIP VOCÊ TEM ESTRATÉGIAS AVANÇADAS!",
-                "descricao": "Nossos e-books de Gestão de Banca ensinam como minimizar losses e maximizar ganhos!"
-            },
-            "pos_gale": {
-                "titulo": "📈 GESTÃO DE BANCA SALVOU O DIA! NO VIP É AINDA MELHOR!",
-                "descricao": "Aprenda estratégias profissionais de gale com nossos e-books exclusivos!"
-            },
-            "urgencia": {
-                "titulo": "⏰ TEMPO ESGOTANDO! NÃO PERCA ESTA OPORTUNIDADE ÚNICA!",
-                "descricao": "Esta oferta histórica não voltará tão cedo. Aja agora!"
-            }
-        }
-
-    async def processar_comprovante_deposito(self, user_id: int, nome_usuario: str):
-        """Processa comprovante de depósito e libera acesso VIP"""
-        mensagem_processamento = f"""
-✅ **Comprovante recebido, {nome_usuario}!**
-
-🤖 **Analisando seu depósito...**
-
-Aguarde que já libero seu VIP com todos os bônus! 🚀
-
-⏳ **Processamento em andamento...**
-"""
-        await self._enviar_mensagem_simples(user_id, mensagem_processamento)
-        await asyncio.sleep(45)
-        await self._liberar_acesso_vip(user_id, nome_usuario)
-
-    async def _liberar_acesso_vip(self, user_id: int, nome_usuario: str):
-        """Libera acesso VIP com todos os benefícios"""
-        data_expiracao = datetime.now() + timedelta(days=self.dias_vip_gratuitos)
-        mensagem_liberacao = f"""
-🎉 **ACESSO VIP LIBERADO POR {self.dias_vip_gratuitos} DIAS, {nome_usuario}!** 🎉
-
-**Parabéns por dar o primeiro passo rumo à sua liberdade financeira!**
-
-Você acaba de garantir {self.dias_vip_gratuitos} dias de acesso GRATUITO ao nosso VIP Premium!
-
-🔗 **SEU LINK VIP EXCLUSIVO:**
-https://t.me/+q2CCKi1CKmljMTFh
-
-🎮 **15 JOGOS LIBERADOS COM SINAIS ESTRATÉGICOS:**
-E muito mais...
-
-🎁 **SEUS BENEFÍCIOS ATIVADOS:**
-✅ Sinais ilimitados com IA de alta precisão
-✅ Estratégias exclusivas para maximizar seus ganhos
-✅ Suporte prioritário 24/7
-✅ Acesso à Comunidade VIP
-✅ 2 E-BOOKS EXCLUSIVOS: Gestão de Banca e Juros Compostos
-✅ Participação automática nos sorteios de prêmios milionários!
-
-📅 **Seu VIP expira em:** {data_expiracao.strftime("%d/%m/%Y" )}
-
-**Bem-vindo à elite que realmente lucra!** 🏆
-"""
-        await self._enviar_mensagem_simples(user_id, mensagem_liberacao)
-
-        bd = self.app.bot_data
-        bd["conversoes_vip"] = bd.get("conversoes_vip", 0) + 1
-        bd.setdefault("usuarios_vip", {})[user_id] = {
-            "nome": nome_usuario,
-            "data_ativacao": datetime.now(),
-            "data_expiracao": data_expiracao,
-            "ativo": True
-        }
-        logger.info(f"Usuário {nome_usuario} ({user_id}) convertido para VIP por {self.dias_vip_gratuitos} dias")
-
-    async def executar_campanha_escassez_extrema(self, canal_id: int):
-        """Executa campanha de escassez extrema no canal FREE"""
-        campanha = random.choice([
-            {
-                "titulo": "🚨 ALERTA VERMELHO: VAGAS VIP SE ESGOTANDO!",
-                "mensagem": f"Nossos membros VIP estão lucrando consistentemente. RESTAM APENAS {self.vagas_restantes} VAGAS!",
-                "botao": "💎 QUERO MINHA VAGA VIP!"
-            },
-            {
-                "titulo": "⏰ TEMPO ESGOTANDO RAPIDAMENTE!",
-                "mensagem": f"ÚLTIMAS HORAS para garantir sua vaga VIP com todos os bônus milionários! Não perca!",
-                "botao": "🚀 GARANTIR VAGA AGORA!"
-            }
-        ])
-        mensagem_completa = f"{campanha['titulo']}\n\n{campanha['mensagem']}"
-        keyboard = [[InlineKeyboardButton(campanha["botao"], url=self.url_afiliado)]]
-        await self._enviar_mensagem_com_botoes(canal_id, mensagem_completa, keyboard)
-
-    async def enviar_prova_social_conversao(self, canal_id: int):
-        """Envia prova social focada em conversão"""
-        jogo = random.choice(["Fortune Tiger 🐅", "Aviator ✈️", "Mines 💣"])
-        mensagem = random.choice([
-            f"🔥 **MAIS UM MILIONÁRIO NASCEU!** 🔥\n\nMembro VIP acabou de lucrar R$ 15.847 no {jogo}!",
-            f"💎 **RESULTADO EXPLOSIVO NO VIP!** 💎\n\nMais uma vitória de R$ 8.234 no {jogo}!"
-        ])
-        mensagem_completa = f"{mensagem}\n\n🚨 **ÚLTIMAS {self.vagas_restantes} VAGAS VIP!**\n\n👇 **GARANTA SEU ACESSO E TRANSFORME SUA VIDA!** 👇"
-        imagem_prova = f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png"
-        keyboard = [[InlineKeyboardButton("💎 QUERO SER O PRÓXIMO MILIONÁRIO!", url=self.url_afiliado)]]
-        await self._enviar_foto_com_botoes(canal_id, imagem_prova, mensagem_completa, keyboard)
-
-    async def _enviar_mensagem_simples(self, chat_id: int, texto: str):
-        await self.app.bot.send_message(chat_id=chat_id, text=texto, parse_mode=ParseMode.MARKDOWN)
-
-    async def _enviar_mensagem_com_botoes(self, chat_id: int, texto: str, keyboard: List[List[InlineKeyboardButton]]):
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await self.app.bot.send_message(chat_id=chat_id, text=texto, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
-    async def _enviar_foto_com_botoes(self, chat_id: int, foto_url: str, caption: str, keyboard: List[List[InlineKeyboardButton]]):
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await self.app.bot.send_photo(chat_id=chat_id, photo=foto_url, caption=caption, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
-# -*- coding: utf-8 -*-
-# ===================================================================================
 # MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.1
 # ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
@@ -178,12 +29,10 @@ from telegram.ext import (
 )
 
 # --- CONFIGURAÇÕES DE SEGURANÇA ---
-# Carrega as informações sensíveis das variáveis de ambiente do sistema.
-# Isso é MUITO mais seguro do que deixar as chaves no código.
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7975008855:AAFQfTcSn3r5HiR0eXPaimJo0K3pX7osNfw")
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789")) # Coloque seu ID de admin aqui
+ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
 
 # --- AVISO DE SEGURANÇA ---
 if BOT_TOKEN == "SEU_TOKEN_AQUI":
@@ -199,11 +48,19 @@ URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 URL_VIP_ACESSO = "https://t.me/+q2CCKi1CKmljMTFh"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# Logging
+# ===================================================================================
+# CORREÇÃO DO ERRO DE LOGGING
+# Adicionamos style='%' para resolver a incompatibilidade com bibliotecas internas.
+# ===================================================================================
 logging.basicConfig(
+    level=logging.INFO,
     format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    style='%' # Esta é a correção
 )
+# Silencia logs muito "barulhentos" de bibliotecas internas para manter o log limpo
+logging.getLogger("httpx" ).setLevel(logging.WARNING)
+logging.getLogger("telegram.ext").setLevel(logging.WARNING)
+
 logger = logging.getLogger("bot_main")
 
 # --- DADOS DO BOT (JOGOS, GIFS, ETC.) ---
@@ -266,7 +123,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
-    # Lógica para mostrar estatísticas (simplificada)
     bd = context.bot_data
     uptime = datetime.now() - bd.get('start_time', datetime.now())
     sinais_free = bd.get('sinais_free', 0)
@@ -341,9 +197,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- AGENDAMENTOS ---
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
-    # Enviar para o canal FREE
     await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, random.uniform(0.65, 0.80))
-    # Enviar para o canal VIP (com um pequeno atraso)
     await asyncio.sleep(random.randint(300, 900))
     await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, random.uniform(0.75, 0.95))
 
@@ -352,7 +206,7 @@ async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
     if not sistema_conversao:
         return
     
-    if random.random() < 0.5: # 50% de chance
+    if random.random() < 0.5:
         await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
     else:
         await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
@@ -364,27 +218,25 @@ def main():
     persistence = PicklePersistence(filepath="bot_data.pkl")
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
-    # Inicializa e armazena o sistema de conversão no contexto do bot
     sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM)
     app.bot_data['sistema_conversao'] = sistema_conversao
     inicializar_estatisticas(app.bot_data)
 
-    # Handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
 
-    # Agendamentos (Jobs)
     jq = app.job_queue
-    jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10) # Sinal a cada 45 min
-    jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30) # Marketing a cada 1.5h
+    jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
+    jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
     logger.info("🚀 Bot Apostas Milionárias V25.1 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
-    app.run_polling()
+    # O parâmetro `drop_pending_updates=True` ajuda a evitar o erro 409 Conflict
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
