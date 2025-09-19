@@ -136,22 +136,104 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Sinais VIP: {sinais_vip}\n"
         f"Conversões: {conversoes}"
     )
+# ===================================================================================
+# ATENÇÃO: SUBSTITUA A FUNÇÃO enviar_sinal_jogo ANTIGA POR ESTA
+# ===================================================================================
 
-# --- SISTEMA DE SINAIS ---
 async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, target_id: int, confianca: float):
+    """
+    Envia sinais de forma estratégica.
+    - VIP: Envia o sinal completo para jogar.
+    - FREE: Envia um "Sinal Fantasma" para gerar desejo e urgência.
+    """
     bd = context.bot_data
-    channel_type = 'vip' if target_id == VIP_CANAL_ID else 'free'
-    
     dados_jogo = JOGOS_COMPLETOS.get(jogo, {})
     aposta_escolhida = random.choice(dados_jogo.get("apostas", ["Aposta Padrão"]))
-    
-    await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption="🤖 Analisando padrões...")
-    await asyncio.sleep(random.randint(8, 15))
-    
-    mensagem_sinal = f"""
-🔥 **SINAL CONFIRMADO | {jogo}** 🔥
+
+    # --- LÓGICA PARA O CANAL VIP (COMPORTAMENTO NORMAL) ---
+    if target_id == VIP_CANAL_ID:
+        channel_type = 'vip'
+        logger.info(f"Enviando sinal VIP completo para o jogo {jogo}.")
+
+        await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption=f"🤖 Analisando padrões no {jogo}...")
+        await asyncio.sleep(random.randint(8, 12))
+
+        mensagem_sinal = f"""
+💎 **SINAL VIP CONFIRMADO | {jogo}** 💎
+
 🎯 **ENTRADA:** {aposta_escolhida}
-🔗 **JOGAR:** [**🚀 ACESSAR PLATAFORMA**]({URL_CADASTRO_DEPOSITO})
+🔥 **Confiança:** {'⭐' * int(confianca * 5)} (ALTÍSSIMA)
+
+🔗 **JOGAR AGORA:**
+[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})
+"""
+        await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
+
+        bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
+        await asyncio.sleep(random.randint(60, 90))
+
+        resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
+        bd[f'{resultado}_{channel_type}'] = bd.get(f'{resultado}_{channel_type}', 0) + 1
+
+        if resultado == "win_primeira":
+            await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_VITORIA), caption=f"✅✅✅ GREEN NA PRIMEIRA! {jogo} 🤑")
+        elif resultado == "win_gale":
+            await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE, caption=f"✅ GREEN NO GALE! {jogo} 💪")
+        else:
+            await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=f"❌ RED! Faz parte! {jogo} 🔄")
+
+    # --- LÓGICA PARA O CANAL GRATUITO (SINAL FANTASMA) ---
+    elif target_id == FREE_CANAL_ID:
+        logger.info(f"Enviando Sinal Fantasma (marketing) para o jogo {jogo}.")
+
+        # 1. Anunciar oportunidade
+        await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption=f"🤖 Analisando o {jogo}...")
+        await asyncio.sleep(random.randint(5, 8))
+
+        # 2. Criar urgência e exclusividade
+        msg_oportunidade = f"""
+🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨
+
+Nossa IA encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.
+
+🔥 **SINAL ENVIADO AGORA PARA OS MEMBROS VIP!** 🔥
+
+Eles estão entrando na operação neste exato momento. Você não precisa mais ficar de fora!
+"""
+        keyboard = [[InlineKeyboardButton("💎 QUERO RECEBER ESSE SINAL! (ENTRAR NO VIP)", callback_data="oferta_vip")]]
+        await context.bot.send_message(chat_id=target_id, text=msg_oportunidade, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+        # 3. Simular tempo de jogo e anunciar o GREEN
+        await asyncio.sleep(random.randint(70, 100))
+
+        # Pega os resultados ATUALIZADOS do VIP para postar no FREE
+        greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
+        reds_vip = bd.get('loss_vip', 0)
+        total_sinais_vip = greens_vip + reds_vip
+        assertividade_vip = (greens_vip / max(total_sinais_vip, 1)) * 100
+
+        msg_resultado = f"""
+✅✅ **GREEN NO VIP!** ✅✅
+
+O sinal que enviamos há pouco no **{jogo}** bateu! A entrada era: **{aposta_escolhida}**.
+
+Nossos membros VIP acabaram de lucrar mais uma vez! 🤑
+
+📊 **Placar de hoje (Apenas VIP):**
+**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)
+
+Cansado de só olhar? Faça parte do time que lucra de verdade.
+"""
+        keyboard_resultado = [[InlineKeyboardButton("🚀 CHEGA DE PERDER! QUERO ENTRAR NO VIP AGORA!", callback_data="oferta_vip")]]
+        await context.bot.send_photo(
+            chat_id=target_id,
+            photo=f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png",
+            caption=msg_resultado,
+            reply_markup=InlineKeyboardMarkup(keyboard_resultado),
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+
 """
     await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
     
@@ -196,11 +278,23 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Comprovante recebido! Analisando...")
 
 # --- AGENDAMENTOS ---
+# ESTE É O CÓDIGO NOVO QUE VOCÊ VAI COLAR NO LUGAR
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Agenda a nova estratégia de sinais:
+    1. Envia o sinal real para o VIP.
+    2. Envia o "Sinal Fantasma" para o FREE para criar desejo.
+    """
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
-    await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, random.uniform(0.65, 0.80))
-    await asyncio.sleep(random.randint(300, 900))
-    await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, random.uniform(0.75, 0.95))
+    confianca_vip = random.uniform(0.85, 0.98) # Confiança alta para o VIP
+
+    # 1. Envia o sinal real para o grupo VIP primeiro
+    await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, confianca_vip)
+
+    # 2. Aguarda um pouco e envia o marketing (Sinal Fantasma) para o grupo FREE
+    await asyncio.sleep(random.randint(15, 45))
+    await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip) # Usa a mesma confiança alta para impressionar
+
 
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
     sistema_conversao = context.bot_data.get('sistema_conversao')
