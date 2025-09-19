@@ -239,14 +239,68 @@ async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     await asyncio.sleep(random.randint(15, 45))
     await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip)
 
+# ===================================================================================
+# SUBSTITUA A FUNÇÃO enviar_marketing_automatico ANTIGA EM main.py POR ESTA
+# ===================================================================================
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Envia campanhas de marketing poderosas e variadas no canal gratuito.
+    """
     sistema_conversao = context.bot_data.get('sistema_conversao')
     if not sistema_conversao:
         return
-    if random.random() < 0.5:
+
+    # Sorteia qual tipo de campanha enviar para manter o canal dinâmico
+    tipo_campanha = random.choice(["juros_compostos", "escassez_extrema", "prova_social"])
+
+    if tipo_campanha == "juros_compostos":
+        logger.info("Enviando campanha de marketing: Juros Compostos.")
+        vagas = random.randint(4, 12)
+        mensagem = f"""
+🧠 **O SEGREDO QUE OS MILIONÁRIOS NÃO TE CONTAM...**
+
+Einstein disse: "Juros compostos são a oitava maravilha do mundo".
+
+Imagine transformar R$100 em R$10.000. Parece impossível? Não com matemática.
+
+No nosso E-book exclusivo VIP, "Juros Compostos nas Apostas", ensinamos o método exato.
+
+**Exemplo real de um membro VIP:**
+- Semana 1: R$100 -> R$250
+- Semana 2: R$250 -> R$625
+- Semana 3: R$625 -> R$1.560
+- Semana 4: R$1.560 -> R$3.900
+
+Isso não é sorte. É estratégia. E está esperando por você no VIP.
+
+🚨 **LIBERAMOS MAIS {vagas} VAGAS PARA A OFERTA DE 90 DIAS GRÁTIS + BÔNUS DE R$600!**
+"""
+        keyboard = [[InlineKeyboardButton("📈 QUERO APRENDER O SEGREDO DOS JUROS COMPOSTOS", callback_data="oferta_vip")]]
+        await context.bot.send_message(FREE_CANAL_ID, mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+    elif tipo_campanha == "escassez_extrema":
+        logger.info("Enviando campanha de marketing: Escassez Extrema.")
+        horas = random.randint(2, 4)
+        mensagem = f"""
+🔥🔥 **ÚLTIMA CHAMADA - TUDO OU NADA!** 🔥🔥
+
+A diretoria vai **ENCERRAR A OFERTA** de 90 dias VIP grátis + Bônus de R$600 nas próximas **{horas} HORAS**!
+
+Depois disso, o acesso VIP será apenas para convidados e com valor muito superior.
+
+Você tem duas escolhas:
+1. Continuar olhando os outros lucrarem.
+2. Agir agora, garantir sua vaga e ter a chance de concorrer a uma Lamborghini, Rolex e viagens de luxo.
+
+A decisão é sua. O tempo está correndo. ⏳
+"""
+        keyboard = [[InlineKeyboardButton(f"⚡️ EU QUERO! ÚLTIMA CHANCE (EXPIRA EM {horas}H)", callback_data="oferta_vip")]]
+        await context.bot.send_message(FREE_CANAL_ID, mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+    else: # prova_social
+        logger.info("Enviando campanha de marketing: Prova Social.")
         await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
-    else:
-        await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
+
 
 # --- FUNÇÃO PRINCIPAL ---
 def main():
