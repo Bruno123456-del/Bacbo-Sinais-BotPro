@@ -171,21 +171,52 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         )
 
 # --- CALLBACKS E EVENTOS ---
+# ===================================================================================
+# SUBSTITUA A FUNÇÃO callback_handler ANTIGA EM main.py POR ESTA
+# ===================================================================================
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user = query.from_user
     await query.answer()
+
     if query.data == "quero_lucrar" or query.data == "oferta_vip":
+        vagas_restantes = random.randint(5, 15) # Gera escassez dinâmica
+        mensagem = f"""
+🚨 **OFERTA HISTÓRICA LIBERADA PARA VOCÊ, {user.first_name}!** 🚨
+
+Você viu o potencial. Agora é a sua hora de agir e entrar para o time que realmente lucra.
+
+🔥 **Use o Código Promocional: `GESTAO`** 🔥
+
+Ao fazer seu primeiro depósito de QUALQUER VALOR usando nosso link, você desbloqueia AGORA:
+
+💰 **BÔNUS DE ATÉ R$ 600,00**
+A plataforma dobra seu primeiro depósito, te dando mais caixa para aplicar nossas estratégias.
+
+💎 **90 DIAS DE ACESSO VIP GRÁTIS**
+Acesso total aos nossos sinais de altíssima assertividade, 24h por dia.
+
+📚 **E-BOOK "JUROS COMPOSTOS NAS APOSTAS"**
+O segredo dos milionários. Aprenda a transformar R$100 em R$10.000 com gestão e matemática.
+
+🏆 **SORTEIOS MILIONÁRIOS**
+Você concorre automaticamente a: Lamborghini, Rolex, Viagens para Dubai e Maldivas, e muito mais!
+
+⚠️ **ATENÇÃO: RESTAM APENAS {vagas_restantes} VAGAS NESTA CONDIÇÃO!**
+
+Este é o empurrão que você precisava. A decisão que separa os que olham dos que lucram.
+
+**Passo 1:** Clique no botão abaixo e faça seu cadastro.
+**Passo 2:** Use o código **GESTAO** e faça seu primeiro depósito.
+**Passo 3:** Envie o comprovante para nosso suporte para liberação imediata.
+"""
         keyboard = [
-            [InlineKeyboardButton("🚀 FAZER DEPÓSITO", url=URL_CADASTRO_DEPOSITO)],
-            [InlineKeyboardButton("💬 ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
+            [InlineKeyboardButton("🚀 ATIVAR OFERTA E USAR CÓDIGO 'GESTAO'", url=URL_CADASTRO_DEPOSITO)],
+            [InlineKeyboardButton("💬 ENVIAR COMPROVANTE (SUPORTE 24/7)", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
         ]
-        await query.message.reply_text(
-            "💎 **OFERTA VIP ESPECIAL** 💎\n\n"
-            "1. Faça um depósito de qualquer valor na plataforma.\n"
-            "2. Envie o comprovante para nosso suporte.\n"
-            "3. Receba acesso VIP instantaneamente!",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        # Envia a mensagem no privado do usuário que clicou no botão
+        await context.bot.send_message(chat_id=user.id, text=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
