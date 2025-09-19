@@ -9,9 +9,7 @@ import os
 import logging
 import random
 import asyncio
-import threading
 from datetime import datetime
-import json
 
 # Tenta importar o sistema de conversão. Se não encontrar, avisa e encerra.
 try:
@@ -21,7 +19,7 @@ except ImportError:
     print("Certifique-se de que ambos os arquivos ('main.py' e 'sistema_conversao_vip.py') estão na mesma pasta.")
     exit()
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, PicklePersistence,
@@ -34,35 +32,20 @@ FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
 
-# --- AVISO DE SEGURANÇA ---
-if BOT_TOKEN == "SEU_TOKEN_AQUI":
-    print("="*50)
-    print("ATENÇÃO: Você não configurou seu BOT_TOKEN!")
-    print("Por favor, edite o arquivo main.py ou configure as variáveis de ambiente.")
-    print("="*50)
-    exit()
-
 # --- CONFIGURAÇÕES GERAIS ---
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
-URL_VIP_ACESSO = "https://t.me/+q2CCKi1CKmljMTFh"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# ===================================================================================
-# CORREÇÃO DO ERRO DE LOGGING
-# Adicionamos style='%' para resolver a incompatibilidade com bibliotecas internas.
-# ===================================================================================
+# --- CONFIGURAÇÃO DE LOGGING (CORRIGIDA ) ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", # <-- SEM ESPAÇO AQUI
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
-# Silencia logs muito "barulhento" de bibliotecas internas para manter o log limpo
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
-
 logger = logging.getLogger("bot_main")
-
 
 # --- DADOS DO BOT (JOGOS, GIFS, ETC.) ---
 JOGOS_COMPLETOS = {
@@ -103,10 +86,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     mensagem = f"""
 🎉 **Bem-vindo(a) à revolução das apostas inteligentes!** 🎉
-
 🤖 **Nosso sistema conta com 15 JOGOS DIFERENTES:**
 {listar_jogos()}
-
 **Pronto para começar a lucrar?**
 """
     keyboard = [
@@ -126,20 +107,19 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     bd = context.bot_data
     uptime = datetime.now() - bd.get('start_time', datetime.now())
-    sinais_free = bd.get('sinais_free', 0)
     sinais_vip = bd.get('sinais_vip', 0)
     conversoes = bd.get('conversoes_vip', 0)
+    greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
+    reds_vip = bd.get('loss_vip', 0)
     await update.message.reply_text(
-        f"📊 **ESTATÍSTICAS**\n"
+        f"📊 **ESTATÍSTICAS VIP**\n"
         f"Uptime: {uptime}\n"
-        f"Sinais Free: {sinais_free}\n"
         f"Sinais VIP: {sinais_vip}\n"
+        f"Greens: {greens_vip} | Reds: {reds_vip}\n"
         f"Conversões: {conversoes}"
     )
-# ===================================================================================
-# ATENÇÃO: SUBSTITUA A FUNÇÃO enviar_sinal_jogo ANTIGA POR ESTA
-# ===================================================================================
 
+# --- LÓGICA DE SINAIS (NOVA ESTRATÉGIA) ---
 async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, target_id: int, confianca: float):
     """
     Envia sinais de forma estratégica.
@@ -150,31 +130,17 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
     dados_jogo = JOGOS_COMPLETOS.get(jogo, {})
     aposta_escolhida = random.choice(dados_jogo.get("apostas", ["Aposta Padrão"]))
 
-    # --- LÓGICA PARA O CANAL VIP (COMPORTAMENTO NORMAL) ---
     if target_id == VIP_CANAL_ID:
         channel_type = 'vip'
         logger.info(f"Enviando sinal VIP completo para o jogo {jogo}.")
-
         await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption=f"🤖 Analisando padrões no {jogo}...")
         await asyncio.sleep(random.randint(8, 12))
-
-        mensagem_sinal = f"""
-💎 **SINAL VIP CONFIRMADO | {jogo}** 💎
-
-🎯 **ENTRADA:** {aposta_escolhida}
-🔥 **Confiança:** {'⭐' * int(confianca * 5)} (ALTÍSSIMA)
-
-🔗 **JOGAR AGORA:**
-[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})
-"""
+        mensagem_sinal = f"💎 **SINAL VIP CONFIRMADO | {jogo}** 💎\n\n🎯 **ENTRADA:** {aposta_escolhida}\n🔥 **Confiança:** {'⭐' * int(confianca * 5)} (ALTÍSSIMA)\n\n🔗 **JOGAR AGORA:**\n[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})"
         await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
-
         bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
         await asyncio.sleep(random.randint(60, 90))
-
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
         bd[f'{resultado}_{channel_type}'] = bd.get(f'{resultado}_{channel_type}', 0) + 1
-
         if resultado == "win_primeira":
             await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_VITORIA), caption=f"✅✅✅ GREEN NA PRIMEIRA! {jogo} 🤑")
         elif resultado == "win_gale":
@@ -182,48 +148,19 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         else:
             await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=f"❌ RED! Faz parte! {jogo} 🔄")
 
-    # --- LÓGICA PARA O CANAL GRATUITO (SINAL FANTASMA) ---
     elif target_id == FREE_CANAL_ID:
         logger.info(f"Enviando Sinal Fantasma (marketing) para o jogo {jogo}.")
-
-        # 1. Anunciar oportunidade
         await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption=f"🤖 Analisando o {jogo}...")
         await asyncio.sleep(random.randint(5, 8))
-
-        # 2. Criar urgência e exclusividade
-        msg_oportunidade = f"""
-🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨
-
-Nossa IA encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.
-
-🔥 **SINAL ENVIADO AGORA PARA OS MEMBROS VIP!** 🔥
-
-Eles estão entrando na operação neste exato momento. Você não precisa mais ficar de fora!
-"""
+        msg_oportunidade = f"🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨\n\nNossa IA encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.\n\n🔥 **SINAL ENVIADO AGORA PARA OS MEMBROS VIP!** 🔥\n\nEles estão entrando na operação neste exato momento. Você não precisa mais ficar de fora!"
         keyboard = [[InlineKeyboardButton("💎 QUERO RECEBER ESSE SINAL! (ENTRAR NO VIP)", callback_data="oferta_vip")]]
         await context.bot.send_message(chat_id=target_id, text=msg_oportunidade, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
-
-        # 3. Simular tempo de jogo e anunciar o GREEN
         await asyncio.sleep(random.randint(70, 100))
-
-        # Pega os resultados ATUALIZADOS do VIP para postar no FREE
         greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
         reds_vip = bd.get('loss_vip', 0)
         total_sinais_vip = greens_vip + reds_vip
         assertividade_vip = (greens_vip / max(total_sinais_vip, 1)) * 100
-
-        msg_resultado = f"""
-✅✅ **GREEN NO VIP!** ✅✅
-
-O sinal que enviamos há pouco no **{jogo}** bateu! A entrada era: **{aposta_escolhida}**.
-
-Nossos membros VIP acabaram de lucrar mais uma vez! 🤑
-
-📊 **Placar de hoje (Apenas VIP):**
-**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)
-
-Cansado de só olhar? Faça parte do time que lucra de verdade.
-"""
+        msg_resultado = f"✅✅ **GREEN NO VIP!** ✅✅\n\nO sinal que enviamos há pouco no **{jogo}** bateu! A entrada era: **{aposta_escolhida}**.\n\nNossos membros VIP acabaram de lucrar mais uma vez! 🤑\n\n📊 **Placar de hoje (Apenas VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de só olhar? Faça parte do time que lucra de verdade."
         keyboard_resultado = [[InlineKeyboardButton("🚀 CHEGA DE PERDER! QUERO ENTRAR NO VIP AGORA!", callback_data="oferta_vip")]]
         await context.bot.send_photo(
             chat_id=target_id,
@@ -233,29 +170,10 @@ Cansado de só olhar? Faça parte do time que lucra de verdade.
             parse_mode=ParseMode.MARKDOWN
         )
 
-
-"""
-    await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
-    
-    bd[f'sinais_{channel_type}'] = bd.get(f'sinais_{channel_type}', 0) + 1
-    
-    await asyncio.sleep(random.randint(60, 90))
-    
-    resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
-    bd[f'{resultado}_{channel_type}'] = bd.get(f'{resultado}_{channel_type}', 0) + 1
-    
-    if resultado == "win_primeira":
-        await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_VITORIA), caption=f"✅✅✅ GREEN NA PRIMEIRA! {jogo} 🤑")
-    elif resultado == "win_gale":
-        await context.bot.send_photo(chat_id=target_id, photo=IMG_GALE, caption=f"✅ GREEN NO GALE! {jogo} 💪")
-    else:
-        await context.bot.send_animation(chat_id=target_id, animation=GIF_RED, caption=f"❌ RED! Faz parte! {jogo} 🔄")
-
 # --- CALLBACKS E EVENTOS ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
     if query.data == "quero_lucrar" or query.data == "oferta_vip":
         keyboard = [
             [InlineKeyboardButton("🚀 FAZER DEPÓSITO", url=URL_CADASTRO_DEPOSITO)],
@@ -277,8 +195,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("✅ Comprovante recebido! Analisando...")
 
-# --- AGENDAMENTOS ---
-# ESTE É O CÓDIGO NOVO QUE VOCÊ VAI COLAR NO LUGAR
+# --- AGENDAMENTOS (NOVA ESTRATÉGIA) ---
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     """
     Agenda a nova estratégia de sinais:
@@ -286,21 +203,15 @@ async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     2. Envia o "Sinal Fantasma" para o FREE para criar desejo.
     """
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
-    confianca_vip = random.uniform(0.85, 0.98) # Confiança alta para o VIP
-
-    # 1. Envia o sinal real para o grupo VIP primeiro
+    confianca_vip = random.uniform(0.85, 0.98)
     await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, confianca_vip)
-
-    # 2. Aguarda um pouco e envia o marketing (Sinal Fantasma) para o grupo FREE
     await asyncio.sleep(random.randint(15, 45))
-    await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip) # Usa a mesma confiança alta para impressionar
-
+    await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip)
 
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
     sistema_conversao = context.bot_data.get('sistema_conversao')
     if not sistema_conversao:
         return
-    
     if random.random() < 0.5:
         await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
     else:
@@ -309,7 +220,6 @@ async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
 # --- FUNÇÃO PRINCIPAL ---
 def main():
     logger.info("Iniciando o bot...")
-    
     persistence = PicklePersistence(filepath="bot_data.pkl")
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
@@ -330,7 +240,6 @@ def main():
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
-    # O parâmetro `drop_pending_updates=True` ajuda a evitar o erro 409 Conflict
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
