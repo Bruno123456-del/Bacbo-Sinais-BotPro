@@ -528,99 +528,51 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         bd[guard_key] = False
 
 # --- CALLBACKS ---
+# ===================================================================================
+# SUBSTITUA A FUNÇÃO callback_handler ANTIGA POR ESTA
+# ===================================================================================
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user = query.from_user
     await query.answer()
-    
-    user = update.effective_user
-    nome = user.first_name or "Amigo"
-    data = query.data
-    
-    if data == "quero_lucrar":
+
+    # O callback_data "oferta_vip" vem dos canais, e "oferta_vip_imediata" vem do /start
+    if query.data in ["oferta_vip", "oferta_vip_imediata"]:
+        vagas_restantes = random.randint(5, 15)
         mensagem = f"""
-🚀 **Perfeito, {nome}! Decisão certa!** 🚀
+🚨 **EXCELENTE DECISÃO, {user.first_name}!** 🚨
 
-🤖 **NOSSA TECNOLOGIA:**
-• IA analisa 15 jogos simultaneamente
-• +100.000 dados processados por segundo
-• Assertividade média de 78% no VIP
-• Estratégias específicas por jogo
+Você está a um passo de destravar tudo.
 
-🏆 **COMUNIDADE VENCEDORA:**
-• +20.000 membros ativos
-• Resultados comprovados diariamente
-• Suporte 24/7
-• Networking com investidores
+🔥 **Use o Código Promocional: `GESTAO`** 🔥
 
-**Pronto para começar?**
+Ao fazer seu primeiro depósito de QUALQUER VALOR, você desbloqueia:
+
+💰 **BÔNUS DE ATÉ R$ 600,00**
+💎 **90 DIAS DE ACESSO VIP GRÁTIS**
+📚 **E-BOOK "JUROS COMPOSTOS NAS APOSTAS"**
+🏆 **SORTEIOS MILIONÁRIOS** (Lamborghini, Rolex, etc.)
+
+⚠️ **ATENÇÃO: RESTAM APENAS {vagas_restantes} VAGAS NESTA CONDIÇÃO!**
+
+**Passo 1:** Clique no botão abaixo e faça seu cadastro.
+**Passo 2:** Use o código **GESTAO** e faça seu primeiro depósito.
+**Passo 3:** Volte aqui e me envie o comprovante para liberação imediata.
 """
-        
         keyboard = [
-            [InlineKeyboardButton("💎 SIM! QUERO VIP", callback_data="acesso_vip")],
-            [InlineKeyboardButton("🆓 SINAIS GRATUITOS", url=URL_TELEGRAM_FREE)]
+            [InlineKeyboardButton("🚀 ATIVAR OFERTA E USAR CÓDIGO 'GESTAO'", url=URL_CADASTRO_DEPOSITO)],
+            [InlineKeyboardButton("💬 JÁ DEPOSITEI, ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        # Envia a mensagem no privado do usuário
+        await context.bot.send_message(chat_id=user.id, text=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+    # Mantém a lógica antiga para outros botões, se houver
+    elif query.data == "ver_jogos":
+        await query.edit_message_caption(caption=f"🎮 **NOSSOS 15 JOGOS EXCLUSIVOS**\n\n{listar_jogos()}", parse_mode=ParseMode.MARKDOWN)
+
+
+
         
-        await query.edit_message_caption(caption=mensagem, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-    
-    elif data == "acesso_vip":
-        vagas = random.randint(4, 9)
-        tempo = random.choice(["2 horas", "3 horas", "4 horas"])
-        
-        mensagem = f"""
-🚨 **OFERTA ESPECIAL, {nome}!** 🚨
-
-🔥 **ACESSO VIP - 15 JOGOS**
-
-✅ **VOCÊ GANHA:**
-• Sinais ilimitados para 15 jogos
-• Estratégias exclusivas
-• Suporte prioritário 24/7
-• Comunidade VIP
-
-💰 **CONDIÇÃO SIMPLES:**
-• Faça depósito (qualquer valor)
-• Envie comprovante
-• Acesso VIP instantâneo
-
-⏰ **{vagas} vagas restantes!**
-🕐 **Expira em {tempo}**
-"""
-        
-        keyboard = [
-            [InlineKeyboardButton("🚀 FAZER DEPÓSITO", url=URL_CADASTRO_DEPOSITO)],
-            [InlineKeyboardButton("💬 SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '')}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await context.bot.send_animation(
-            chat_id=query.message.chat_id,
-            animation=random.choice(GIFS_VITORIA),
-            caption=mensagem,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    
-    elif data == "ver_jogos":
-        mensagem = f"""
-🎮 **NOSSOS 15 JOGOS EXCLUSIVOS**
-
-{listar_jogos()}
-
-💡 **Cada jogo tem:**
-• Estratégias específicas
-• Horários otimizados
-• Análise de IA personalizada
-
-**No VIP você domina todos!**
-"""
-        
-        keyboard = [
-            [InlineKeyboardButton("💎 ACESSAR VIP", url=URL_CADASTRO_DEPOSITO)]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_caption(caption=mensagem, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 # --- EVENTOS ---
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
