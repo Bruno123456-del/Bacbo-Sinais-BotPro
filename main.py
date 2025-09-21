@@ -230,52 +230,60 @@ def listar_jogos():
     return "\n".join(resultado)
 
 # --- COMANDOS PRINCIPAIS ---
+# ===================================================================================
+# SUBSTITUA A FUNÇÃO start_command ANTIGA POR ESTA NOVA VERSÃO
+# ===================================================================================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    user_id = user.id
-    nome_usuario = user.first_name or "Amigo"
-    
-    nome_personalizado = random.choice(NOMES_HUMANIZADOS)
-    saudacao = random.choice(SAUDACOES).format(nome=nome_personalizado)
-    frase_motivacional = random.choice(FRASES_MOTIVACIONAIS)
-    
+    nome_usuario = user.first_name or "Campeão"
+
+    # Registra o usuário na base de dados do bot
+    if 'usuarios_unicos' not in context.bot_data:
+        context.bot_data['usuarios_unicos'] = set()
+    context.bot_data['usuarios_unicos'].add(user.id)
+    logger.info(f"Novo usuário capturado pelo funil Bot-First: {nome_usuario} ({user.id})")
+
+    # Mensagem de conversão imediata
     mensagem = f"""
-{saudacao}
+Olá, {nome_usuario}! 👋 Seja muito bem-vindo(a).
 
-🎉 **Bem-vindo à revolução das apostas inteligentes!** 🎉
+Se você está aqui, é porque está cansado(a) de perder dinheiro com estratégias que não funcionam e quer ter acesso a um método validado que realmente coloca dinheiro no seu bolso.
 
-{frase_motivacional}
+**Você tomou a decisão certa.**
 
-🤖 **Nosso sistema conta com 15 JOGOS DIFERENTES:**
+Nossa Inteligência Artificial analisa 15 jogos 24h por dia para encontrar as melhores oportunidades, e hoje estamos com uma **condição histórica para novos membros.**
 
-{listar_jogos()}
+🔥 **OFERTA DE BOAS-VINDAS LIBERADA PARA VOCÊ:** 🔥
 
-💎 **O que você ganha aqui:**
-✅ Sinais com IA avançada para 15 jogos
-✅ Estratégias específicas para cada jogo  
-✅ Horários otimizados de entrada
-✅ Gestão de banca profissional
-✅ Comunidade de +20.000 vencedores
+Ao fazer seu primeiro depósito usando nosso link e o código **`GESTAO`**, você ganha:
 
-**Pronto para começar a lucrar?**
+💰 **Bônus de até R$ 600,00** na plataforma.
+💎 **90 DIAS DE ACESSO VIP GRÁTIS** ao nosso grupo de sinais exclusivos.
+🏆 **Acesso aos SORTEIOS MILIONÁRIOS** (Lamborghini, Rolex, Viagens).
+📚 **E-book "Juros Compostos nas Apostas"** para multiplicar seu capital.
+
+Esta é a sua chance de parar de apostar e começar a investir.
+
+👇 **ESCOLHA SEU PRÓXIMO PASSO:**
 """
-    
+
     keyboard = [
-        [InlineKeyboardButton("🚀 QUERO LUCRAR AGORA!", callback_data="quero_lucrar")],
-        [InlineKeyboardButton("🎮 VER TODOS OS JOGOS", callback_data="ver_jogos")],
-        [InlineKeyboardButton("📊 VER PROVAS DE LUCRO", callback_data="ver_provas")],
-        [InlineKeyboardButton("💎 OFERTA VIP ESPECIAL", callback_data="oferta_vip")]
+        [InlineKeyboardButton("🚀 SIM, QUERO ATIVAR A OFERTA AGORA!", callback_data="oferta_vip_imediata")],
+        [InlineKeyboardButton("🤔 Quero ver as provas primeiro (Canal Gratuito)", url=URL_TELEGRAM_FREE)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    gif_celebracao = random.choice(GIFS_VITORIA)
+
+    # Envia uma imagem de impacto em vez de um GIF genérico
+    gif_impacto = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u4cqiYI30juCOGY/giphy.gif"
+
     await context.bot.send_animation(
-        chat_id=user_id,
-        animation=gif_celebracao,
+        chat_id=user.id,
+        animation=gif_impacto,
         caption=mensagem,
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN
-    )
+     )
+
     
     # Registra usuário
     bd = context.bot_data
