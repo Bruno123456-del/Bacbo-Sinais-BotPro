@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.3 (ESTRATÉGIA BOT-FIRST)
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.4 (ESTRATÉGIA BOT-FIRST)
 # ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
@@ -47,7 +47,8 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 # --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
+    # ===== CORREÇÃO NO FORMATO DO LOG (REMOVIDO ESPAÇO EXTRA ) =====
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
@@ -100,7 +101,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"ERRO DE URL INVÁLIDA: Não foi possível baixar o conteúdo. Verifique as URLs de GIFs e Imagens.")
     elif isinstance(context.error, KeyError):
         logger.critical(f"KeyError: {context.error}. Isso pode indicar um problema de inicialização. Reiniciando estatísticas.")
-        inicializar_estatisticas(context.bot_data) # Tenta corrigir o problema na hora
+        inicializar_estatisticas(context.bot_data)
 
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -201,7 +202,6 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         msg_resultado = f"✅✅ **GREEN NO VIP!** ✅✅\n\nO sinal que enviamos há pouco no **{jogo}** bateu! A entrada era: **{aposta_escolhida}**.\n\nNossos membros VIP acabaram de lucrar mais uma vez! 🤑\n\n📊 **Placar de hoje (Apenas VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de só olhar? Faça parte do time que lucra de verdade."
         keyboard_resultado = [[InlineKeyboardButton("🚀 CHEGA DE PERDER! QUERO ENTRAR NO VIP AGORA!", callback_data="oferta_vip")]]
         
-        # ===== CORREÇÃO DA URL DA IMAGEM =====
         url_foto = f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png"
         await context.bot.send_photo(
             chat_id=target_id,
@@ -264,34 +264,27 @@ def main():
     logger.info("Iniciando o bot...")
     persistence = PicklePersistence(filepath="bot_data.pkl")
     
-    # ===== CORREÇÃO DA INICIALIZAÇÃO =====
-    # Cria a aplicação e, IMEDIATAMENTE, inicializa os dados.
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
     inicializar_estatisticas(app.bot_data)
 
-    # Inicializa o sistema de conversão
     sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
     app.bot_data['sistema_conversao'] = sistema_conversao
 
-    # Adiciona o manipulador de erros
     app.add_error_handler(error_handler)
 
-    # Adiciona os manipuladores de comandos e mensagens
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
 
-    # Configura as tarefas agendadas
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
     jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot Apostas Milionárias V25.3 iniciado com sucesso!")
+    logger.info("🚀 Bot Apostas Milionárias V25.4 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
-    # Inicia o bot
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
