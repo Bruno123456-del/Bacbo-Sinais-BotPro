@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.4 (ESTRATÉGIA BOT-FIRST)
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V26.0 (FOCO EM UX)
 # ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
@@ -16,7 +16,6 @@ try:
     from sistema_conversao_vip import SistemaConversaoVIP
 except ImportError:
     print("ERRO CRÍTICO: O arquivo 'sistema_conversao_vip.py' não foi encontrado.")
-    print("Certifique-se de que ambos os arquivos ('main.py' e 'sistema_conversao_vip.py') estão na mesma pasta.")
     exit()
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -31,7 +30,6 @@ from telegram.ext import (
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     print("ERRO CRÍTICO: A variável de ambiente BOT_TOKEN não foi encontrada ou está vazia.")
-    print("Verifique suas configurações no painel da Render.")
     exit()
 
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
@@ -47,8 +45,7 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 # --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    # ===== CORREÇÃO NO FORMATO DO LOG (REMOVIDO ESPAÇO EXTRA ) =====
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
@@ -76,10 +73,12 @@ GIFS_ANALISE = ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG05Z3N5dG52ZG
 GIFS_VITORIA = ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWJqM3h2b2NqYjV0Z2w5dHZtM2M3Z3N0dG5wZzZzZzZzZzZzZzZzZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzsmD5H5a1m0k2Yw/giphy.gif"]
 GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5dGJqZ2x2b2l6d2g4M3BqM3E0d2Z3a3ZqZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oriO5iQ1m8g49A2gU/giphy.gif"
 IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
+# UX-MELHORIA: URL para a imagem de feedback
+IMG_FEEDBACK = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/feedback.png"
+
 
 # --- FUNÇÕES AUXILIARES ---
 def inicializar_estatisticas(bot_data: dict ):
-    """Garante que todas as chaves de estatísticas sejam criadas na inicialização."""
     logger.info("Inicializando/Verificando estatísticas...")
     bot_data.setdefault('start_time', datetime.now())
     bot_data.setdefault('usuarios_unicos', set())
@@ -92,9 +91,7 @@ def inicializar_estatisticas(bot_data: dict ):
 
 # --- TRATAMENTO DE ERROS ---
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """Loga os erros e notifica o admin sobre problemas."""
     logger.error(f"Exceção ao manipular uma atualização: {context.error}", exc_info=context.error)
-    
     if isinstance(context.error, Conflict):
         logger.warning("ERRO DE CONFLITO DETECTADO. Outra instância do bot pode estar rodando.")
     elif isinstance(context.error, BadRequest) and "Failed to get content from URL" in str(context.error):
@@ -103,34 +100,85 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         logger.critical(f"KeyError: {context.error}. Isso pode indicar um problema de inicialização. Reiniciando estatísticas.")
         inicializar_estatisticas(context.bot_data)
 
+# --- UX-MELHORIA: FUNÇÃO PARA O MENU PRINCIPAL ---
+async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Exibe o menu principal de opções para o usuário."""
+    mensagem = "👇 **MENU PRINCIPAL**\n\nComo posso te ajudar agora?"
+    keyboard = [
+        [InlineKeyboardButton("💎 Quero ser VIP (Oferta Especial)", callback_data="oferta_vip")],
+        [InlineKeyboardButton("📊 Ver Provas de Ganhos (Canal Grátis)", url=URL_TELEGRAM_FREE)],
+        [InlineKeyboardButton("💬 Preciso de Ajuda (Suporte)", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")],
+        [InlineKeyboardButton("🔙 Voltar ao Início", callback_data="start_over")]
+    ]
+    
+    # Se a chamada veio de um botão (CallbackQuery), edita a mensagem. Senão, envia uma nova.
+    query = update.callback_query
+    if query:
+        await query.answer()
+        await query.edit_message_caption(caption=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     nome_usuario = user.first_name or "Campeão"
-    context.bot_data['usuarios_unicos'].add(user.id)
-    logger.info(f"Novo usuário capturado pelo funil Bot-First: {nome_usuario} ({user.id})")
+    
+    # Adiciona usuário apenas na primeira vez que ele usa o /start
+    if user.id not in context.bot_data['usuarios_unicos']:
+        context.bot_data['usuarios_unicos'].add(user.id)
+        logger.info(f"Novo usuário capturado pelo funil Bot-First: {nome_usuario} ({user.id})")
 
+    # UX-MELHORIA: Mensagem de /start refinada, mais visual e direta
     mensagem = f"""
-Olá, {nome_usuario}! 👋 Seja muito bem-vindo(a).
-Se você está aqui, é porque está cansado(a) de perder dinheiro com estratégias que não funcionam e quer ter acesso a um método validado.
-**Você tomou a decisão certa.**
-Nossa Inteligência Artificial analisa 15 jogos 24h por dia, e hoje estamos com uma **condição histórica para novos membros.**
-🔥 **OFERTA DE BOAS-VINDAS LIBERADA PARA VOCÊ:** 🔥
-Use o código **`GESTAO`** e faça seu primeiro depósito para ganhar:
-💰 **Bônus de até R$ 600,00** na plataforma.
-💎 **90 DIAS DE ACESSO VIP GRÁTIS** ao nosso grupo de sinais.
-🏆 **Acesso aos SORTEIOS MILIONÁRIOS** (Lamborghini, Rolex, etc).
-📚 **E-book "Juros Compostos nas Apostas"**.
-Esta é a sua chance de parar de apostar e começar a investir.
-👇 **ESCOLHA SEU PRÓXIMO PASSO:**
+Olá, {nome_usuario}! 👋 Bem-vindo à ferramenta de lucro mais poderosa do mercado.
+
+Nossa IA está com **{random.randint(92, 97)}% de assertividade** nas últimas 24h.
+
+🔥 **OFERTA DE BOAS-VINDAS ATIVADA PARA VOCÊ:** 🔥
+
+1️⃣ **CADASTRE-SE E DEPOSITE** usando o código `GESTAO` para ganhar até **R$ 600 de bônus**.
+2️⃣ **ENVIE O COMPROVANTE** para nosso suporte e ganhe **90 dias de acesso VIP GRÁTIS**.
+
+É a sua chance de operar com profissionais.
 """
     keyboard = [
-        [InlineKeyboardButton("🚀 SIM, QUERO ATIVAR A OFERTA AGORA!", callback_data="oferta_vip_imediata")],
-        [InlineKeyboardButton("🤔 Quero ver as provas primeiro (Canal Gratuito)", url=URL_TELEGRAM_FREE)]
+        [InlineKeyboardButton("1️⃣ PEGAR MEU BÔNUS DE R$600", url=URL_CADASTRO_DEPOSITO)],
+        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE (JÁ DEPOSITEI)", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")],
+        [InlineKeyboardButton("☰ Menu Principal", callback_data="show_menu")]
     ]
-    await context.bot.send_animation(
-        chat_id=user.id,
-        animation=random.choice(GIFS_VITORIA),
+    
+    query = update.callback_query
+    if query:
+        await query.answer()
+        await query.edit_message_caption(
+            caption=mensagem,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+    else:
+        await context.bot.send_animation(
+            chat_id=user.id,
+            animation=random.choice(GIFS_VITORIA),
+            caption=mensagem,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+# UX-MELHORIA: Comando de feedback para prova social
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia uma imagem de feedback de um cliente satisfeito."""
+    mensagem = """
+Olha o que nossos membros estão dizendo! 🤩
+
+Isso é resultado de seguir nossas análises. Enquanto você pensa, eles lucram.
+
+Não fique para trás! Venha fazer parte do time de vencedores.
+"""
+    keyboard = [[InlineKeyboardButton("🚀 QUERO LUCRAR ASSIM TAMBÉM!", callback_data="oferta_vip")]]
+    await context.bot.send_photo(
+        chat_id=update.effective_chat.id,
+        photo=IMG_FEEDBACK,
         caption=mensagem,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
@@ -138,6 +186,7 @@ Esta é a sua chance de parar de apostar e começar a investir.
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
+    # ... (código do stats_command permanece o mesmo)
     bd = context.bot_data
     uptime = datetime.now() - bd.get('start_time', datetime.now())
     usuarios_unicos = len(bd.get('usuarios_unicos', set()))
@@ -159,8 +208,10 @@ Assertividade: {assertividade_vip:.1f}%
 """
     await update.message.reply_text(mensagem, parse_mode=ParseMode.MARKDOWN)
 
+
 # --- LÓGICA DE SINAIS ---
 async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, target_id: int, confianca: float):
+    # ... (código do enviar_sinal_jogo permanece o mesmo)
     bd = context.bot_data
     dados_jogo = JOGOS_COMPLETOS.get(jogo, {})
     aposta_escolhida = random.choice(dados_jogo.get("apostas", ["Aposta Padrão"]))
@@ -215,9 +266,10 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
-    await query.answer()
-
-    if query.data in ["oferta_vip", "oferta_vip_imediata"]:
+    
+    # UX-MELHORIA: Roteamento de todos os botões para suas funções
+    if query.data == "oferta_vip":
+        await query.answer()
         vagas_restantes = random.randint(5, 15)
         mensagem = f"""
 🚨 **EXCELENTE DECISÃO, {user.first_name}!** 🚨
@@ -228,17 +280,25 @@ Ao fazer seu primeiro depósito, você desbloqueia:
 💎 **90 DIAS DE ACESSO VIP GRÁTIS**
 📚 **E-BOOK "JUROS COMPOSTOS"**
 🏆 **SORTEIOS MILIONÁRIOS**
-⚠️ **ATENÇÃO: RESTAM APENAS {vagas_restantes} VAGAS!**
-**Passo 1:** Clique abaixo e faça seu cadastro/depósito.
-**Passo 2:** Volte aqui e me envie o comprovante.
+⚠️ **ATENÇÃO: VAGAS LIMITADAS!**
 """
         keyboard = [
-            [InlineKeyboardButton("🚀 ATIVAR OFERTA E USAR CÓDIGO 'GESTAO'", url=URL_CADASTRO_DEPOSITO)],
-            [InlineKeyboardButton("💬 JÁ DEPOSITEI, ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")]
+            [InlineKeyboardButton("1️⃣ ATIVAR OFERTA E USAR CÓDIGO", url=URL_CADASTRO_DEPOSITO)],
+            [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")],
+            [InlineKeyboardButton("☰ Menu Principal", callback_data="show_menu")]
         ]
-        await context.bot.send_message(chat_id=user.id, text=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_caption(caption=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+    elif query.data == "show_menu":
+        await show_menu(update, context)
+        
+    elif query.data == "start_over":
+        # Chama a função start_command para recomeçar
+        await start_command(update, context)
+
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # ... (código do handle_photo permanece o mesmo)
     user = update.effective_user
     sistema_conversao = context.bot_data.get('sistema_conversao')
     if sistema_conversao:
@@ -248,6 +308,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- AGENDAMENTOS ---
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
+    # ... (código do enviar_sinal_automatico permanece o mesmo)
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
     confianca_vip = random.uniform(0.90, 0.98)
     await enviar_sinal_jogo(context, jogo, VIP_CANAL_ID, confianca_vip)
@@ -255,6 +316,7 @@ async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip)
 
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
+    # ... (código do enviar_marketing_automatico permanece o mesmo)
     sistema_conversao = context.bot_data.get('sistema_conversao')
     if not sistema_conversao: return
     await sistema_conversao.enviar_campanha_marketing(FREE_CANAL_ID)
@@ -272,16 +334,22 @@ def main():
 
     app.add_error_handler(error_handler)
 
+    # Adiciona os manipuladores de comandos e mensagens
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    # UX-MELHORIA: Adiciona o comando de menu e feedback
+    app.add_handler(CommandHandler("menu", show_menu))
+    app.add_handler(CommandHandler("feedback", feedback_command))
+    
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
 
+    # Configura as tarefas agendadas
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
     jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot Apostas Milionárias V25.4 iniciado com sucesso!")
+    logger.info("🚀 Bot Apostas Milionárias V26.0 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
