@@ -266,5 +266,58 @@ def main():
     
     app.run_polling(drop_pending_updates=True)
 
+
+# --- TRATAMENTO DE ERROS ---
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Loga os erros causados por Updates e envia uma mensagem ao admin."""
+    logger.error(f"Exceção ao manipular uma atualização: {context.error}", exc_info=context.error)
+    
+    # Se for um erro de conflito, a melhor solução é reiniciar o processo.
+    # Em plataformas como a Render, o serviço pode tentar reiniciar automaticamente.
+    # Apenas logar o erro já é um grande avanço.
+    if isinstance(context.error, telegram.error.Conflict):
+        logger.warning("ERRO DE CONFLITO DETECTADO. Isso significa que outra instância do bot está rodando. Verifique sua hospedagem.")
+        # Opcional: notificar o admin sobre o conflito
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"⚠️ **Alerta de Conflito** ⚠️\n\nO bot detectou uma tentativa de rodar múltiplas instâncias. A instância atual pode ter sido encerrada. Por favor, verifique a plataforma de hospedagem."
+        )
+
+
 if __name__ == "__main__":
     main()
+    # --- FUNÇÃO PRINCIPAL ---
+def main():
+    logger.info("Iniciando o bot...")
+    persistence = PicklePersistence(filepath="bot_data.pkl")
+    app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+
+    # ... (o resto do seu código de inicialização)
+    sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
+    app.bot_data['sistema_conversao'] = sistema_conversao
+    inicializar_estatisticas(app.bot_data)
+
+    # =======================================================
+    # ADICIONE O MANIPULADOR DE ERROS AQUI
+    app.add_error_handler(error_handler)
+    # =======================================================
+
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CallbackQueryHandler(callback_handler))
+    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
+
+    jq = app.job_queue
+    jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
+    jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
+
+    logger.info("🚀 Bot Apostas Milionárias V25.1 iniciado com sucesso!")
+    logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
+    logger.info("💎 Sistema de conversão VIP ativado!")
+    
+    # O parâmetro drop_pending_updates=True ajuda a evitar problemas com comandos antigos
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
+
