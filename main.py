@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.1 (ESTRATÉGIA BOT-FIRST)
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.2 (ESTRATÉGIA BOT-FIRST)
 # ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
@@ -21,6 +21,7 @@ except ImportError:
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
+from telegram.error import Conflict # Importa a exceção de conflito
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, PicklePersistence,
     MessageHandler, filters, CallbackQueryHandler
@@ -35,7 +36,7 @@ if not BOT_TOKEN:
 
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "6591343778")) # Coloque seu ID de admin aqui
 
 # --- CONFIGURAÇÕES GERAIS ---
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
@@ -43,14 +44,13 @@ URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 URL_VIP_ACESSO = "https://t.me/+q2CCKi1CKmljMTFh"
 SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# --- CONFIGURAÇÃO DE LOGGING (CORRIGIDA ) ---
+# --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
-logging.getLogger("telegram.ext").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
 # --- DADOS DO BOT ---
@@ -86,6 +86,21 @@ def inicializar_estatisticas(bot_data: dict ):
     bot_data.setdefault('win_primeira_vip', 0)
     bot_data.setdefault('win_gale_vip', 0)
     bot_data.setdefault('loss_vip', 0)
+
+# --- TRATAMENTO DE ERROS ---
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Loga os erros e notifica o admin sobre problemas."""
+    logger.error(f"Exceção ao manipular uma atualização: {context.error}", exc_info=context.error)
+    
+    if isinstance(context.error, Conflict):
+        logger.warning("ERRO DE CONFLITO DETECTADO. Outra instância do bot pode estar rodando.")
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"⚠️ **Alerta de Conflito** ⚠️\n\nO bot detectou uma tentativa de rodar múltiplas instâncias. Verifique a plataforma de hospedagem para garantir que apenas uma esteja ativa."
+            )
+        except Exception as e:
+            logger.error(f"Falha ao notificar o admin sobre o erro de conflito: {e}")
 
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -156,11 +171,11 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         mensagem_sinal = f"💎 **SINAL VIP CONFIRMADO | {jogo}** 💎\n\n🎯 **ENTRADA:** {aposta_escolhida}\n🔥 **Confiança:** {'⭐' * 5} (ALTÍSSIMA)\n\n🔗 **JOGAR AGORA:**\n[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})"
         await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
         
-        bd['sinais_vip'] = bd.get('sinais_vip', 0) + 1
+        bd['sinais_vip'] += 1
         await asyncio.sleep(random.randint(60, 90))
         
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
-        bd[f'{resultado}_vip'] = bd.get(f'{resultado}_vip', 0) + 1
+        bd[f'{resultado}_vip'] += 1
         
         if resultado == "win_primeira":
             await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_VITORIA), caption=f"✅✅✅ GREEN NA PRIMEIRA! {jogo} 🤑")
@@ -247,77 +262,31 @@ def main():
     persistence = PicklePersistence(filepath="bot_data.pkl")
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
+    # Inicializa o sistema de conversão e as estatísticas
     sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
     app.bot_data['sistema_conversao'] = sistema_conversao
     inicializar_estatisticas(app.bot_data)
 
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CallbackQueryHandler(callback_handler))
-    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
-
-    jq = app.job_queue
-    jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
-    jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
-
-    logger.info("🚀 Bot Apostas Milionárias V25.1 iniciado com sucesso!")
-    logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
-    logger.info("💎 Sistema de conversão VIP ativado!")
-    
-    app.run_polling(drop_pending_updates=True)
-
-
-# --- TRATAMENTO DE ERROS ---
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """Loga os erros causados por Updates e envia uma mensagem ao admin."""
-    logger.error(f"Exceção ao manipular uma atualização: {context.error}", exc_info=context.error)
-    
-    # Se for um erro de conflito, a melhor solução é reiniciar o processo.
-    # Em plataformas como a Render, o serviço pode tentar reiniciar automaticamente.
-    # Apenas logar o erro já é um grande avanço.
-    if isinstance(context.error, telegram.error.Conflict):
-        logger.warning("ERRO DE CONFLITO DETECTADO. Isso significa que outra instância do bot está rodando. Verifique sua hospedagem.")
-        # Opcional: notificar o admin sobre o conflito
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"⚠️ **Alerta de Conflito** ⚠️\n\nO bot detectou uma tentativa de rodar múltiplas instâncias. A instância atual pode ter sido encerrada. Por favor, verifique a plataforma de hospedagem."
-        )
-
-
-if __name__ == "__main__":
-    main()
-    # --- FUNÇÃO PRINCIPAL ---
-def main():
-    logger.info("Iniciando o bot...")
-    persistence = PicklePersistence(filepath="bot_data.pkl")
-    app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
-
-    # ... (o resto do seu código de inicialização)
-    sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
-    app.bot_data['sistema_conversao'] = sistema_conversao
-    inicializar_estatisticas(app.bot_data)
-
-    # =======================================================
-    # ADICIONE O MANIPULADOR DE ERROS AQUI
+    # Adiciona o manipulador de erros
     app.add_error_handler(error_handler)
-    # =======================================================
 
+    # Adiciona os manipuladores de comandos e mensagens
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, handle_photo))
 
+    # Configura as tarefas agendadas
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
     jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot Apostas Milionárias V25.1 iniciado com sucesso!")
+    logger.info("🚀 Bot Apostas Milionárias V25.2 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
-    # O parâmetro drop_pending_updates=True ajuda a evitar problemas com comandos antigos
+    # Inicia o bot
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
-
