@@ -27,7 +27,13 @@ from telegram.ext import (
 )
 
 # --- CONFIGURAÇÕES DE SEGURANÇA ---
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7975008855:AAFQfTcSn3r5HiR0eXPaimJo0K3pX7osNfw")
+# LINHA NOVA E CORRETA
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+# ADICIONE ESTE BLOCO DE CÓDIGO
+if not BOT_TOKEN:
+    print("ERRO CRÍTICO: A variável de ambiente BOT_TOKEN não foi encontrada ou está vazia.")
+    print("Verifique suas configurações no painel da Render.")
+    exit()
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789")) # Coloque seu ID de admin aqui
