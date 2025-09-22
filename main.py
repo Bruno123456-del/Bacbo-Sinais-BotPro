@@ -166,8 +166,48 @@ Nossa IA está com **{random.randint(92, 97)}% de assertividade** nas últimas 2
         )
 
 # UX-MELHORIA: Comando de feedback para prova social
+# -*- coding: utf-8 -*-
+# ===================================================================================
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V26.1 (FOCO EM UX)
+# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
+# CRIADO E APRIMORADO POR MANUS
+# ===================================================================================
+
+# ... (todo o resto do código, desde o início até a função feedback_command, permanece exatamente igual)
+# ... (imports, configurações, funções auxiliares, start_command, etc.)
+
+# --- COMANDOS DO BOT ---
+
+# (start_command e show_menu estão aqui, inalterados)
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    nome_usuario = user.first_name or "Campeão"
+    if user.id not in context.bot_data['usuarios_unicos']:
+        context.bot_data['usuarios_unicos'].add(user.id)
+        logger.info(f"Novo usuário capturado pelo funil Bot-First: {nome_usuario} ({user.id})")
+    mensagem = f"""
+Olá, {nome_usuario}! 👋 Bem-vindo à ferramenta de lucro mais poderosa do mercado.
+Nossa IA está com **{random.randint(92, 97)}% de assertividade** nas últimas 24h.
+🔥 **OFERTA DE BOAS-VINDAS ATIVADA PARA VOCÊ:** 🔥
+1️⃣ **CADASTRE-SE E DEPOSITE** usando o código `GESTAO` para ganhar até **R$ 600 de bônus**.
+2️⃣ **ENVIE O COMPROVANTE** para nosso suporte e ganhe **90 dias de acesso VIP GRÁTIS**.
+É a sua chance de operar com profissionais.
+"""
+    keyboard = [
+        [InlineKeyboardButton("1️⃣ PEGAR MEU BÔNUS DE R$600", url=URL_CADASTRO_DEPOSITO)],
+        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE (JÁ DEPOSITEI)", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")],
+        [InlineKeyboardButton("☰ Menu Principal", callback_data="show_menu")]
+    ]
+    query = update.callback_query
+    if query:
+        await query.answer()
+        await query.edit_message_caption(caption=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+    else:
+        await context.bot.send_animation(chat_id=user.id, animation=random.choice(GIFS_VITORIA), caption=mensagem, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
+
+# ===== AQUI ESTÁ A MUDANÇA =====
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Envia uma imagem de feedback de um cliente satisfeito."""
+    """Envia uma imagem de feedback de um cliente satisfeito, usando uma das imagens de prova existentes."""
     mensagem = """
 Olha o que nossos membros estão dizendo! 🤩
 
@@ -176,13 +216,22 @@ Isso é resultado de seguir nossas análises. Enquanto você pensa, eles lucram.
 Não fique para trás! Venha fazer parte do time de vencedores.
 """
     keyboard = [[InlineKeyboardButton("🚀 QUERO LUCRAR ASSIM TAMBÉM!", callback_data="oferta_vip")]]
+    
+    # UX-MELHORIA: Escolhe uma imagem de prova aleatória que já existe no seu repositório
+    numero_prova = random.randint(1, 13) # Você tem imagens de prova1 a prova13
+    url_feedback = f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{numero_prova}.png"
+    
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
-        photo=IMG_FEEDBACK,
+        photo=url_feedback,
         caption=mensagem,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(keyboard ),
         parse_mode=ParseMode.MARKDOWN
     )
+
+# ... (o resto do código, como stats_command, enviar_sinal_jogo, callback_handler, main, etc., continua aqui sem alterações)
+# ... (cole o restante do código da versão 26.0 aqui)
+
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
