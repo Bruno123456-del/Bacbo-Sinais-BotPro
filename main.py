@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.2 (ESTRATÉGIA BOT-FIRST)
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V25.3 (ESTRATÉGIA BOT-FIRST)
 # ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
@@ -21,7 +21,7 @@ except ImportError:
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.error import Conflict # Importa a exceção de conflito
+from telegram.error import Conflict, BadRequest
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, PicklePersistence,
     MessageHandler, filters, CallbackQueryHandler
@@ -36,7 +36,7 @@ if not BOT_TOKEN:
 
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "6591343778")) # Coloque seu ID de admin aqui
+ADMIN_ID = int(os.getenv("ADMIN_ID", "6591343778"))
 
 # --- CONFIGURAÇÕES GERAIS ---
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
@@ -79,6 +79,7 @@ IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPr
 # --- FUNÇÕES AUXILIARES ---
 def inicializar_estatisticas(bot_data: dict ):
     """Garante que todas as chaves de estatísticas sejam criadas na inicialização."""
+    logger.info("Inicializando/Verificando estatísticas...")
     bot_data.setdefault('start_time', datetime.now())
     bot_data.setdefault('usuarios_unicos', set())
     bot_data.setdefault('conversoes_vip', 0)
@@ -86,6 +87,7 @@ def inicializar_estatisticas(bot_data: dict ):
     bot_data.setdefault('win_primeira_vip', 0)
     bot_data.setdefault('win_gale_vip', 0)
     bot_data.setdefault('loss_vip', 0)
+    logger.info("Estatísticas OK.")
 
 # --- TRATAMENTO DE ERROS ---
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -94,13 +96,11 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     
     if isinstance(context.error, Conflict):
         logger.warning("ERRO DE CONFLITO DETECTADO. Outra instância do bot pode estar rodando.")
-        try:
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=f"⚠️ **Alerta de Conflito** ⚠️\n\nO bot detectou uma tentativa de rodar múltiplas instâncias. Verifique a plataforma de hospedagem para garantir que apenas uma esteja ativa."
-            )
-        except Exception as e:
-            logger.error(f"Falha ao notificar o admin sobre o erro de conflito: {e}")
+    elif isinstance(context.error, BadRequest) and "Failed to get content from URL" in str(context.error):
+        logger.error(f"ERRO DE URL INVÁLIDA: Não foi possível baixar o conteúdo. Verifique as URLs de GIFs e Imagens.")
+    elif isinstance(context.error, KeyError):
+        logger.critical(f"KeyError: {context.error}. Isso pode indicar um problema de inicialização. Reiniciando estatísticas.")
+        inicializar_estatisticas(context.bot_data) # Tenta corrigir o problema na hora
 
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -200,9 +200,12 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         
         msg_resultado = f"✅✅ **GREEN NO VIP!** ✅✅\n\nO sinal que enviamos há pouco no **{jogo}** bateu! A entrada era: **{aposta_escolhida}**.\n\nNossos membros VIP acabaram de lucrar mais uma vez! 🤑\n\n📊 **Placar de hoje (Apenas VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de só olhar? Faça parte do time que lucra de verdade."
         keyboard_resultado = [[InlineKeyboardButton("🚀 CHEGA DE PERDER! QUERO ENTRAR NO VIP AGORA!", callback_data="oferta_vip")]]
+        
+        # ===== CORREÇÃO DA URL DA IMAGEM =====
+        url_foto = f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png"
         await context.bot.send_photo(
             chat_id=target_id,
-            photo=f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png",
+            photo=url_foto,
             caption=msg_resultado,
             reply_markup=InlineKeyboardMarkup(keyboard_resultado),
             parse_mode=ParseMode.MARKDOWN
@@ -260,12 +263,15 @@ async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
 def main():
     logger.info("Iniciando o bot...")
     persistence = PicklePersistence(filepath="bot_data.pkl")
+    
+    # ===== CORREÇÃO DA INICIALIZAÇÃO =====
+    # Cria a aplicação e, IMEDIATAMENTE, inicializa os dados.
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
+    inicializar_estatisticas(app.bot_data)
 
-    # Inicializa o sistema de conversão e as estatísticas
+    # Inicializa o sistema de conversão
     sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
     app.bot_data['sistema_conversao'] = sistema_conversao
-    inicializar_estatisticas(app.bot_data)
 
     # Adiciona o manipulador de erros
     app.add_error_handler(error_handler)
@@ -281,7 +287,7 @@ def main():
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
     jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot Apostas Milionárias V25.2 iniciado com sucesso!")
+    logger.info("🚀 Bot Apostas Milionárias V25.3 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos disponíveis!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
