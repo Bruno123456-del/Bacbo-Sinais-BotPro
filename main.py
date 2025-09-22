@@ -78,15 +78,21 @@ GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5
 IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 
 # --- FUNÇÕES AUXILIARES ---
-def inicializar_estatisticas(bot_data: dict ):
-    if 'start_time' not in bot_data:
-        bot_data['start_time'] = datetime.now()
-    if 'usuarios_unicos' not in bot_data:
-        bot_data['usuarios_unicos'] = set()
+# ==================================================================
+# SUBSTITUA A FUNÇÃO inicializar_estatisticas PELA VERSÃO ABAIXO
+# ==================================================================
+def inicializar_estatisticas(bot_data: dict):
+    """Garante que todas as chaves de estatísticas sejam criadas na inicialização."""
+    bot_data.setdefault('start_time', datetime.now())
+    bot_data.setdefault('usuarios_unicos', set())
     bot_data.setdefault('conversoes_vip', 0)
-    for ch in ['vip']: # Não precisamos mais de stats para o 'free'
-        for stat in ['sinais', 'win_primeira', 'win_gale', 'loss']:
-            bot_data.setdefault(f'{stat}_{ch}', 0)
+    
+    # Garante que as chaves para o canal VIP existam
+    bot_data.setdefault('sinais_vip', 0)
+    bot_data.setdefault('win_primeira_vip', 0)
+    bot_data.setdefault('win_gale_vip', 0)
+    bot_data.setdefault('loss_vip', 0)
+
 
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
