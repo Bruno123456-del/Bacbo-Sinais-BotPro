@@ -27,16 +27,15 @@ from telegram.ext import (
 )
 
 # --- CONFIGURAÇÕES DE SEGURANÇA ---
-# LINHA NOVA E CORRETA
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-# ADICIONE ESTE BLOCO DE CÓDIGO
 if not BOT_TOKEN:
     print("ERRO CRÍTICO: A variável de ambiente BOT_TOKEN não foi encontrada ou está vazia.")
     print("Verifique suas configurações no painel da Render.")
     exit()
+
 FREE_CANAL_ID = int(os.getenv("FREE_CANAL_ID", "-1002808626127"))
 VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789")) # Coloque seu ID de admin aqui
+ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
 
 # --- CONFIGURAÇÕES GERAIS ---
 URL_CADASTRO_DEPOSITO = "https://win-agegate-promo-68.lovable.app/"
@@ -54,7 +53,7 @@ logging.getLogger("httpx" ).setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
-# --- DADOS DO BOT (JOGOS, GIFS, ETC.) ---
+# --- DADOS DO BOT ---
 JOGOS_COMPLETOS = {
     "Fortune Tiger 🐅": {"apostas": ["10 Rodadas Turbo", "15 Rodadas Normal"], "assertividade": [92, 7, 1]},
     "Aviator ✈️": {"apostas": ["Sair em 1.50x", "Sair em 2.00x"], "assertividade": [95, 4, 1]},
@@ -78,21 +77,15 @@ GIF_RED = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDNzdmk5MHY2Z2k3c3A5
 IMG_GALE = "https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/win_gale1.png"
 
 # --- FUNÇÕES AUXILIARES ---
-# ==================================================================
-# SUBSTITUA A FUNÇÃO inicializar_estatisticas PELA VERSÃO ABAIXO
-# ==================================================================
-def inicializar_estatisticas(bot_data: dict):
+def inicializar_estatisticas(bot_data: dict ):
     """Garante que todas as chaves de estatísticas sejam criadas na inicialização."""
     bot_data.setdefault('start_time', datetime.now())
     bot_data.setdefault('usuarios_unicos', set())
     bot_data.setdefault('conversoes_vip', 0)
-    
-    # Garante que as chaves para o canal VIP existam
     bot_data.setdefault('sinais_vip', 0)
     bot_data.setdefault('win_primeira_vip', 0)
     bot_data.setdefault('win_gale_vip', 0)
     bot_data.setdefault('loss_vip', 0)
-
 
 # --- COMANDOS DO BOT ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -103,24 +96,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     mensagem = f"""
 Olá, {nome_usuario}! 👋 Seja muito bem-vindo(a).
-
 Se você está aqui, é porque está cansado(a) de perder dinheiro com estratégias que não funcionam e quer ter acesso a um método validado.
-
 **Você tomou a decisão certa.**
-
 Nossa Inteligência Artificial analisa 15 jogos 24h por dia, e hoje estamos com uma **condição histórica para novos membros.**
-
 🔥 **OFERTA DE BOAS-VINDAS LIBERADA PARA VOCÊ:** 🔥
-
 Use o código **`GESTAO`** e faça seu primeiro depósito para ganhar:
-
 💰 **Bônus de até R$ 600,00** na plataforma.
 💎 **90 DIAS DE ACESSO VIP GRÁTIS** ao nosso grupo de sinais.
 🏆 **Acesso aos SORTEIOS MILIONÁRIOS** (Lamborghini, Rolex, etc).
 📚 **E-book "Juros Compostos nas Apostas"**.
-
 Esta é a sua chance de parar de apostar e começar a investir.
-
 👇 **ESCOLHA SEU PRÓXIMO PASSO:**
 """
     keyboard = [
@@ -152,14 +137,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Uptime: {uptime.days}d {uptime.seconds//3600}h
 Usuários Capturados: {usuarios_unicos}
 Conversões VIP: {conversoes} ({taxa_conversao:.1f}%)
-
 💎 **Canal VIP:**
 Sinais: {sinais_vip} | Greens: {greens_vip} | Reds: {reds_vip}
 Assertividade: {assertividade_vip:.1f}%
 """
     await update.message.reply_text(mensagem, parse_mode=ParseMode.MARKDOWN)
 
-# --- LÓGICA DE SINAIS (NOVA ESTRATÉGIA) ---
+# --- LÓGICA DE SINAIS ---
 async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, target_id: int, confianca: float):
     bd = context.bot_data
     dados_jogo = JOGOS_COMPLETOS.get(jogo, {})
@@ -176,7 +160,7 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         await asyncio.sleep(random.randint(60, 90))
         
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
-        bd[f'{resultado}_vip'] += 1
+        bd[f'{resultado}_vip'] = bd.get(f'{resultado}_vip', 0) + 1
         
         if resultado == "win_primeira":
             await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_VITORIA), caption=f"✅✅✅ GREEN NA PRIMEIRA! {jogo} 🤑")
@@ -244,7 +228,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("✅ Comprovante recebido! Analisando...")
 
-# --- AGENDAMENTOS (NOVA ESTRATÉGIA) ---
+# --- AGENDAMENTOS ---
 async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     jogo = random.choice(list(JOGOS_COMPLETOS.keys()))
     confianca_vip = random.uniform(0.90, 0.98)
