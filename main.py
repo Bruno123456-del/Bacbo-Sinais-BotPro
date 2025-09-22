@@ -46,10 +46,10 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 logging.basicConfig(
     level=logging.INFO,
     # ===== CORREÇÃO FINAL: REMOVIDO O ESPAÇO DE 'asctime' =====
-    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
-logging.getLogger("httpx" ).setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
 # --- DADOS DO BOT ---
