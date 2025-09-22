@@ -160,7 +160,7 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         mensagem_sinal = f"💎 **SINAL VIP CONFIRMADO | {jogo}** 💎\n\n🎯 **ENTRADA:** {aposta_escolhida}\n🔥 **Confiança:** {'⭐' * 5} (ALTÍSSIMA)\n\n🔗 **JOGAR AGORA:**\n[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})"
         await context.bot.send_message(chat_id=target_id, text=mensagem_sinal, parse_mode=ParseMode.MARKDOWN)
         
-        bd['sinais_vip'] += 1
+        bd['sinais_vip'] = bd.get('sinais_vip', 0) + 1
         await asyncio.sleep(random.randint(60, 90))
         
         resultado = random.choices(["win_primeira", "win_gale", "loss"], weights=dados_jogo["assertividade"], k=1)[0]
