@@ -39,10 +39,11 @@ if not BOT_TOKEN:
     exit()
 
 # --- CONFIGURAÇÃO DE LOGGING ---
+# --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    style=
+    style="%"  # Corrigido: define o estilo correto de formatação
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
