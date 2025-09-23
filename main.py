@@ -45,10 +45,10 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 # --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
-logging.getLogger("httpx" ).setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
 # (O resto das configurações de dados do bot permanece o mesmo)
