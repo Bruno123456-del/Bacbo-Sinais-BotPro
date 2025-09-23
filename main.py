@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.3 (PERSONALIDADE JÚNIOR MOREIRA)
-# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT - VERSÃO FINAL COM MARKETING REATIVADO
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.1 (VERSÃO FINAL CORRIGIDA)
+# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
 
@@ -135,6 +135,9 @@ Abraço,
         parse_mode=ParseMode.MARKDOWN
     )
 
+# ==================================================================
+# FUNÇÃO STATS_COMMAND CORRIGIDA E ADICIONADA DE VOLTA
+# ==================================================================
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     bd = context.bot_data
@@ -158,7 +161,6 @@ Sinais: {sinais_vip} | Greens: {greens_vip} | Reds: {reds_vip}
 Assertividade: {assertividade_vip:.1f}%
 """
     await update.message.reply_text(mensagem, parse_mode=ParseMode.MARKDOWN)
-
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -190,6 +192,9 @@ Com ele, você garante:
             parse_mode=ParseMode.MARKDOWN
         )
 
+# ==================================================================
+# FUNÇÃO HANDLE_PHOTO CORRIGIDA PARA SER MAIS DIRETA
+# ==================================================================
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text(
@@ -198,6 +203,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.bot_data['conversoes_vip'] += 1
     logger.info(f"Conversão VIP registrada para o usuário {user.first_name} ({user.id}).")
     
+    # Atraso para simular análise humana
+    await asyncio.sleep(15)
+
     mensagem_liberacao = f"""
 🎉 **ACESSO VIP LIBERADO, {user.first_name}!** 🎉
 
@@ -270,10 +278,9 @@ async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Sistema de conversão não encontrado para marketing automático.")
         return
     
-    # Alterna entre prova social e campanha de escassez
-    if random.random() < 0.6: # 60% de chance de enviar prova social
+    if random.random() < 0.6:
         await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
-    else: # 40% de chance de enviar campanha de escassez
+    else:
         await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
 
 # --- FUNÇÃO PRINCIPAL ---
@@ -284,9 +291,11 @@ def main():
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
     inicializar_estatisticas(app.bot_data)
 
-    # A instância do SistemaConversaoVIP é necessária para o marketing
-    sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
-    app.bot_data['sistema_conversao'] = sistema_conversao
+    try:
+        sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
+        app.bot_data['sistema_conversao'] = sistema_conversao
+    except Exception as e:
+        logger.error(f"Falha ao inicializar SistemaConversaoVIP: {e}")
 
     app.add_error_handler(error_handler)
 
@@ -298,10 +307,9 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
-    # REATIVANDO A LINHA DE MARKETING
     jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot do Júnior Moreira V27.3 iniciado com sucesso!")
+    logger.info("🚀 Bot do Júnior Moreira V27.1 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos sendo analisados!")
     logger.info("💎 Sistema de conversão VIP ativado!")
     
