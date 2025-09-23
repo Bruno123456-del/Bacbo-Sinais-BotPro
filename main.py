@@ -47,7 +47,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", # SEM ESPAÇO EM 'asctime'
     style='%'
 )
-logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx" ).setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
