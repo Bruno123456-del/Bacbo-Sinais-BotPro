@@ -48,7 +48,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
-logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx" ).setLevel(logging.WARNING)
 logger = logging.getLogger("bot_main")
 
 # (O resto das configurações de dados do bot permanece o mesmo)
