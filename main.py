@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.1 (PERSONALIDADE JÚNIOR MOREIRA)
-# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT - VERSÃO CORRIGIDA E OTIMIZADA
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.2 (PERSONALIDADE JÚNIOR MOREIRA)
+# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT - VERSÃO FINAL CORRIGIDA
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
 
@@ -36,15 +36,15 @@ VIP_CANAL_ID = int(os.getenv("VIP_CANAL_ID", "-1003053055680"))
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5011424031"))
 
 # --- CONFIGURAÇÕES GERAIS ---
-URL_CADASTRO_DEPOSITO = "https://lkwn.cc/f1c1c45a" # CORRETO: SEU LINK DE AFILIADO DIRETO
+URL_CADASTRO_DEPOSITO = "https://lkwn.cc/f1c1c45a"
 URL_TELEGRAM_FREE = "https://t.me/ApostasMilionariaVIP"
 URL_VIP_ACESSO = "https://t.me/+q2CCKi1CKmljMTFh"
-SUPORTE_TELEGRAM = "@Superfinds_bot" # O username do próprio bot para suporte
+SUPORTE_TELEGRAM = "@Superfinds_bot"
 
-# --- CONFIGURAÇÃO DE LOGGING (CORRIGIDA ) ---
+# --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", # SEM ESPAÇO EM 'asctime'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
@@ -135,6 +135,33 @@ Abraço,
         parse_mode=ParseMode.MARKDOWN
     )
 
+# ==================================================================
+# FUNÇÃO QUE ESTAVA FALTANDO - ADICIONADA DE VOLTA
+# ==================================================================
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID: return
+    bd = context.bot_data
+    uptime = datetime.now() - bd.get('start_time', datetime.now())
+    usuarios_unicos = len(bd.get('usuarios_unicos', set()))
+    conversoes = bd.get('conversoes_vip', 0)
+    sinais_vip = bd.get('sinais_vip', 0)
+    greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
+    reds_vip = bd.get('loss_vip', 0)
+    taxa_conversao = (conversoes / max(usuarios_unicos, 1)) * 100
+    assertividade_vip = (greens_vip / max(sinais_vip, 1)) * 100
+
+    mensagem = f"""
+📊 **ESTATÍSTICAS DO BOT**
+Uptime: {uptime.days}d {uptime.seconds//3600}h
+Usuários Capturados: {usuarios_unicos}
+Conversões VIP: {conversoes} ({taxa_conversao:.1f}%)
+
+💎 **Canal VIP:**
+Sinais: {sinais_vip} | Greens: {greens_vip} | Reds: {reds_vip}
+Assertividade: {assertividade_vip:.1f}%
+"""
+    await update.message.reply_text(mensagem, parse_mode=ParseMode.MARKDOWN)
+
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -159,7 +186,6 @@ Com ele, você garante:
             [InlineKeyboardButton("1️⃣ ATIVAR OFERTA E USAR CÓDIGO", url=URL_CADASTRO_DEPOSITO)],
             [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', ''  )}")],
         ]
-        # Envia uma nova mensagem em vez de tentar editar, para evitar erros.
         await context.bot.send_message(
             chat_id=user.id,
             text=mensagem,
@@ -175,7 +201,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.bot_data['conversoes_vip'] += 1
     logger.info(f"Conversão VIP registrada para o usuário {user.first_name} ({user.id}).")
     
-    # Mensagem de liberação (pode ser enviada por um sistema externo ou manualmente)
     mensagem_liberacao = f"""
 🎉 **ACESSO VIP LIBERADO, {user.first_name}!** 🎉
 
@@ -188,7 +213,6 @@ Bem-vindo ao time! 🏆
 """
     await context.bot.send_message(chat_id=user.id, text=mensagem_liberacao, parse_mode=ParseMode.MARKDOWN)
 
-# (O resto do código, como a lógica de sinais e agendamentos, permanece o mesmo)
 # --- LÓGICA DE SINAIS ---
 async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, target_id: int, confianca: float):
     bd = context.bot_data
@@ -244,9 +268,9 @@ async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip)
 
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
-    sistema_conversao = context.bot_data.get('sistema_conversao')
-    if not sistema_conversao: return
-    await sistema_conversao.enviar_campanha_marketing(FREE_CANAL_ID)
+    # Esta função pode ser reativada com lógicas de marketing mais complexas no futuro
+    logger.info("Rotina de marketing executada (atualmente sem ação).")
+    pass
 
 # --- FUNÇÃO PRINCIPAL ---
 def main():
@@ -255,10 +279,6 @@ def main():
     
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
     inicializar_estatisticas(app.bot_data)
-
-    # A instância do SistemaConversaoVIP não é mais necessária no main.py se a lógica for simplificada
-    # sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
-    # app.bot_data['sistema_conversao'] = sistema_conversao
 
     app.add_error_handler(error_handler)
 
@@ -270,9 +290,9 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
-    # jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30) # Desativado temporariamente
+    # jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30) # Desativado por enquanto
 
-    logger.info("🚀 Bot do Júnior Moreira V27.1 iniciado com sucesso!")
+    logger.info("🚀 Bot do Júnior Moreira V27.2 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos sendo analisados!")
     
     app.run_polling(drop_pending_updates=True)
