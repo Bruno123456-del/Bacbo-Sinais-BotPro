@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ===================================================================================
-# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.2 (PERSONALIDADE JÚNIOR MOREIRA)
-# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT - VERSÃO FINAL CORRIGIDA
+# MAIN.PY - BOT DE SINAIS APOSTAS MILIONÁRIAS V27.3 (PERSONALIDADE JÚNIOR MOREIRA)
+# ARQUIVO PRINCIPAL PARA EXECUÇÃO DO BOT - VERSÃO FINAL COM MARKETING REATIVADO
 # CRIADO E APRIMORADO POR MANUS
 # ===================================================================================
 
@@ -44,7 +44,7 @@ SUPORTE_TELEGRAM = "@Superfinds_bot"
 # --- CONFIGURAÇÃO DE LOGGING ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime )s - %(name)s - %(levelname)s - %(message)s",
     style='%'
 )
 logging.getLogger("httpx" ).setLevel(logging.WARNING)
@@ -135,9 +135,6 @@ Abraço,
         parse_mode=ParseMode.MARKDOWN
     )
 
-# ==================================================================
-# FUNÇÃO QUE ESTAVA FALTANDO - ADICIONADA DE VOLTA
-# ==================================================================
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     bd = context.bot_data
@@ -268,9 +265,16 @@ async def enviar_sinal_automatico(context: ContextTypes.DEFAULT_TYPE):
     await enviar_sinal_jogo(context, jogo, FREE_CANAL_ID, confianca_vip)
 
 async def enviar_marketing_automatico(context: ContextTypes.DEFAULT_TYPE):
-    # Esta função pode ser reativada com lógicas de marketing mais complexas no futuro
-    logger.info("Rotina de marketing executada (atualmente sem ação).")
-    pass
+    sistema_conversao = context.bot_data.get('sistema_conversao')
+    if not sistema_conversao: 
+        logger.warning("Sistema de conversão não encontrado para marketing automático.")
+        return
+    
+    # Alterna entre prova social e campanha de escassez
+    if random.random() < 0.6: # 60% de chance de enviar prova social
+        await sistema_conversao.enviar_prova_social_conversao(FREE_CANAL_ID)
+    else: # 40% de chance de enviar campanha de escassez
+        await sistema_conversao.executar_campanha_escassez_extrema(FREE_CANAL_ID)
 
 # --- FUNÇÃO PRINCIPAL ---
 def main():
@@ -279,6 +283,10 @@ def main():
     
     app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
     inicializar_estatisticas(app.bot_data)
+
+    # A instância do SistemaConversaoVIP é necessária para o marketing
+    sistema_conversao = SistemaConversaoVIP(app, URL_CADASTRO_DEPOSITO, SUPORTE_TELEGRAM, URL_VIP_ACESSO)
+    app.bot_data['sistema_conversao'] = sistema_conversao
 
     app.add_error_handler(error_handler)
 
@@ -290,10 +298,12 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(enviar_sinal_automatico, interval=45 * 60, first=10)
-    # jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30) # Desativado por enquanto
+    # REATIVANDO A LINHA DE MARKETING
+    jq.run_repeating(enviar_marketing_automatico, interval=90 * 60, first=30)
 
-    logger.info("🚀 Bot do Júnior Moreira V27.2 iniciado com sucesso!")
+    logger.info("🚀 Bot do Júnior Moreira V27.3 iniciado com sucesso!")
     logger.info(f"🎮 {len(JOGOS_COMPLETOS)} jogos sendo analisados!")
+    logger.info("💎 Sistema de conversão VIP ativado!")
     
     app.run_polling(drop_pending_updates=True)
 
