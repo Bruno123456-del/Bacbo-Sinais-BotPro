@@ -21,7 +21,7 @@ Abraço,
 def get_start_keyboard():
     return [
         [InlineKeyboardButton("1️⃣ CADASTRAR E PEGAR BÔNUS", url=URL_CADASTRO_DEPOSITO)],
-        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace(\'@\', \'\' )}")],
+        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace(\'@\', \'\')}")],
         [InlineKeyboardButton("🤔 Quero ver seu canal grátis primeiro", url=URL_TELEGRAM_FREE)]
     ]
 
@@ -29,7 +29,15 @@ def get_vip_signal_message(jogo: str, aposta_escolhida: str) -> str:
     return f"""
 💎 **ENTRADA CONFIRMADA | {jogo}** 💎
 
-Pessoal, podem entrar!\n\n🎯 **Aposta:** {aposta_escolhida}\n🔥 **Confiança da Análise:** Altíssima\n\n🔗 **JOGAR AGORA:**\n[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})\n\nVamos pra cima! 🚀
+Pessoal, podem entrar!
+
+🎯 **Aposta:** {aposta_escolhida}
+🔥 **Confiança da Análise:** Altíssima
+
+🔗 **JOGAR AGORA:**
+[**>> CLIQUE AQUI PARA ACESSAR A PLATAFORMA <<**]({URL_CADASTRO_DEPOSITO})
+
+Vamos pra cima! 🚀
 """
 
 def get_vip_win_message(jogo: str) -> str:
@@ -43,17 +51,38 @@ def get_vip_loss_message(jogo: str) -> str:
 
 def get_free_opportunity_message(confianca: float, jogo: str) -> str:
     return f"""
-🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨
+🚨 **Júnior Moreira na área!** 🚨
 
-Minha análise encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.\n\n🔥 **ACABEI DE ENVIAR O SINAL PARA O GRUPO VIP!** 🔥\n\nO pessoal já está fazendo a entrada. Se você quer parar de só olhar e começar a lucrar comigo, a hora é agora.
+Acabei de identificar uma **OPORTUNIDADE DE LUCRO GIGANTESCA** com **{confianca*100:.0f}% de confiança** no **{jogo}**!
+
+🔥 **O SINAL COMPLETO FOI ENVIADO AGORA MESMO PARA O GRUPO VIP!** 🔥
+
+Lá, a galera já está operando com nossa estratégia exclusiva:
+✅ **Sem GALE:** Focamos em entradas cirúrgicas, sem recuperação forçada.
+🎯 **Alvo de Ganho:** Definimos metas claras para maximizar lucros.
+🛡️ **Proteção Contra Perdas:** Usamos Juros Compostos para proteger sua banca e acelerar seus resultados.
+
+Não perca mais tempo apenas observando! A hora de lucrar de verdade é AGORA.
 """
 
 def get_free_opportunity_keyboard():
-    return [[InlineKeyboardButton("💎 EU QUERO ENTRAR NO VIP, JÚNIOR!", callback_data="oferta_vip")]]
+    return [[InlineKeyboardButton("💎 QUERO LUCRAR NO VIP COM O JÚNIOR!", callback_data="oferta_vip")]]
 
 def get_free_result_message(jogo: str, aposta_escolhida: str, greens_vip: int, reds_vip: int, assertividade_vip: float) -> str:
     return f"""
-✅✅ **GREEN NO VIP!** ✅✅\n\nComo eu disse, pessoal! O sinal que enviei no **{jogo}** bateu. A entrada foi: **{aposta_escolhida}**.\n\nMeu grupo VIP acabou de colocar mais dinheiro no bolso! 🤑\n\n📊 **Meu placar de hoje (VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de perder dinheiro? Vem lucrar com quem entende do assunto.
+✅✅ **GREEN NO VIP CONFIRMADO!** ✅✅
+
+Eu avisei, pessoal! O sinal que enviei no **{jogo}** bateu em cheio! A entrada foi: **{aposta_escolhida}**.
+
+Meu grupo VIP acabou de colocar mais dinheiro no bolso, seguindo nossa metodologia:
+✅ **Sem GALE:** Entradas precisas, sem riscos desnecessários.
+🎯 **Alvo de Ganho:** Foco total em resultados consistentes.
+🛡️ **Proteção de Banca:** Juros Compostos para crescimento seguro e exponencial.
+
+📊 **Nosso placar de hoje (VIP):**
+**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)
+
+Cansado de ver a gente lucrar e ficar de fora? Vem para o time que sabe o que faz!
 """
 
 def get_free_result_keyboard():
@@ -62,4 +91,29 @@ def get_free_result_keyboard():
 def get_vip_offer_message(user_first_name: str) -> str:
     return f"""
 🚨 **Ótima decisão, {user_first_name}!** 🚨
-Estou aqui para te ajudar a lucrar. Siga os passos:\n🔥 **Use o Código Promocional: `GESTAO`** 🔥\nCom ele, você garante:\n💰 **BÔNUS DE ATÉ R$ 600,00**\n💎 **90 DIAS DE ACESSO VIP GRÁTIS**\n📚 **MEU E-BOOK \
+Júnior Moreira aqui para te guiar rumo aos lucros. Siga os passos e garanta sua vaga:
+
+🔥 **Use o Código Promocional: `GESTAO`** 🔥
+
+Com ele, você garante acesso a um mundo de vantagens exclusivas:
+💰 **BÔNUS DE ATÉ R$ 600,00** para começar com o pé direito!
+💎 **90 DIAS DE ACESSO VIP GRÁTIS** aos meus sinais mais quentes!
+✈️ **SORTEIOS DE VIAGENS INCRÍVEIS** para destinos paradisíacos!
+💸 **MALAS DE DINHEIRO** (metáfora para grandes prêmios em eventos exclusivos)!
+🎁 **BÔNUS E GIROS GRÁTIS** nas melhores plataformas!
+🚗 **SORTEIO DE CARRO DE LUXO** para os membros mais engajados!
+📚 **2 E-BOOKS PROFISSIONAIS:** "Juros Compostos na Prática" e "Gestão de Banca Vencedora"!
+
+⚠️ **ATENÇÃO: ESTOU LIBERANDO POUQUÍSSIMAS VAGAS!** Essa é a sua chance de mudar de vida.
+"""
+
+def get_vip_offer_keyboard():
+    return [
+        [InlineKeyboardButton("1️⃣ ATIVAR OFERTA E USAR CÓDIGO", url=URL_CADASTRO_DEPOSITO)],
+        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace(\'@\', \'\')}")],
+    ]
+
+def get_photo_received_message() -> str:
+    return "✅ Comprovante recebido! Minha equipe já vai analisar e te dar o acesso VIP."
+
+
