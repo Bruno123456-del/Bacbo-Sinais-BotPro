@@ -108,24 +108,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # PERSONALIDADE: A mensagem agora é do Júnior, não de uma "IA".
     mensagem = f"""
-Olá, {nome_usuario}! Sou o Júnior Moreira, especialista em análise de dados para jogos online. Seja muito bem-vindo(a).
+Bem-vindo(a) ao grupo VIP, {nome_usuario}! Aqui está sua planilha de gestão gratuita...
 
-Se você chegou até aqui, é porque busca uma forma consistente de lucrar. Eu desenvolvi um sistema que analisa 15 jogos 24h por dia para encontrar as melhores oportunidades para nós.
-
-Preparei uma **condição especial para você começar a lucrar comigo hoje**:
-
-1️⃣ **Faça seu cadastro e primeiro depósito** na plataforma que eu uso e confio. Use o código `GESTAO` para ganhar um bônus de até R$600.
-2️⃣ **Me envie o comprovante** e eu vou te liberar **90 dias de acesso GRÁTIS** ao meu Grupo VIP de sinais.
-
-Vamos começar a investir de forma inteligente.
-
-Abraço,
-**Júnior Moreira**
+Para começar a multiplicar seu capital, faça seu primeiro depósito com o cupom GESTAO e ganhe bônus exclusivos! Acesse: {URL_CADASTRO_DEPOSITO}
 """
     keyboard = [
-        [InlineKeyboardButton("1️⃣ CADASTRAR E PEGAR BÔNUS", url=URL_CADASTRO_DEPOSITO)],
-        [InlineKeyboardButton("2️⃣ ENVIAR COMPROVANTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '' )}")],
-        [InlineKeyboardButton("🤔 Quero ver seu canal grátis primeiro", url=URL_TELEGRAM_FREE)]
+        [InlineKeyboardButton("ACESSE AQUI PARA DEPOSITAR COM BÔNUS", url=URL_CADASTRO_DEPOSITO)],
+        [InlineKeyboardButton("SUPORTE", url=f"https://t.me/{SUPORTE_TELEGRAM.replace('@', '')}")]
     ]
     
     query = update.callback_query
@@ -168,17 +157,28 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         logger.info(f"Enviando Sinal Fantasma (marketing) para o jogo {jogo}.")
         await context.bot.send_animation(chat_id=target_id, animation=random.choice(GIFS_ANALISE), caption=f"Fala, pessoal! Júnior Moreira aqui. Acabei de identificar uma oportunidade no {jogo}...")
         await asyncio.sleep(random.randint(5, 8))
-        msg_oportunidade = f"🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨\n\nMinha análise encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.\n\n🔥 **ACABEI DE ENVIAR O SINAL PARA O GRUPO VIP!** 🔥\n\nO pessoal já está fazendo a entrada. Se você quer parar de só olhar e começar a lucrar comigo, a hora é agora."
+        
+        frases_oportunidade = [
+            f"🚨 **OPORTUNIDADE DE LUCRO IDENTIFICADA!** 🚨\n\nMinha análise encontrou um padrão com **{confianca*100:.0f}% de confiança** no **{jogo}**.\n\n🔥 **ACABEI DE ENVIAR O SINAL PARA O GRUPO VIP!** 🔥\n\nO pessoal já está fazendo a entrada. Se você quer parar de só olhar e começar a lucrar comigo, a hora é agora.",
+            f"👀 **FIQUEM DE OLHO!** 👀\n\nAcabei de detectar um movimento interessante no **{jogo}** com **{confianca*100:.0f}% de assertividade**! \n\n🚀 **SINAL ENVIADO AGORA POUCO NO VIP!** 🚀\n\nMeus alunos já estão aproveitando. Não perca mais tempo, venha para o time vencedor!",
+            f"⚡ **ALERTA DE SINAL QUENTE!** ⚡\n\nO **{jogo}** está com uma oportunidade incrível, e minha análise aponta **{confianca*100:.0f}% de chance** de GREEN! \n\n💰 **O SINAL JÁ ESTÁ NO GRUPO VIP!** 💰\n\nChega de ficar de fora, a hora de mudar seu jogo é agora!"
+        ]
+        msg_oportunidade = random.choice(frases_oportunidade)
         keyboard = [[InlineKeyboardButton("💎 EU QUERO ENTRAR NO VIP, JÚNIOR!", callback_data="oferta_vip")]]
         await context.bot.send_message(chat_id=target_id, text=msg_oportunidade, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
         
         await asyncio.sleep(random.randint(70, 100))
         
-        greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
-        reds_vip = bd.get('loss_vip', 0)
+        greens_vip = bd.get(\'win_primeira_vip\', 0) + bd.get(\'win_gale_vip\', 0)
+        reds_vip = bd.get(\'loss_vip\', 0)
         assertividade_vip = (greens_vip / max(greens_vip + reds_vip, 1)) * 100
         
-        msg_resultado = f"✅✅ **GREEN NO VIP!** ✅✅\n\nComo eu disse, pessoal! O sinal que enviei no **{jogo}** bateu. A entrada foi: **{aposta_escolhida}**.\n\nMeu grupo VIP acabou de colocar mais dinheiro no bolso! 🤑\n\n📊 **Meu placar de hoje (VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de perder dinheiro? Vem lucrar com quem entende do assunto."
+        frases_resultado = [
+            f"✅✅ **GREEN NO VIP!** ✅✅\n\nComo eu disse, pessoal! O sinal que enviei no **{jogo}** bateu. A entrada foi: **{aposta_escolhida}**.\n\nMeu grupo VIP acabou de colocar mais dinheiro no bolso! 🤑\n\n📊 **Meu placar de hoje (VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nCansado de perder dinheiro? Vem lucrar com quem entende do assunto.",
+            f"🎉 **MAIS UM GREEN PARA A CONTA DO VIP!** 🎉\n\nO sinal no **{jogo}** foi certeiro, com a entrada **{aposta_escolhida}**! \n\nÉ o Júnior Moreira mostrando como se faz! 💸\n\n📊 **Nossos resultados de hoje (VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nNão fique só olhando, venha buscar seus lucros!",
+            f"💰 **LUCRO CONFIRMADO NO VIP!** 💰\n\nO **{jogo}** nos deu mais um GREEN espetacular com a entrada **{aposta_escolhida}**! \n\nParabéns aos meus alunos que seguiram o sinal! 🥳\n\n📊 **Performance do dia (VIP):**\n**{greens_vip} ✅ x {reds_vip} ❌** ({assertividade_vip:.1f}% de Assertividade)\n\nChega de desculpas, comece a lucrar de verdade!"
+        ]
+        msg_resultado = random.choice(frases_resultado)
         keyboard_resultado = [[InlineKeyboardButton("🚀 QUERO LUCRAR COM VOCÊ, JÚNIOR!", callback_data="oferta_vip")]]
         
         url_foto = f"https://raw.githubusercontent.com/Bruno123456-del/Bacbo-Sinais-BotPro/main/imagens/prova{random.randint(1, 19 )}.png"
