@@ -169,8 +169,10 @@ async def enviar_sinal_jogo(context: ContextTypes.DEFAULT_TYPE, jogo: str, targe
         
         await asyncio.sleep(random.randint(70, 100))
         
-        greens_vip = bd.get(\'win_primeira_vip\', 0) + bd.get(\'win_gale_vip\', 0)
-        reds_vip = bd.get(\'loss_vip\', 0)
+        greens_vip = bd.get('win_primeira_vip', 0) + bd.get('win_gale_vip', 0)
+
+        reds_vip = bd.get('loss_vip', 0)
+
         assertividade_vip = (greens_vip / max(greens_vip + reds_vip, 1)) * 100
         
         frases_resultado = [
